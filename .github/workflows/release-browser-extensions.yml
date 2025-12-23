@@ -1,0 +1,109 @@
+name: Release Browser Extensions
+
+on:
+  push:
+    branches:
+      - dev
+    paths:
+      - "browser_extensions/**"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 2
+
+      - name: Detect changed extensions
+        id: changed-extensions
+        run: |
+          # Get list of all subdirectories in browser_extensions
+          extensions=$(find browser_extensions -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort)
+
+          # Create array to store extensions to process
+          changed_extensions=""
+
+          for ext in $extensions; do
+            # Check if any files in this extension were modified
+            if git diff --name-only HEAD^ HEAD | grep -q "^browser_extensions/$ext/"; then
+              changed_extensions="$changed_extensions $ext"
+              echo "Detected changes in: $ext"
+            fi
+          done
+
+          # If this is the first commit, process all extensions
+          if [ -z "$(git rev-parse HEAD^ 2>/dev/null)" ]; then
+            changed_extensions="$extensions"
+            echo "First commit detected, processing all extensions"
+          fi
+
+          echo "extensions=$changed_extensions" >> $GITHUB_OUTPUT
+
+      - name: Create ZIP archives
+        if: steps.changed-extensions.outputs.extensions != ''
+        run: |
+          mkdir -p release_assets
+
+          for ext in ${{ steps.changed-extensions.outputs.extensions }}; do
+            echo "Creating ZIP for: $ext"
+
+            # Navigate to the extension directory
+            cd "browser_extensions/$ext"
+
+            # Create ZIP with maximum compression (-9) and recursive (-r)
+            zip -9 -r "../../release_assets/${ext}.zip" .
+
+            cd ../..
+
+            echo "✓ Created ${ext}.zip"
+          done
+
+          ls -lh release_assets/
+
+      - name: Get or create release
+        if: steps.changed-extensions.outputs.extensions != ''
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: browser-extensions
+          name: Browser Extensions (Zipped)
+          body: |
+            ## Browser Extensions - Automated Release
+
+            This release contains zipped versions of all browser extensions.
+            Each ZIP file is automatically updated when changes are committed to the corresponding extension folder.
+
+            **Last updated:** ${{ github.event.head_commit.timestamp }}
+            **Commit:** ${{ github.sha }}
+
+            ### Available Extensions:
+            ${{ steps.changed-extensions.outputs.extensions }}
+
+            ---
+            *This release is automatically maintained by GitHub Actions.*
+          files: release_assets/*.zip
+          draft: false
+          prerelease: false
+          make_latest: true
+          overwrite_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Release summary
+        if: steps.changed-extensions.outputs.extensions != ''
+        run: |
+          echo "### ✅ Release Updated Successfully" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Extensions processed:**" >> $GITHUB_STEP_SUMMARY
+          for ext in ${{ steps.changed-extensions.outputs.extensions }}; do
+            size=$(du -h "release_assets/${ext}.zip" | cut -f1)
+            echo "- \`${ext}.zip\` (${size})" >> $GITHUB_STEP_SUMMARY
+          done
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Release:** [Browser Extensions (Zipped)](${{ github.server_url }}/${{ github.repository }}/releases/tag/browser-extensions)" >> $GITHUB_STEP_SUMMARY
