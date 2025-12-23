@@ -5,7 +5,7 @@ on:
     branches:
       - dev
     paths:
-      - "browser_extensions/**"
+      - "extensions/**"
   workflow_dispatch:
 
 permissions:
@@ -24,10 +24,10 @@ jobs:
       - name: Detect changed extensions
         id: changed-extensions
         run: |
-          extensions=$(find browser_extensions -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort)
+          extensions=$(find extensions -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort)
           changed_extensions=""
           for ext in $extensions; do
-            if git diff --name-only HEAD^ HEAD | grep -q "^browser_extensions/$ext/"; then
+            if git diff --name-only HEAD^ HEAD | grep -q "^extensions/$ext/"; then
               changed_extensions="$changed_extensions $ext"
               echo "Detected changes in: $ext"
             fi
@@ -44,7 +44,7 @@ jobs:
           mkdir -p release_assets
           for ext in ${{ steps.changed-extensions.outputs.extensions }}; do
             echo "Creating ZIP for: $ext"
-            cd "browser_extensions/$ext"
+            cd "extensions/$ext"
             zip -9 -r "../../release_assets/${ext}.zip" .
             cd ../..
             echo "✓ Created ${ext}.zip"
