@@ -1,26 +1,34 @@
-(function() {
-    'use strict';
+(function () {
+  "use strict";
 
-    let state = {
-        codigo: null,
-        idLancamento: null,
-        status: 'AGUARDANDO...',
-        modo: 'loading',
-        distrito: '--',
-        previsao: '--/--/----',
-        detalhes: {}
-    };
+  let state = {
+    codigo: null,
+    idLancamento: null,
+    status: "AGUARDANDO...",
+    modo: "loading",
+    distrito: "--",
+    previsao: "--/--/----",
+    detalhes: {},
+  };
 
-    let uiInitialized = false;
-    let isDetailsOpen = localStorage.getItem('sro_details_open') === 'true';
-    let dragConfig = { active: false, currentX: 0, currentY: 0, initialX: 0, initialY: 0, xOffset: 0, yOffset: 0 };
+  let uiInitialized = false;
+  let isDetailsOpen = localStorage.getItem("sro_details_open") === "true";
+  let dragConfig = {
+    active: false,
+    currentX: 0,
+    currentY: 0,
+    initialX: 0,
+    initialY: 0,
+    xOffset: 0,
+    yOffset: 0,
+  };
 
-    function initUI() {
-        if (document.getElementById('sro-styles')) return;
+  function initUI() {
+    if (document.getElementById("sro-styles")) return;
 
-        const style = document.createElement('style');
-        style.id = 'sro-styles';
-        style.innerHTML = `
+    const style = document.createElement("style");
+    style.id = "sro-styles";
+    style.innerHTML = `
             #sro-container { position: fixed; top: 15px; right: 15px; z-index: 999999; display: flex; flex-direction: column; }
             .sro-card { width: 280px; background: #fff; border-radius: 6px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); font-family: 'Segoe UI', Arial, sans-serif; overflow: hidden; opacity: 0; transform: translateY(-10px); transition: opacity 0.2s, transform 0.2s; border-left: 10px solid #999; display: none; }
             .sro-card.visible { display: block; opacity: 1; transform: translateY(0); }
@@ -53,12 +61,12 @@
             .mode-info .sro-header { background: #e3f2fd; }
             .mode-info .sro-status-text { color: #0d47a1; }
         `;
-        document.head.appendChild(style);
+    document.head.appendChild(style);
 
-        const container = document.createElement('div');
-        container.id = 'sro-container';
+    const container = document.createElement("div");
+    container.id = "sro-container";
 
-        container.innerHTML = `
+    container.innerHTML = `
             <div id="sro-card" class="sro-card mode-loading">
                 <div id="sro-header" class="sro-header" title="Clique duas vezes para resetar a posição">
                     <span id="sro-status" class="sro-status-text">AGUARDANDO...</span>
@@ -80,273 +88,318 @@
                 </div>
             </div>
         `;
-        document.body.appendChild(container);
+    document.body.appendChild(container);
 
-        document.getElementById('sro-footer').addEventListener('click', toggleDetails);
-        const header = document.getElementById('sro-header');
+    document
+      .getElementById("sro-footer")
+      .addEventListener("click", toggleDetails);
+    const header = document.getElementById("sro-header");
 
-        header.addEventListener("mousedown", dragStart, false);
-        header.addEventListener("dblclick", resetPosition, false);
-        document.addEventListener("mouseup", dragEnd, false);
-        document.addEventListener("mousemove", drag, false);
+    header.addEventListener("mousedown", dragStart, false);
+    header.addEventListener("dblclick", resetPosition, false);
+    document.addEventListener("mouseup", dragEnd, false);
+    document.addEventListener("mousemove", drag, false);
 
-        applyDetailsState();
-        uiInitialized = true;
+    applyDetailsState();
+    uiInitialized = true;
+  }
+
+  function resetPosition() {
+    dragConfig.xOffset = 0;
+    dragConfig.yOffset = 0;
+    dragConfig.currentX = 0;
+    dragConfig.currentY = 0;
+    const container = document.getElementById("sro-container");
+    if (container) setTranslate(0, 0, container);
+  }
+
+  function dragStart(e) {
+    if (e.target.closest("#sro-footer")) return;
+    dragConfig.initialX = e.clientX - dragConfig.xOffset;
+    dragConfig.initialY = e.clientY - dragConfig.yOffset;
+    if (
+      e.target === document.getElementById("sro-header") ||
+      e.target.parentNode === document.getElementById("sro-header")
+    ) {
+      dragConfig.active = true;
+    }
+  }
+
+  function dragEnd() {
+    dragConfig.initialX = dragConfig.currentX;
+    dragConfig.initialY = dragConfig.currentY;
+    dragConfig.active = false;
+    adjustPositionInBounds();
+  }
+
+  function drag(e) {
+    if (dragConfig.active) {
+      e.preventDefault();
+      dragConfig.currentX = e.clientX - dragConfig.initialX;
+      dragConfig.currentY = e.clientY - dragConfig.initialY;
+      dragConfig.xOffset = dragConfig.currentX;
+      dragConfig.yOffset = dragConfig.currentY;
+      setTranslate(
+        dragConfig.currentX,
+        dragConfig.currentY,
+        document.getElementById("sro-container"),
+      );
+    }
+  }
+
+  function setTranslate(xPos, yPos, el) {
+    el.style.transform = `translate3d(${xPos}px, ${yPos}px, 0)`;
+  }
+
+  function adjustPositionInBounds() {
+    const container = document.getElementById("sro-container");
+    if (!container) return;
+
+    const rect = container.getBoundingClientRect();
+    const winW = window.innerWidth;
+    const winH = window.innerHeight;
+    let corrected = false;
+
+    if (rect.right > winW) {
+      dragConfig.currentX -= rect.right - winW + 10;
+      corrected = true;
+    }
+    if (rect.left < 0) {
+      dragConfig.currentX += Math.abs(rect.left) + 10;
+      corrected = true;
+    }
+    if (rect.bottom > winH) {
+      dragConfig.currentY -= rect.bottom - winH + 10;
+      corrected = true;
+    }
+    if (rect.top < 0) {
+      dragConfig.currentY += Math.abs(rect.top) + 10;
+      corrected = true;
     }
 
-    function resetPosition() {
-        dragConfig.xOffset = 0;
-        dragConfig.yOffset = 0;
-        dragConfig.currentX = 0;
-        dragConfig.currentY = 0;
-        const container = document.getElementById('sro-container');
-        if (container) setTranslate(0, 0, container);
+    if (corrected) {
+      dragConfig.xOffset = dragConfig.currentX;
+      dragConfig.yOffset = dragConfig.currentY;
+      dragConfig.initialX = dragConfig.currentX;
+      dragConfig.initialY = dragConfig.currentY;
+      setTranslate(dragConfig.currentX, dragConfig.currentY, container);
     }
+  }
 
-    function dragStart(e) {
-        if (e.target.closest('#sro-footer')) return;
-        dragConfig.initialX = e.clientX - dragConfig.xOffset;
-        dragConfig.initialY = e.clientY - dragConfig.yOffset;
-        if (e.target === document.getElementById('sro-header') || e.target.parentNode === document.getElementById('sro-header')) {
-            dragConfig.active = true;
-        }
-    }
-
-    function dragEnd() {
-        dragConfig.initialX = dragConfig.currentX;
-        dragConfig.initialY = dragConfig.currentY;
-        dragConfig.active = false;
-        adjustPositionInBounds();
-    }
-
-    function drag(e) {
-        if (dragConfig.active) {
-            e.preventDefault();
-            dragConfig.currentX = e.clientX - dragConfig.initialX;
-            dragConfig.currentY = e.clientY - dragConfig.initialY;
-            dragConfig.xOffset = dragConfig.currentX;
-            dragConfig.yOffset = dragConfig.currentY;
-            setTranslate(dragConfig.currentX, dragConfig.currentY, document.getElementById('sro-container'));
-        }
-    }
-
-    function setTranslate(xPos, yPos, el) {
-        el.style.transform = `translate3d(${xPos}px, ${yPos}px, 0)`;
-    }
-
-    function adjustPositionInBounds() {
-        const container = document.getElementById('sro-container');
-        if (!container) return;
-
-        const rect = container.getBoundingClientRect();
-        const winW = window.innerWidth;
-        const winH = window.innerHeight;
-        let corrected = false;
-
-        if (rect.right > winW) { dragConfig.currentX -= (rect.right - winW + 10); corrected = true; }
-        if (rect.left < 0) { dragConfig.currentX += (Math.abs(rect.left) + 10); corrected = true; }
-        if (rect.bottom > winH) { dragConfig.currentY -= (rect.bottom - winH + 10); corrected = true; }
-        if (rect.top < 0) { dragConfig.currentY += (Math.abs(rect.top) + 10); corrected = true; }
-
-        if (corrected) {
-            dragConfig.xOffset = dragConfig.currentX;
-            dragConfig.yOffset = dragConfig.currentY;
-            dragConfig.initialX = dragConfig.currentX;
-            dragConfig.initialY = dragConfig.currentY;
-            setTranslate(dragConfig.currentX, dragConfig.currentY, container);
-        }
-    }
-
-    function applyDetailsState() {
-        const detailsEl = document.getElementById('sro-details');
-        const footerTxt = document.getElementById('sro-footer-text');
-        if (isDetailsOpen) {
-            detailsEl.classList.add('open');
-            footerTxt.innerText = "▲ MENOS INFORMAÇÕES";
-        } else {
-            detailsEl.classList.remove('open');
-            footerTxt.innerText = "▼ MAIS INFORMAÇÕES";
-        }
-        setTimeout(adjustPositionInBounds, 310);
-    }
-
-    function toggleDetails() {
-        isDetailsOpen = !isDetailsOpen;
-        localStorage.setItem('sro_details_open', isDetailsOpen);
-        applyDetailsState();
-    }
-
-    function render() {
-        if (!uiInitialized) initUI();
-
-        const card = document.getElementById('sro-card');
-        const elStatus = document.getElementById('sro-status');
-        const elIcon = document.getElementById('sro-icon');
-        const elDistrito = document.getElementById('sro-distrito');
-        const elPrevisao = document.getElementById('sro-previsao');
-        const elContent = document.getElementById('sro-details-content');
-
-        let icon = '⏳';
-        if (state.modo === 'success') icon = '✅';
-        if (state.modo === 'error') icon = '⛔';
-        if (state.modo === 'info') icon = '⚠️';
-
-        card.className = `sro-card visible mode-${state.modo}`;
-        elStatus.innerText = state.status;
-        elIcon.innerText = icon;
-        elDistrito.innerText = state.distrito;
-        elPrevisao.innerText = state.previsao || '--/--/----';
-
-        let html = '';
-        html += `<div class="sro-row"><span class="sro-key">Objeto:</span> <span class="sro-val">${state.codigo || '--'}</span></div>`;
-        if (state.detalhes.msg) html += `<div class="sro-row"><span class="sro-key">Sistema:</span> <span class="sro-val">${state.detalhes.msg}</span></div>`;
-        if (state.detalhes.carteiro) html += `<div class="sro-row"><span class="sro-key">Carteiro:</span> <span class="sro-val">${state.detalhes.carteiro}</span></div>`;
-        if (state.detalhes.servicos) html += `<div class="sro-row"><span class="sro-key">Serviços:</span> <span class="sro-val">${state.detalhes.servicos}</span></div>`;
-
-        elContent.innerHTML = html;
-        setTimeout(adjustPositionInBounds, 100);
-    }
-
-    function resetState(novoCodigo) {
-        state = {
-            codigo: novoCodigo,
-            idLancamento: null,
-            status: 'LENDO...',
-            modo: 'loading',
-            distrito: '--',
-            previsao: '--/--/----',
-            detalhes: { msg: 'Processando...' }
-        };
-        render();
-    }
-
-    function processarDados(url, json) {
-        let codigoUrl = null;
-        try {
-            const u = new URL(url, window.location.origin);
-            codigoUrl = u.searchParams.get('codigo') || u.searchParams.get('id') || u.searchParams.get('objeto');
-        } catch(e){}
-
-        if (url.includes('ObjetoController.php?acao=validar') && codigoUrl && codigoUrl !== state.codigo) {
-            resetState(codigoUrl);
-        }
-
-        if (url.includes('ObjetoController.php?acao=validar')) {
-            if (json.validacao) {
-                if (state.modo !== 'success' && state.modo !== 'error') {
-                    state.modo = 'info';
-                    state.status = 'PRONTO P/ INDUZIR';
-                }
-                state.previsao = json.previsaoEntrega?.data || '--/--/----';
-                state.detalhes.msg = json.ultimoEventoDescricao || 'Validado';
-            } else {
-                state.modo = 'error';
-                state.status = 'NÃO INDUZIDO';
-                state.detalhes.msg = json.excecao || 'Objeto inválido';
-                state.previsao = '--/--/----';
-            }
-        }
-        else if (url.includes('EnderecoController.php')) {
-            if (json.servico) {
-                let s = [];
-                if(json.servico.ar === 'S') s.push('AR');
-                if(json.servico.mp === 'S') s.push('MP');
-                if(json.servico.dd === 'S') s.push('DD');
-                state.detalhes.servicos = s.join(' + ');
-            }
-        }
-        else if (url.includes('DistritamentoTrechoController.php')) {
-            if (Array.isArray(json) && json.length > 0 && json[0].rotulo) {
-                const partes = json[0].rotulo.split(' ');
-                state.distrito = (partes.length >= 2) ? `${partes[0]} ${partes[1]}` : json[0].rotulo;
-            }
-        }
-        else if (url.includes('LancamentoController.php?acao=pesquisarLoecObjeto')) {
-            if (json.id) {
-                state.modo = 'success';
-                state.status = 'JÁ INDUZIDO';
-                state.idLancamento = json.idLancamento;
-                state.distrito = `${json.numeroDistrito} ${json.distritoComplemento}`;
-                if(json.carteiro?.nome) state.detalhes.carteiro = json.carteiro.nome;
-                state.detalhes.msg = "Objeto já consta na lista.";
-            }
-        }
-        else if (url.includes('LancamentoController.php?acao=salvar')) {
-            if (json.idLancamento) {
-                state.idLancamento = json.idLancamento;
-                state.modo = 'success';
-                state.status = 'OBJETO INDUZIDO';
-                state.detalhes.msg = "Inclusão confirmada.";
-                if(json.dataPrevista) state.previsao = json.dataPrevista;
-            }
-        }
-        else if (url.includes('LancamentoController.php?acao=listar')) {
-            if (Array.isArray(json) && state.idLancamento) {
-                const item = json.find(i => i.idLancamento === state.idLancamento);
-                if (item) {
-                    state.distrito = item.numeroDistrito;
-                    if (item.nomeCarteiro) state.detalhes.carteiro = item.nomeCarteiro;
-                    render();
-                }
-            }
-        }
-        else if (url.includes('ObjetoController.php?acao=excluir')) {
-            state.modo = 'error';
-            state.status = 'EXCLUÍDO';
-            state.distrito = '--';
-            state.detalhes.msg = "Objeto removido da lista.";
-            state.previsao = '--/--/----';
-        }
-        render();
-    }
-
-    const nativeFetch = window.fetch;
-    window.fetch = async function(...args) {
-        const url = args[0] ? args[0].toString() : '';
-        const init = args[1];
-        if (url.includes('LancamentoController.php?acao=salvar') && init && init.body) {
-            try {
-                const payload = JSON.parse(init.body);
-                if (payload.distrito) { state.distrito = payload.distrito; render(); }
-            } catch(e){}
-        }
-        const response = await nativeFetch.apply(this, args);
-        try {
-            if (url.includes('Controller.php')) {
-                const clone = response.clone();
-                clone.json().then(data => processarDados(url, data)).catch(()=>{});
-            }
-        } catch (e) {}
-        return response;
-    };
-
-    const nativeOpen = XMLHttpRequest.prototype.open;
-    const nativeSend = XMLHttpRequest.prototype.send;
-    XMLHttpRequest.prototype.open = function(method, url) {
-        this._sroTargetUrl = url;
-        return nativeOpen.apply(this, arguments);
-    };
-    XMLHttpRequest.prototype.send = function(body) {
-        if (this._sroTargetUrl && this._sroTargetUrl.includes('LancamentoController.php?acao=salvar') && body) {
-            try {
-                const payload = JSON.parse(body);
-                if (payload.distrito) { state.distrito = payload.distrito; render(); }
-            } catch(e){}
-        }
-        this.addEventListener('load', function() {
-            if (this._sroTargetUrl && this._sroTargetUrl.includes('Controller.php')) {
-                try {
-                    const data = JSON.parse(this.responseText);
-                    processarDados(this._sroTargetUrl, data);
-                } catch (e) {}
-            }
-        });
-        return nativeSend.apply(this, arguments);
-    };
-
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initUI);
+  function applyDetailsState() {
+    const detailsEl = document.getElementById("sro-details");
+    const footerTxt = document.getElementById("sro-footer-text");
+    if (isDetailsOpen) {
+      detailsEl.classList.add("open");
+      footerTxt.innerText = "▲ MENOS INFORMAÇÕES";
     } else {
-        initUI();
+      detailsEl.classList.remove("open");
+      footerTxt.innerText = "▼ MAIS INFORMAÇÕES";
     }
+    setTimeout(adjustPositionInBounds, 310);
+  }
+
+  function toggleDetails() {
+    isDetailsOpen = !isDetailsOpen;
+    localStorage.setItem("sro_details_open", isDetailsOpen);
+    applyDetailsState();
+  }
+
+  function render() {
+    if (!uiInitialized) initUI();
+
+    const card = document.getElementById("sro-card");
+    const elStatus = document.getElementById("sro-status");
+    const elIcon = document.getElementById("sro-icon");
+    const elDistrito = document.getElementById("sro-distrito");
+    const elPrevisao = document.getElementById("sro-previsao");
+    const elContent = document.getElementById("sro-details-content");
+
+    let icon = "⏳";
+    if (state.modo === "success") icon = "✅";
+    if (state.modo === "error") icon = "⛔";
+    if (state.modo === "info") icon = "⚠️";
+
+    card.className = `sro-card visible mode-${state.modo}`;
+    elStatus.innerText = state.status;
+    elIcon.innerText = icon;
+    elDistrito.innerText = state.distrito;
+    elPrevisao.innerText = state.previsao || "--/--/----";
+
+    let html = "";
+    html += `<div class="sro-row"><span class="sro-key">Objeto:</span> <span class="sro-val">${state.codigo || "--"}</span></div>`;
+    if (state.detalhes.msg)
+      html += `<div class="sro-row"><span class="sro-key">Sistema:</span> <span class="sro-val">${state.detalhes.msg}</span></div>`;
+    if (state.detalhes.carteiro)
+      html += `<div class="sro-row"><span class="sro-key">Carteiro:</span> <span class="sro-val">${state.detalhes.carteiro}</span></div>`;
+    if (state.detalhes.servicos)
+      html += `<div class="sro-row"><span class="sro-key">Serviços:</span> <span class="sro-val">${state.detalhes.servicos}</span></div>`;
+
+    elContent.innerHTML = html;
+    setTimeout(adjustPositionInBounds, 100);
+  }
+
+  function resetState(novoCodigo) {
+    state = {
+      codigo: novoCodigo,
+      idLancamento: null,
+      status: "LENDO...",
+      modo: "loading",
+      distrito: "--",
+      previsao: "--/--/----",
+      detalhes: { msg: "Processando..." },
+    };
+    render();
+  }
+
+  function processarDados(url, json) {
+    let codigoUrl = null;
+    try {
+      const u = new URL(url, window.location.origin);
+      codigoUrl =
+        u.searchParams.get("codigo") ||
+        u.searchParams.get("id") ||
+        u.searchParams.get("objeto");
+    } catch (e) {}
+
+    if (
+      url.includes("ObjetoController.php?acao=validar") &&
+      codigoUrl &&
+      codigoUrl !== state.codigo
+    ) {
+      resetState(codigoUrl);
+    }
+
+    if (url.includes("ObjetoController.php?acao=validar")) {
+      if (json.validacao) {
+        if (state.modo !== "success" && state.modo !== "error") {
+          state.modo = "info";
+          state.status = "PRONTO P/ INDUZIR";
+        }
+        state.previsao = json.previsaoEntrega?.data || "--/--/----";
+        state.detalhes.msg = json.ultimoEventoDescricao || "Validado";
+      } else {
+        state.modo = "error";
+        state.status = "NÃO INDUZIDO";
+        state.detalhes.msg = json.excecao || "Objeto inválido";
+        state.previsao = "--/--/----";
+      }
+    } else if (url.includes("EnderecoController.php")) {
+      if (json.servico) {
+        let s = [];
+        if (json.servico.ar === "S") s.push("AR");
+        if (json.servico.mp === "S") s.push("MP");
+        if (json.servico.dd === "S") s.push("DD");
+        state.detalhes.servicos = s.join(" + ");
+      }
+    } else if (url.includes("DistritamentoTrechoController.php")) {
+      if (Array.isArray(json) && json.length > 0 && json[0].rotulo) {
+        const partes = json[0].rotulo.split(" ");
+        state.distrito =
+          partes.length >= 2 ? `${partes[0]} ${partes[1]}` : json[0].rotulo;
+      }
+    } else if (
+      url.includes("LancamentoController.php?acao=pesquisarLoecObjeto")
+    ) {
+      if (json.id) {
+        state.modo = "success";
+        state.status = "JÁ INDUZIDO";
+        state.idLancamento = json.idLancamento;
+        state.distrito = `${json.numeroDistrito} ${json.distritoComplemento}`;
+        if (json.carteiro?.nome) state.detalhes.carteiro = json.carteiro.nome;
+        state.detalhes.msg = "Objeto já consta na lista.";
+      }
+    } else if (url.includes("LancamentoController.php?acao=salvar")) {
+      if (json.idLancamento) {
+        state.idLancamento = json.idLancamento;
+        state.modo = "success";
+        state.status = "OBJETO INDUZIDO";
+        state.detalhes.msg = "Inclusão confirmada.";
+        if (json.dataPrevista) state.previsao = json.dataPrevista;
+      }
+    } else if (url.includes("LancamentoController.php?acao=listar")) {
+      if (Array.isArray(json) && state.idLancamento) {
+        const item = json.find((i) => i.idLancamento === state.idLancamento);
+        if (item) {
+          state.distrito = item.numeroDistrito;
+          if (item.nomeCarteiro) state.detalhes.carteiro = item.nomeCarteiro;
+          render();
+        }
+      }
+    } else if (url.includes("ObjetoController.php?acao=excluir")) {
+      state.modo = "error";
+      state.status = "EXCLUÍDO";
+      state.distrito = "--";
+      state.detalhes.msg = "Objeto removido da lista.";
+      state.previsao = "--/--/----";
+    }
+    render();
+  }
+
+  const nativeFetch = window.fetch;
+  window.fetch = async function (...args) {
+    const url = args[0] ? args[0].toString() : "";
+    const init = args[1];
+    if (
+      url.includes("LancamentoController.php?acao=salvar") &&
+      init &&
+      init.body
+    ) {
+      try {
+        const payload = JSON.parse(init.body);
+        if (payload.distrito) {
+          state.distrito = payload.distrito;
+          render();
+        }
+      } catch (e) {}
+    }
+    const response = await nativeFetch.apply(this, args);
+    try {
+      if (url.includes("Controller.php")) {
+        const clone = response.clone();
+        clone
+          .json()
+          .then((data) => processarDados(url, data))
+          .catch(() => {});
+      }
+    } catch (e) {}
+    return response;
+  };
+
+  const nativeOpen = XMLHttpRequest.prototype.open;
+  const nativeSend = XMLHttpRequest.prototype.send;
+  XMLHttpRequest.prototype.open = function (method, url) {
+    this._sroTargetUrl = url;
+    return nativeOpen.apply(this, arguments);
+  };
+  XMLHttpRequest.prototype.send = function (body) {
+    if (
+      this._sroTargetUrl &&
+      this._sroTargetUrl.includes("LancamentoController.php?acao=salvar") &&
+      body
+    ) {
+      try {
+        const payload = JSON.parse(body);
+        if (payload.distrito) {
+          state.distrito = payload.distrito;
+          render();
+        }
+      } catch (e) {}
+    }
+    this.addEventListener("load", function () {
+      if (this._sroTargetUrl && this._sroTargetUrl.includes("Controller.php")) {
+        try {
+          const data = JSON.parse(this.responseText);
+          processarDados(this._sroTargetUrl, data);
+        } catch (e) {}
+      }
+    });
+    return nativeSend.apply(this, arguments);
+  };
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initUI);
+  } else {
+    initUI();
+  }
 })();
