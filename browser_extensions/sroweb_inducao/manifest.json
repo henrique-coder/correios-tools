@@ -1,0 +1,29 @@
+{
+  "manifest_version": 3,
+  "name": "SRO Web - Operacional (Indução)",
+  "version": "2.4",
+  "description": "Ferramenta operacional para validação visual de indução no SRO Web.",
+  "author": "Henrique Moreira",
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {},
+  "content_scripts": [
+    {
+      "matches": [
+        "https://sroweb.correios.com.br/app/entregaexternaautomatica/lancamento/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_start"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["injected.js"],
+      "matches": ["https://sroweb.correios.com.br/*"]
+    }
+  ],
+  "host_permissions": [
+    "https://sroweb.correios.com.br/*"
+  ]
+}
