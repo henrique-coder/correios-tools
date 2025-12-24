@@ -10,22 +10,22 @@ Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 
 Clear-Host
-Write-Host ">>> INSTALLING CORREIOS TOOLS <<<" -ForegroundColor Cyan
+Write-Host ">>> INSTALANDO CORREIOS TOOLS <<<" -ForegroundColor Cyan
 
 $Browsers = Get-Process -Name "msedge", "chrome" -ErrorAction SilentlyContinue
 if ($Browsers) {
     $Result = [System.Windows.Forms.MessageBox]::Show(
-        "We need to close Chrome and Edge to configure the environment.`n`nCan we close them now?",
-        "Correios Tools Setup",
+        "Precisamos fechar o Chrome e o Edge para configurar o ambiente.`n`nPodemos fechar agora?",
+        "Configuracao Correios Tools",
         [System.Windows.Forms.MessageBoxButtons]::YesNo,
         [System.Windows.Forms.MessageBoxIcon]::Question
     )
-
+    
     if ($Result -eq "Yes") {
         Stop-Process -Name "msedge", "chrome" -Force -ErrorAction SilentlyContinue
-        Write-Host "[OK] Browsers closed." -ForegroundColor Green
+        Write-Host "[OK] Navegadores fechados." -ForegroundColor Green
     } else {
-        Write-Warning "Installation cancelled by user."
+        Write-Warning "Instalacao cancelada pelo usuario."
         Exit
     }
 }
@@ -35,13 +35,13 @@ if (!(Test-Path $DirData)) {
 }
 
 try {
-    Write-Host "Downloading system files..." -ForegroundColor Yellow
+    Write-Host "Baixando arquivos do sistema..." -ForegroundColor Yellow
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
     Invoke-WebRequest -Uri $UrlLauncher -OutFile $LauncherLocal -UseBasicParsing
     Invoke-WebRequest -Uri $UrlIcon -OutFile $IconLocal -UseBasicParsing
-    Write-Host "[OK] System files downloaded." -ForegroundColor Green
+    Write-Host "[OK] Arquivos do sistema baixados." -ForegroundColor Green
 } catch {
-    [System.Windows.Forms.MessageBox]::Show("Failed to download system files. Check internet connection.", "Fatal Error", "OK", "Error")
+    [System.Windows.Forms.MessageBox]::Show("Falha ao baixar arquivos. Verifique a conexao.", "Erro Fatal", "OK", "Error")
     Exit
 }
 
@@ -55,10 +55,10 @@ try {
     $Shortcut.IconLocation = $IconLocal
     $Shortcut.Description = "Correios Tools Launcher"
     $Shortcut.Save()
-    Write-Host "[OK] Shortcut created." -ForegroundColor Green
+    Write-Host "[OK] Atalho criado." -ForegroundColor Green
 } catch {
-    Write-Error "Failed to create shortcut."
+    Write-Error "Falha ao criar atalho."
 }
 
 Start-Process "explorer.exe" -ArgumentList $DirBase
-[System.Windows.Forms.MessageBox]::Show("Installation Successful!`n`nThe installation folder is open. You can now use the 'Correios Tools' shortcut.", "Success", "OK", "Information")
+[System.Windows.Forms.MessageBox]::Show("Instalacao Concluida!`n`nA pasta foi aberta. Voce ja pode usar o atalho 'Correios Tools'.", "Sucesso", "OK", "Information")
