@@ -14,24 +14,27 @@ $SelfPath = $MyInvocation.MyCommand.Path
 function Draw-Header {
     Clear-Host
     Write-Host ""
-    Write-Host "  ##################################################  " -ForegroundColor DarkBlue -BackgroundColor Cyan
-    Write-Host "             CORREIOS TOOLS - CDD LAUNCHER            " -ForegroundColor White -BackgroundColor DarkBlue
-    Write-Host "  ##################################################  " -ForegroundColor DarkBlue -BackgroundColor Cyan
+    Write-Host "                                                  " -BackgroundColor DarkBlue
+    Write-Host "             CORREIOS TOOLS - MANAGER             " -ForegroundColor White -BackgroundColor DarkBlue
+    Write-Host "                                                  " -BackgroundColor DarkBlue
     Write-Host ""
-    Write-Host "  [ User: $env:USERNAME ]" -ForegroundColor Gray
+    Write-Host "  User: $env:USERNAME" -ForegroundColor Gray
+    Write-Host "  Host: $env:COMPUTERNAME" -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "  ----------------------------------------------  " -ForegroundColor DarkGray
     Write-Host ""
 }
 
 function Check-SelfUpdate {
-    Write-Host "  [*] Checking for system updates..." -ForegroundColor Cyan
+    Write-Host "  [*] Checking system integrity..." -ForegroundColor Cyan
     $TempSelf = "$DirData\launcher_new.tmp"
     try {
         Invoke-WebRequest -Uri $UrlSelfUpdate -OutFile $TempSelf -UseBasicParsing
         $ContentNew = Get-Content $TempSelf -Raw
         $ContentOld = Get-Content $SelfPath -Raw
-        
+
         if ($ContentNew.Length -ne $ContentOld.Length) {
-            Write-Host "  [!] SYSTEM UPDATE FOUND! RESTARTING..." -ForegroundColor Magenta
+            Write-Host "  [!] SYSTEM UPDATE FOUND. RESTARTING..." -ForegroundColor Magenta
             Copy-Item $TempSelf $SelfPath -Force
             Remove-Item $TempSelf -Force
             Start-Process powershell.exe -ArgumentList "-ExecutionPolicy Bypass -WindowStyle Maximized -File `"$SelfPath`""
@@ -39,16 +42,16 @@ function Check-SelfUpdate {
         }
         Remove-Item $TempSelf -Force
     } catch {
-        Write-Warning "  [!] Update check failed. Using local version."
+        Write-Warning "  [!] Update check failed. Running offline mode."
     }
 }
 
 function Update-Extensions {
     Write-Host "  [*] Synchronizing tools..." -ForegroundColor Cyan
-    
+
     if (Test-Path $DirExtensions) { Remove-Item $DirExtensions -Recurse -Force }
     New-Item -ItemType Directory -Path $DirExtensions -Force | Out-Null
-    
+
     $Count = 0
     foreach ($Url in $ExtensionUrls) {
         $Count++
@@ -60,9 +63,9 @@ function Update-Extensions {
             Invoke-WebRequest -Uri $Url -OutFile $ZipFile -UseBasicParsing
             Expand-Archive -Path $ZipFile -DestinationPath $DestFolder -Force
             Remove-Item $ZipFile -Force
-            Write-Host "  [+] Tool $Count ready." -ForegroundColor Green
+            Write-Host "  [+] Tool package $Count installed." -ForegroundColor Green
         } catch {
-            Write-Warning "  [!] Failed to download Tool $Count."
+            Write-Warning "  [!] Failed to install Tool package $Count."
         }
     }
 }
@@ -70,7 +73,7 @@ function Update-Extensions {
 function Get-ExtensionString {
     $ExtPaths = @()
     $PotentialDirs = Get-ChildItem -Path $DirExtensions -Directory -Recurse
-    
+
     foreach ($Dir in $PotentialDirs) {
         if (Test-Path "$($Dir.FullName)\manifest.json") {
             $ExtPaths += $Dir.FullName
@@ -104,39 +107,39 @@ function Configure-BrowserPrefs ($BrowserName) {
 Draw-Header
 Check-SelfUpdate
 
-Write-Host "  [*] Preparing environment (Closing Browsers)..." -ForegroundColor Cyan
+Write-Host "  [*] Closing active browsers..." -ForegroundColor Cyan
 Stop-Process -Name "msedge", "chrome" -ErrorAction SilentlyContinue -Force
 
 Update-Extensions
 $LoadExtArg = Get-ExtensionString
 
 if ([string]::IsNullOrWhiteSpace($LoadExtArg)) {
-    Write-Warning "  [!] No valid tools found."
+    Write-Warning "  [!] No tools loaded."
 }
 
 $StartUrl = "https://sroweb.correios.com.br/app/entregaexternaautomatica/lancamento/index.php"
 
 while ($true) {
     Draw-Header
-    Write-Host "  SELECT BROWSER TO START:" -ForegroundColor Yellow
-    Write-Host "  ------------------------" -ForegroundColor Gray
+    Write-Host "  SELECT BROWSER:" -ForegroundColor Yellow
+    Write-Host ""
     Write-Host "  [1] Microsoft Edge" -ForegroundColor White
     Write-Host "  [2] Google Chrome" -ForegroundColor White
     Write-Host ""
-    Write-Host "  [ENTER] Exit" -ForegroundColor Gray
+    Write-Host "  [ENTER] Exit" -ForegroundColor DarkGray
     Write-Host ""
-    
-    $InputUser = Read-Host "  > Select Option"
+
+    $InputUser = Read-Host "  > Option"
 
     if ($InputUser -eq "") { Exit }
 
     $BrowserBin = ""
     $BrowserName = ""
 
-    if ($InputUser -eq "1") { 
+    if ($InputUser -eq "1") {
         $BrowserBin = "msedge"
         $BrowserName = "Edge"
-    } elseif ($InputUser -eq "2") { 
+    } elseif ($InputUser -eq "2") {
         $BrowserBin = "chrome"
         $BrowserName = "Chrome"
     } else {
@@ -159,8 +162,8 @@ while ($true) {
     }
 
     Start-Process $BrowserBin -ArgumentList $ArgsList
-    
+
     Write-Host ""
-    Write-Host "  [V] Browser running. Starting new cycle..." -ForegroundColor DarkGray
+    Write-Host "  [V] Browser started. Ready for next command." -ForegroundColor DarkGray
     Start-Sleep -Seconds 2
 }
