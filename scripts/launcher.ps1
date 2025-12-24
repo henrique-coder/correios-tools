@@ -5,21 +5,33 @@ $ExtensionUrls = @(
 $UrlSelfUpdate = "https://github.com/henrique-coder/correios-tools/releases/download/minified-scripts/launcher.min.ps1"
 
 $DirBase = "C:\Users\Public\correios-tools"
-$DirExtensions = "$DirBase\Extensions"
+$DirData = "$DirBase\data"
+$DirExtensions = "$DirData\extensions"
 $SelfPath = $MyInvocation.MyCommand.Path
 
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
+function Draw-Header {
+    Clear-Host
+    Write-Host ""
+    Write-Host "  ##################################################  " -ForegroundColor DarkBlue -BackgroundColor Cyan
+    Write-Host "             CORREIOS TOOLS - CDD LAUNCHER            " -ForegroundColor White -BackgroundColor DarkBlue
+    Write-Host "  ##################################################  " -ForegroundColor DarkBlue -BackgroundColor Cyan
+    Write-Host ""
+    Write-Host "  [ User: $env:USERNAME ]" -ForegroundColor Gray
+    Write-Host ""
+}
+
 function Check-SelfUpdate {
-    Write-Host "Checking for system updates..." -ForegroundColor Cyan
-    $TempSelf = "$DirBase\launcher_new.tmp"
+    Write-Host "  [*] Checking for system updates..." -ForegroundColor Cyan
+    $TempSelf = "$DirData\launcher_new.tmp"
     try {
         Invoke-WebRequest -Uri $UrlSelfUpdate -OutFile $TempSelf -UseBasicParsing
         $ContentNew = Get-Content $TempSelf -Raw
         $ContentOld = Get-Content $SelfPath -Raw
-
+        
         if ($ContentNew.Length -ne $ContentOld.Length) {
-            Write-Host "SYSTEM UPDATE FOUND! APPLYING..." -ForegroundColor Magenta
+            Write-Host "  [!] SYSTEM UPDATE FOUND! RESTARTING..." -ForegroundColor Magenta
             Copy-Item $TempSelf $SelfPath -Force
             Remove-Item $TempSelf -Force
             Start-Process powershell.exe -ArgumentList "-ExecutionPolicy Bypass -WindowStyle Maximized -File `"$SelfPath`""
@@ -27,20 +39,20 @@ function Check-SelfUpdate {
         }
         Remove-Item $TempSelf -Force
     } catch {
-        Write-Warning "Update check failed. Using local version."
+        Write-Warning "  [!] Update check failed. Using local version."
     }
 }
 
 function Update-Extensions {
-    Write-Host "Synchronizing $($ExtensionUrls.Count) tools..." -ForegroundColor Cyan
-
+    Write-Host "  [*] Synchronizing tools..." -ForegroundColor Cyan
+    
     if (Test-Path $DirExtensions) { Remove-Item $DirExtensions -Recurse -Force }
     New-Item -ItemType Directory -Path $DirExtensions -Force | Out-Null
-
+    
     $Count = 0
     foreach ($Url in $ExtensionUrls) {
         $Count++
-        $ZipFile = "$DirBase\temp_ext_$Count.zip"
+        $ZipFile = "$DirData\temp_ext_$Count.zip"
         $DestFolder = "$DirExtensions\Ext_$Count"
         New-Item -ItemType Directory -Path $DestFolder -Force | Out-Null
 
@@ -48,9 +60,9 @@ function Update-Extensions {
             Invoke-WebRequest -Uri $Url -OutFile $ZipFile -UseBasicParsing
             Expand-Archive -Path $ZipFile -DestinationPath $DestFolder -Force
             Remove-Item $ZipFile -Force
-            Write-Host "[OK] Tool $Count downloaded." -ForegroundColor Green
+            Write-Host "  [+] Tool $Count ready." -ForegroundColor Green
         } catch {
-            Write-Warning "Failed to download Tool $Count."
+            Write-Warning "  [!] Failed to download Tool $Count."
         }
     }
 }
@@ -58,7 +70,7 @@ function Update-Extensions {
 function Get-ExtensionString {
     $ExtPaths = @()
     $PotentialDirs = Get-ChildItem -Path $DirExtensions -Directory -Recurse
-
+    
     foreach ($Dir in $PotentialDirs) {
         if (Test-Path "$($Dir.FullName)\manifest.json") {
             $ExtPaths += $Dir.FullName
@@ -79,7 +91,7 @@ function Configure-BrowserPrefs ($BrowserName) {
         try {
             $Content = Get-Content $PrefPath -Raw
             if ($Content -notmatch '"restore_on_startup":1') {
-                Write-Host "Configuring $BrowserName session settings..." -ForegroundColor Yellow
+                Write-Host "  [*] Configuring $BrowserName preferences..." -ForegroundColor Yellow
                 $NewContent = $Content -replace '"restore_on_startup":\d', '"restore_on_startup":1'
                 if ($NewContent -ne $Content) {
                     Set-Content -Path $PrefPath -Value $NewContent -Encoding UTF8
@@ -89,50 +101,50 @@ function Configure-BrowserPrefs ($BrowserName) {
     }
 }
 
+Draw-Header
 Check-SelfUpdate
 
-Write-Host "Preparing environment..." -ForegroundColor Cyan
+Write-Host "  [*] Preparing environment (Closing Browsers)..." -ForegroundColor Cyan
 Stop-Process -Name "msedge", "chrome" -ErrorAction SilentlyContinue -Force
 
 Update-Extensions
 $LoadExtArg = Get-ExtensionString
 
 if ([string]::IsNullOrWhiteSpace($LoadExtArg)) {
-    Write-Warning "No valid tools found."
+    Write-Warning "  [!] No valid tools found."
 }
 
 $StartUrl = "https://sroweb.correios.com.br/app/entregaexternaautomatica/lancamento/index.php"
 
 while ($true) {
-    Clear-Host
-    Write-Host "==========================================" -ForegroundColor Magenta
-    Write-Host "          CORREIOS TOOLS - CDD            " -ForegroundColor Magenta
-    Write-Host "==========================================" -ForegroundColor Magenta
+    Draw-Header
+    Write-Host "  SELECT BROWSER TO START:" -ForegroundColor Yellow
+    Write-Host "  ------------------------" -ForegroundColor Gray
+    Write-Host "  [1] Microsoft Edge" -ForegroundColor White
+    Write-Host "  [2] Google Chrome" -ForegroundColor White
     Write-Host ""
-    Write-Host "Available Browsers:" -ForegroundColor Cyan
-    Write-Host "1 - Microsoft Edge"
-    Write-Host "2 - Google Chrome"
+    Write-Host "  [ENTER] Exit" -ForegroundColor Gray
     Write-Host ""
-    Write-Host "Press ENTER to EXIT."
-
-    $InputUser = Read-Host "Select"
+    
+    $InputUser = Read-Host "  > Select Option"
 
     if ($InputUser -eq "") { Exit }
 
     $BrowserBin = ""
     $BrowserName = ""
 
-    if ($InputUser -eq "1") {
+    if ($InputUser -eq "1") { 
         $BrowserBin = "msedge"
         $BrowserName = "Edge"
-    } elseif ($InputUser -eq "2") {
+    } elseif ($InputUser -eq "2") { 
         $BrowserBin = "chrome"
         $BrowserName = "Chrome"
     } else {
         continue
     }
 
-    Write-Host "Launching $BrowserName..." -ForegroundColor Green
+    Write-Host ""
+    Write-Host "  >>> Launching $BrowserName..." -ForegroundColor Green
     Configure-BrowserPrefs $BrowserName
 
     $ArgsList = @(
@@ -147,7 +159,8 @@ while ($true) {
     }
 
     Start-Process $BrowserBin -ArgumentList $ArgsList
-
-    Write-Host "`nBrowser launched! You can open another one or close this window." -ForegroundColor Yellow
-    Pause
+    
+    Write-Host ""
+    Write-Host "  [V] Browser running. Starting new cycle..." -ForegroundColor DarkGray
+    Start-Sleep -Seconds 2
 }
