@@ -28,10 +28,9 @@ jobs:
         shell: pwsh
         run: |
           Install-Module PSMinifier -Force -Scope CurrentUser
-          Import-Module PSMinifier
 
       - name: Minify all scripts
-        id: minify
+        id: build
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path release_assets | Out-Null
@@ -44,70 +43,46 @@ jobs:
           if ($extraScripts) { $allScripts += $extraScripts }
 
           if ($allScripts.Count -eq 0) {
-            Write-Host "No scripts found"
-            "found=false" >> $env:GITHUB_OUTPUT
-            exit 0
+            Write-Error "No scripts found!"
+            exit 1
           }
 
-          "found=true" >> $env:GITHUB_OUTPUT
-
-          $processedCount = 0
-          $totalOriginal = 0
-          $totalMinified = 0
           $scriptNames = @()
 
           foreach ($script in $allScripts) {
-            Write-Host "`n--- Processing: $($script.Name) ---" -ForegroundColor Cyan
+            Write-Host "Processing: $($script.Name)" -ForegroundColor Cyan
 
-            try {
-              $content = Get-Content $script.FullName -Raw
-              $originalSize = $content.Length
+            $content = Get-Content $script.FullName -Raw
+            $originalSize = $content.Length
 
-              $minifiedBlock = Compress-ScriptBlock -ScriptBlock ([ScriptBlock]::Create($content))
-              $minifiedContent = $minifiedBlock.ToString()
-              $minifiedSize = $minifiedContent.Length
+            $minifiedBlock = Compress-ScriptBlock -ScriptBlock ([ScriptBlock]::Create($content))
+            $minifiedContent = $minifiedBlock.ToString()
+            $minifiedSize = $minifiedContent.Length
 
-              $ratio = [math]::Round((1 - ($minifiedSize / $originalSize)) * 100, 2)
+            $ratio = [math]::Round((1 - ($minifiedSize / $originalSize)) * 100, 2)
+            Write-Host "  $originalSize -> $minifiedSize bytes ($ratio% saved)" -ForegroundColor Green
 
-              Write-Host "  $originalSize -> $minifiedSize bytes ($ratio% saved)" -ForegroundColor Green
+            $fileName = $script.Name.Replace(".ps1", ".min.ps1")
 
-              $fileName = $script.Name.Replace(".ps1", ".min.ps1")
-
-              if ($script.DirectoryName.Replace("\", "/") -match "/extras$") {
-                $fileName = "extra-$fileName"
-              }
-
-              $outputPath = Join-Path "release_assets" $fileName
-              [System.IO.File]::WriteAllText($outputPath, $minifiedContent, [System.Text.UTF8Encoding]::new($false))
-
-              $scriptNames += $fileName
-              $processedCount++
-              $totalOriginal += $originalSize
-              $totalMinified += $minifiedSize
+            if ($script.DirectoryName.Replace("\", "/") -match "/extras$") {
+              $fileName = "extra-$fileName"
             }
-            catch {
-              Write-Host "  ERROR: $_" -ForegroundColor Red
-            }
-          }
 
-          Write-Host "`n=== Summary ===" -ForegroundColor Cyan
-          Write-Host "Scripts: $processedCount"
-          if ($totalOriginal -gt 0) {
-            $totalRatio = [math]::Round((1 - ($totalMinified / $totalOriginal)) * 100, 2)
-            Write-Host "Total compression: $totalRatio%" -ForegroundColor Green
+            $outputPath = Join-Path "release_assets" $fileName
+            [System.IO.File]::WriteAllText($outputPath, $minifiedContent, [System.Text.UTF8Encoding]::new($false))
+
+            $scriptNames += $fileName
           }
 
           "list=$($scriptNames -join ' ')" >> $env:GITHUB_OUTPUT
 
       - name: Delete existing release
-        if: steps.minify.outputs.found == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release delete minified-scripts --cleanup-tag -y 2>/dev/null || echo "No existing release to delete"
+          gh release delete minified-scripts --cleanup-tag -y 2>/dev/null || true
 
       - name: Create release
-        if: steps.minify.outputs.found == 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: minified-scripts
@@ -115,19 +90,12 @@ jobs:
           body: |
             ## PowerShell Scripts - Minified
 
-            Minified scripts, synced automatically with the repository.
+            Minified scripts, synced with the repository.
 
-            **Scripts:** ${{ steps.minify.outputs.list }}
+            **Scripts:** ${{ steps.build.outputs.list }}
 
-            **Format:**
-            - `*.min.ps1` - Root scripts
-            - `extra-*.min.ps1` - Utility scripts
-
-            **Updated:** ${{ github.event.head_commit.timestamp || 'manual trigger' }}
+            **Updated:** ${{ github.event.head_commit.timestamp || 'manual' }}
             **Commit:** [`${{ github.sha }}`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})
-
-            ---
-            *Synced by GitHub Actions using PSMinifier*
           files: release_assets/*.ps1
           draft: false
           prerelease: false
@@ -136,7 +104,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: No scripts found
-        if: steps.minify.outputs.found == 'false'
+      - name: Summary
         run: |
-          echo "### ⚠️ No Scripts Found" >> $GITHUB_STEP_SUMMARY
+          echo "### ✅ Release Synced" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Scripts:** ${{ steps.build.outputs.list }}" >> $GITHUB_STEP_SUMMARY

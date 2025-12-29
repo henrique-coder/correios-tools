@@ -24,46 +24,43 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Find all extensions
-        id: find-extensions
-        run: |
-          extensions=$(find extensions -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort | tr '\n' ' ' | xargs)
-
-          if [ -z "$extensions" ]; then
-            echo "No extensions found"
-            echo "found=false" >> $GITHUB_OUTPUT
-          else
-            echo "Found extensions: $extensions"
-            echo "found=true" >> $GITHUB_OUTPUT
-            echo "list=$extensions" >> $GITHUB_OUTPUT
-          fi
-
       - name: Create ZIP archives
-        if: steps.find-extensions.outputs.found == 'true'
+        id: build
         run: |
           mkdir -p release_assets
+          extensions=""
 
-          for ext in ${{ steps.find-extensions.outputs.list }}; do
-            echo "Creating ZIP for: $ext"
-            cd "extensions/$ext"
-            zip -9 -r "../../release_assets/${ext}.zip" .
-            cd ../..
-            echo "✓ ${ext}.zip created"
+          for dir in extensions/*/; do
+            if [ -d "$dir" ]; then
+              ext=$(basename "$dir")
+              echo "Creating ZIP for: $ext"
+              cd "$dir"
+              zip -9 -r "../../release_assets/${ext}.zip" .
+              cd ../..
+              extensions="$extensions $ext"
+              echo "✓ ${ext}.zip"
+            fi
           done
 
+          extensions=$(echo "$extensions" | xargs)
+
+          if [ -z "$extensions" ]; then
+            echo "No extensions found!"
+            exit 1
+          fi
+
+          echo "list=$extensions" >> $GITHUB_OUTPUT
           echo ""
-          echo "=== Release Assets ==="
+          echo "=== Assets ==="
           ls -lh release_assets/
 
       - name: Delete existing release
-        if: steps.find-extensions.outputs.found == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release delete browser-extensions --cleanup-tag -y 2>/dev/null || echo "No existing release to delete"
+          gh release delete browser-extensions --cleanup-tag -y 2>/dev/null || true
 
       - name: Create release
-        if: steps.find-extensions.outputs.found == 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: browser-extensions
@@ -71,15 +68,12 @@ jobs:
           body: |
             ## Browser Extensions
 
-            Zipped browser extensions, synced automatically with the repository.
+            Zipped browser extensions, synced with the repository.
 
-            **Extensions:** ${{ steps.find-extensions.outputs.list }}
+            **Extensions:** ${{ steps.build.outputs.list }}
 
-            **Updated:** ${{ github.event.head_commit.timestamp || 'manual trigger' }}
+            **Updated:** ${{ github.event.head_commit.timestamp || 'manual' }}
             **Commit:** [`${{ github.sha }}`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})
-
-            ---
-            *Synced by GitHub Actions*
           files: release_assets/*.zip
           draft: false
           prerelease: false
@@ -89,18 +83,11 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Summary
-        if: steps.find-extensions.outputs.found == 'true'
         run: |
           echo "### ✅ Release Synced" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Extensions:**" >> $GITHUB_STEP_SUMMARY
-          for ext in ${{ steps.find-extensions.outputs.list }}; do
+          for ext in ${{ steps.build.outputs.list }}; do
             size=$(du -h "release_assets/${ext}.zip" | cut -f1)
             echo "- \`${ext}.zip\` (${size})" >> $GITHUB_STEP_SUMMARY
           done
-
-      - name: No extensions found
-        if: steps.find-extensions.outputs.found == 'false'
-        run: |
-          echo "### ⚠️ No Extensions Found" >> $GITHUB_STEP_SUMMARY
-          echo "No extension directories found in \`extensions/\`" >> $GITHUB_STEP_SUMMARY
