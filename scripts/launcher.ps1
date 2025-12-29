@@ -7,6 +7,7 @@ $UrlSelfUpdate = "https://github.com/henrique-coder/correios-tools/releases/down
 $DirBase = "C:\Users\Public\correios-tools"
 $DirData = "$DirBase\data"
 $DirExtensions = "$DirData\extensions"
+$IconPath = "$DirData\icon.ico"
 $SelfPath = $MyInvocation.MyCommand.Path
 
 [Console]::BackgroundColor = "Black"
@@ -27,6 +28,29 @@ function Draw-Header {
     Write-Host ""
     Write-Host "  ----------------------------------------------  " -ForegroundColor DarkGray
     Write-Host ""
+}
+
+function Ensure-Shortcuts {
+    $WshShell = New-Object -comObject WScript.Shell
+    
+    $PathsToCheck = @(
+        "$DirBase\Correios Tools.lnk",
+        "$([Environment]::GetFolderPath("Desktop"))\Correios Tools.lnk"
+    )
+
+    foreach ($LinkPath in $PathsToCheck) {
+        if (!(Test-Path $LinkPath)) {
+            try {
+                $Shortcut = $WshShell.CreateShortcut($LinkPath)
+                $Shortcut.TargetPath = "powershell.exe"
+                $Shortcut.Arguments = "-NoLogo -ExecutionPolicy Bypass -WindowStyle Maximized -File `"$SelfPath`""
+                $Shortcut.IconLocation = $IconPath
+                $Shortcut.Description = "Correios Tools Launcher"
+                $Shortcut.Save()
+                Write-Host "  [+] Atalho restaurado: $LinkPath" -ForegroundColor DarkGray
+            } catch {}
+        }
+    }
 }
 
 function Check-SelfUpdate {
@@ -59,17 +83,22 @@ function Update-Extensions {
     $Count = 0
     foreach ($Url in $ExtensionUrls) {
         $Count++
-        $ZipFile = "$DirData\temp_ext_$Count.zip"
-        $DestFolder = "$DirExtensions\Ext_$Count"
-        New-Item -ItemType Directory -Path $DestFolder -Force | Out-Null
-
+        
         try {
+            $FileName = [System.IO.Path]::GetFileNameWithoutExtension($Url)
+            if ([string]::IsNullOrWhiteSpace($FileName)) { $FileName = "Ext_$Count" }
+
+            $ZipFile = "$DirData\$FileName.zip"
+            $DestFolder = "$DirExtensions\$FileName"
+            
+            New-Item -ItemType Directory -Path $DestFolder -Force | Out-Null
+
             Invoke-WebRequest -Uri $Url -OutFile $ZipFile -UseBasicParsing
             Expand-Archive -Path $ZipFile -DestinationPath $DestFolder -Force
             Remove-Item $ZipFile -Force
-            Write-Host "  [+] Pacote de ferramentas $Count instalado." -ForegroundColor Green
+            Write-Host "  [+] Ferramenta instalada: $FileName" -ForegroundColor Green
         } catch {
-            Write-Warning "  [!] Erro ao instalar pacote $Count."
+            Write-Warning "  [!] Erro ao instalar ferramenta: $Url"
         }
     }
 }
@@ -149,6 +178,7 @@ function Restart-And-Launch {
 }
 
 Draw-Header
+Ensure-Shortcuts
 Check-SelfUpdate
 
 Write-Host "  [*] Preparando ambiente..." -ForegroundColor Cyan
