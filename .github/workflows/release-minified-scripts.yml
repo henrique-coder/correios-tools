@@ -5,15 +5,15 @@ on:
     branches:
       - dev
     paths:
-      - "scripts/**"
       - ".github/workflows/release-minified-scripts.yml"
+      - "scripts/**"
   workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
-  synchronize-scripts:
+  minify-and-release:
     runs-on: ubuntu-latest
 
     steps:
@@ -21,10 +21,15 @@ jobs:
 
       - shell: pwsh
         run: |
+          Write-Host "PowerShell version: $($PSVersionTable.PSVersion)"
+
+      - shell: pwsh
+        run: |
           Install-Module PSMinifier -Force -Scope CurrentUser
           Import-Module PSMinifier
 
-      - shell: pwsh
+      - name: Minify Scripts
+        shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path release_assets | Out-Null
 
@@ -35,32 +40,89 @@ jobs:
           if ($rootScripts) { $allScripts += $rootScripts }
           if ($extraScripts) { $allScripts += $extraScripts }
 
+          $processedCount = 0
+          $totalOriginal = 0
+          $totalMinified = 0
+
           foreach ($script in $allScripts) {
             if ($script.Name.StartsWith(".")) { continue }
 
-            $content = Get-Content $script.FullName -Raw
-            $minified = Compress-ScriptBlock -ScriptBlock ([ScriptBlock]::Create($content))
+            Write-Host "`n----------------------------------------" -ForegroundColor Cyan
+            Write-Host "Processing: $($script.Name)" -ForegroundColor Cyan
 
-            $fileName = $script.Name.Replace(".ps1", ".min.ps1")
+            try {
+              $content = Get-Content $script.FullName -Raw
+              $originalSize = $content.Length
 
-            if ($script.DirectoryName.Replace("\", "/") -match "/extras$") {
-              $fileName = "extra-$fileName"
+              $minifiedBlock = Compress-ScriptBlock -ScriptBlock ([ScriptBlock]::Create($content))
+              $minifiedContent = $minifiedBlock.ToString()
+              $minifiedSize = $minifiedContent.Length
+
+              $ratio = [math]::Round((1 - ($minifiedSize / $originalSize)) * 100, 2)
+
+              Write-Host "Original: $originalSize bytes" -ForegroundColor Yellow
+              Write-Host "Minified: $minifiedSize bytes" -ForegroundColor Green
+              Write-Host "Saved: $ratio%" -ForegroundColor Green
+
+              $fileName = $script.Name.Replace(".ps1", ".min.ps1")
+
+              if ($script.DirectoryName.Replace("\", "/") -match "/extras$") {
+                $fileName = "extra-$fileName"
+                Write-Host "Type: Extra Utility (Prefix added)" -ForegroundColor Magenta
+              }
+
+              $outputPath = Join-Path "release_assets" $fileName
+              [System.IO.File]::WriteAllText($outputPath, $minifiedContent, [System.Text.UTF8Encoding]::new($false))
+
+              $processedCount++
+              $totalOriginal += $originalSize
+              $totalMinified += $minifiedSize
+            } catch {
+              Write-Host "Error processing $($script.Name): $_" -ForegroundColor Red
             }
-
-            $outputPath = Join-Path "release_assets" $fileName
-            [System.IO.File]::WriteAllText($outputPath, $minified.ToString(), [System.Text.UTF8Encoding]::new($false))
           }
 
-      - shell: bash
+          Write-Host "`n========================================" -ForegroundColor Cyan
+          Write-Host "TOTAL SUMMARY" -ForegroundColor Cyan
+          Write-Host "Scripts: $processedCount"
+          if ($totalOriginal -gt 0) {
+            $totalRatio = [math]::Round((1 - ($totalMinified / $totalOriginal)) * 100, 2)
+            Write-Host "Total Compression: $totalRatio%" -ForegroundColor Green
+          }
+
+      - name: Clean Old Release
+        shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release delete minified-scripts --cleanup-tag -y || true
 
-      - uses: softprops/action-gh-release@v2
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: minified-scripts
           name: Minified Scripts
+          body: |
+            ## PowerShell Scripts - Minified Release
+
+            This release contains minified versions of all PowerShell scripts.
+            Each script is automatically minified when changes are committed.
+
+            **Format:**
+            - `*.min.ps1` - Standard scripts
+            - `extra-*.min.ps1` - Utility scripts (from extras folder)
+
+            **Last updated:** ${{ github.event.head_commit.timestamp }}
+            **Commit:** ${{ github.sha }}
+
+            ### Minification Details:
+            - Removes comments and inline help
+            - Removes unnecessary whitespace
+            - Preserves all functionality and logic
+            - Does not rename variables or optimize code
+
+            ---
+            *This release is automatically maintained by GitHub Actions using PSMinifier.*
           files: release_assets/*.ps1
           draft: false
           prerelease: false
