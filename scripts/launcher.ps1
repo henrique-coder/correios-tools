@@ -2,11 +2,16 @@ $ExtensionUrls = @(
     "https://github.com/henrique-coder/correios-tools/releases/download/browser-extensions/sroweb_inducao.zip"
 )
 
+$ScriptUrls = @(
+    "https://github.com/henrique-coder/correios-tools/releases/download/minified-scripts/extra-install-python-with-uv.min.ps1"
+)
+
 $UrlSelfUpdate = "https://github.com/henrique-coder/correios-tools/releases/download/minified-scripts/launcher.min.ps1"
 
 $DirBase = "C:\Users\Public\correios-tools"
 $DirData = "$DirBase\data"
 $DirExtensions = "$DirData\extensions"
+$DirScripts = "$DirData\scripts"
 $IconPath = "$DirData\icon.ico"
 $SelfPath = $MyInvocation.MyCommand.Path
 
@@ -15,6 +20,10 @@ $SelfPath = $MyInvocation.MyCommand.Path
 Clear-Host
 
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+
+# =============================================================================
+# FUNCOES VISUAIS E UTILITARIAS
+# =============================================================================
 
 function Draw-Header {
     Clear-Host
@@ -32,7 +41,7 @@ function Draw-Header {
 
 function Ensure-Shortcuts {
     $WshShell = New-Object -comObject WScript.Shell
-    
+
     $PathsToCheck = @(
         "$DirBase\Correios Tools.lnk",
         "$([Environment]::GetFolderPath("Desktop"))\Correios Tools.lnk"
@@ -53,6 +62,10 @@ function Ensure-Shortcuts {
     }
 }
 
+# =============================================================================
+# FUNCOES DE ATUALIZACAO
+# =============================================================================
+
 function Check-SelfUpdate {
     Write-Host "  [*] Verificando integridade do sistema..." -ForegroundColor Cyan
     $TempSelf = "$DirData\launcher_new.tmp"
@@ -60,7 +73,7 @@ function Check-SelfUpdate {
         Invoke-WebRequest -Uri $UrlSelfUpdate -OutFile $TempSelf -UseBasicParsing
         $ContentNew = Get-Content $TempSelf -Raw
         $ContentOld = Get-Content $SelfPath -Raw
-        
+
         if ($ContentNew.Length -ne $ContentOld.Length) {
             Write-Host "  [!] ATUALIZACAO ENCONTRADA. REINICIANDO..." -ForegroundColor Magenta
             Copy-Item $TempSelf $SelfPath -Force
@@ -75,38 +88,70 @@ function Check-SelfUpdate {
 }
 
 function Update-Extensions {
-    Write-Host "  [*] Sincronizando ferramentas..." -ForegroundColor Cyan
-    
+    Write-Host "  [*] Sincronizando ferramentas de navegador..." -ForegroundColor Cyan
+
     if (Test-Path $DirExtensions) { Remove-Item $DirExtensions -Recurse -Force }
     New-Item -ItemType Directory -Path $DirExtensions -Force | Out-Null
-    
+
     $Count = 0
     foreach ($Url in $ExtensionUrls) {
         $Count++
-        
         try {
             $FileName = [System.IO.Path]::GetFileNameWithoutExtension($Url)
             if ([string]::IsNullOrWhiteSpace($FileName)) { $FileName = "Ext_$Count" }
 
             $ZipFile = "$DirData\$FileName.zip"
             $DestFolder = "$DirExtensions\$FileName"
-            
+
             New-Item -ItemType Directory -Path $DestFolder -Force | Out-Null
 
             Invoke-WebRequest -Uri $Url -OutFile $ZipFile -UseBasicParsing
             Expand-Archive -Path $ZipFile -DestinationPath $DestFolder -Force
             Remove-Item $ZipFile -Force
-            Write-Host "  [+] Ferramenta instalada: $FileName" -ForegroundColor Green
+            Write-Host "  [+] Extensao instalada: $FileName" -ForegroundColor Green
         } catch {
-            Write-Warning "  [!] Erro ao instalar ferramenta: $Url"
+            Write-Warning "  [!] Erro ao instalar extensao: $Url"
         }
     }
 }
 
+function Run-RemoteScripts {
+    if ($ScriptUrls.Count -eq 0) { return }
+
+    Write-Host "  [*] Executando scripts de automacao..." -ForegroundColor Cyan
+
+    if (!(Test-Path $DirScripts)) { New-Item -ItemType Directory -Path $DirScripts -Force | Out-Null }
+
+    foreach ($Url in $ScriptUrls) {
+        try {
+            $FileName = [System.IO.Path]::GetFileName($Url)
+            $LocalScript = "$DirScripts\$FileName"
+
+            Invoke-WebRequest -Uri $Url -OutFile $LocalScript -UseBasicParsing
+
+            Write-Host ""
+            Write-Host "  ::::::::::::::::::::::::::::::::::::::::::::::::::" -ForegroundColor DarkGray
+            Write-Host "    EXEC: $FileName" -ForegroundColor Yellow
+            Write-Host "  ::::::::::::::::::::::::::::::::::::::::::::::::::" -ForegroundColor DarkGray
+
+            & $LocalScript
+
+        } catch {
+            Write-Warning "  [!] Falha ao executar script: $Url"
+            Write-Warning "      Erro: $_"
+        }
+    }
+    Write-Host ""
+    Write-Host "  ----------------------------------------------  " -ForegroundColor DarkGray
+}
+
+# =============================================================================
+# FUNCOES DE NAVEGADOR
+# =============================================================================
+
 function Get-ExtensionString {
     $ExtPaths = @()
     $PotentialDirs = Get-ChildItem -Path $DirExtensions -Directory -Recurse
-    
     foreach ($Dir in $PotentialDirs) {
         if (Test-Path "$($Dir.FullName)\manifest.json") {
             $ExtPaths += $Dir.FullName
@@ -117,7 +162,6 @@ function Get-ExtensionString {
 
 function Configure-BrowserPrefs {
     param([string]$BrowserName)
-    
     $PrefPath = ""
     if ($BrowserName -eq "Edge") {
         $PrefPath = "$env:LOCALAPPDATA\Microsoft\Edge\User Data\Default\Preferences"
@@ -129,7 +173,6 @@ function Configure-BrowserPrefs {
         try {
             $Content = Get-Content $PrefPath -Raw
             if ($Content -notmatch '"restore_on_startup":1') {
-                Write-Host "  [*] Configurando sessao do $BrowserName..." -ForegroundColor Yellow
                 $NewContent = $Content -replace '"restore_on_startup":\d', '"restore_on_startup":1'
                 if ($NewContent -ne $Content) {
                     Set-Content -Path $PrefPath -Value $NewContent -Encoding UTF8
@@ -147,15 +190,13 @@ function Restart-And-Launch {
         [string]$LoadExtArg
     )
 
-    if ([string]::IsNullOrWhiteSpace($BrowserName) -or [string]::IsNullOrWhiteSpace($ProcessName)) {
-        return
-    }
+    if ([string]::IsNullOrWhiteSpace($BrowserName)) { return }
 
-    Write-Host "  >>> Reiniciando $BrowserName para aplicar ferramentas..." -ForegroundColor Yellow
-    
+    Write-Host "  >>> Reiniciando $BrowserName..." -ForegroundColor Yellow
+
     Stop-Process -Name $ProcessName -Force -ErrorAction SilentlyContinue
     Start-Sleep -Seconds 1
-    
+
     Configure-BrowserPrefs -BrowserName $BrowserName
 
     $ArgsList = @(
@@ -177,16 +218,23 @@ function Restart-And-Launch {
     }
 }
 
+# =============================================================================
+# EXECUCAO PRINCIPAL
+# =============================================================================
+
 Draw-Header
 Ensure-Shortcuts
 Check-SelfUpdate
 
 Write-Host "  [*] Preparando ambiente..." -ForegroundColor Cyan
+
+Run-RemoteScripts
+
 Update-Extensions
 $LoadExtArg = Get-ExtensionString
 
 if ([string]::IsNullOrWhiteSpace($LoadExtArg)) {
-    Write-Warning "  [!] Nenhuma ferramenta carregada."
+    Write-Warning "  [!] Nenhuma extensao carregada."
 }
 
 $StartUrl = "https://sroweb.correios.com.br/app/entregaexternaautomatica/lancamento/index.php"
@@ -201,7 +249,7 @@ while ($true) {
     Write-Host ""
     Write-Host "  [ENTER] Sair" -ForegroundColor DarkGray
     Write-Host ""
-    
+
     $InputUser = Read-Host "  > Opcao"
 
     if ($InputUser -eq "") { Exit }
@@ -210,14 +258,14 @@ while ($true) {
         Restart-And-Launch -BrowserName "Edge" -ProcessName "msedge" -StartUrl $StartUrl -LoadExtArg $LoadExtArg
         Start-Sleep -Seconds 2
         Restart-And-Launch -BrowserName "Chrome" -ProcessName "chrome" -StartUrl $StartUrl -LoadExtArg $LoadExtArg
-    } elseif ($InputUser -eq "1") { 
+    } elseif ($InputUser -eq "1") {
         Restart-And-Launch -BrowserName "Edge" -ProcessName "msedge" -StartUrl $StartUrl -LoadExtArg $LoadExtArg
-    } elseif ($InputUser -eq "2") { 
+    } elseif ($InputUser -eq "2") {
         Restart-And-Launch -BrowserName "Chrome" -ProcessName "chrome" -StartUrl $StartUrl -LoadExtArg $LoadExtArg
     } else {
         continue
     }
-    
+
     Write-Host ""
     Write-Host "  [!] Concluido. Aguardando proximo comando..." -ForegroundColor DarkGray
     Start-Sleep -Seconds 2
