@@ -17,17 +17,12 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  minify-and-release:
+  sync-release:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
-
-      - name: Check PowerShell version
-        shell: pwsh
-        run: |
-          Write-Host "PowerShell version: $($PSVersionTable.PSVersion)"
 
       - name: Install PSMinifier
         shell: pwsh
@@ -35,27 +30,34 @@ jobs:
           Install-Module PSMinifier -Force -Scope CurrentUser
           Import-Module PSMinifier
 
-      - name: Minify scripts
+      - name: Minify all scripts
+        id: minify
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path release_assets | Out-Null
 
-          $rootScripts = Get-ChildItem -Path "scripts" -Filter "*.ps1" -File
-          $extraScripts = Get-ChildItem -Path "scripts/extras" -Filter "*.ps1" -File -ErrorAction SilentlyContinue
+          $rootScripts = Get-ChildItem -Path "scripts" -Filter "*.ps1" -File -ErrorAction SilentlyContinue
+          $extraScripts = Get-ChildItem -Path "scripts/extras" -Filter "*.ps1" -File -ErrorAction SilentlyContinue | Where-Object { -not $_.Name.StartsWith(".") }
 
           $allScripts = @()
           if ($rootScripts) { $allScripts += $rootScripts }
           if ($extraScripts) { $allScripts += $extraScripts }
 
+          if ($allScripts.Count -eq 0) {
+            Write-Host "No scripts found"
+            "found=false" >> $env:GITHUB_OUTPUT
+            exit 0
+          }
+
+          "found=true" >> $env:GITHUB_OUTPUT
+
           $processedCount = 0
           $totalOriginal = 0
           $totalMinified = 0
+          $scriptNames = @()
 
           foreach ($script in $allScripts) {
-            if ($script.Name.StartsWith(".")) { continue }
-
-            Write-Host "`n----------------------------------------" -ForegroundColor Cyan
-            Write-Host "Processing: $($script.Name)" -ForegroundColor Cyan
+            Write-Host "`n--- Processing: $($script.Name) ---" -ForegroundColor Cyan
 
             try {
               $content = Get-Content $script.FullName -Raw
@@ -67,37 +69,45 @@ jobs:
 
               $ratio = [math]::Round((1 - ($minifiedSize / $originalSize)) * 100, 2)
 
-              Write-Host "Original: $originalSize bytes" -ForegroundColor Yellow
-              Write-Host "Minified: $minifiedSize bytes" -ForegroundColor Green
-              Write-Host "Saved: $ratio%" -ForegroundColor Green
+              Write-Host "  $originalSize -> $minifiedSize bytes ($ratio% saved)" -ForegroundColor Green
 
               $fileName = $script.Name.Replace(".ps1", ".min.ps1")
 
               if ($script.DirectoryName.Replace("\", "/") -match "/extras$") {
                 $fileName = "extra-$fileName"
-                Write-Host "Type: Extra Utility" -ForegroundColor Magenta
               }
 
               $outputPath = Join-Path "release_assets" $fileName
               [System.IO.File]::WriteAllText($outputPath, $minifiedContent, [System.Text.UTF8Encoding]::new($false))
 
+              $scriptNames += $fileName
               $processedCount++
               $totalOriginal += $originalSize
               $totalMinified += $minifiedSize
             }
             catch {
-              Write-Host "Error processing $($script.Name): $_" -ForegroundColor Red
+              Write-Host "  ERROR: $_" -ForegroundColor Red
             }
           }
 
-          Write-Host "`n========================================" -ForegroundColor Cyan
-          Write-Host "TOTAL: $processedCount scripts" -ForegroundColor Cyan
+          Write-Host "`n=== Summary ===" -ForegroundColor Cyan
+          Write-Host "Scripts: $processedCount"
           if ($totalOriginal -gt 0) {
             $totalRatio = [math]::Round((1 - ($totalMinified / $totalOriginal)) * 100, 2)
-            Write-Host "Compression: $totalRatio%" -ForegroundColor Green
+            Write-Host "Total compression: $totalRatio%" -ForegroundColor Green
           }
 
-      - name: Upload to release
+          "list=$($scriptNames -join ' ')" >> $env:GITHUB_OUTPUT
+
+      - name: Delete existing release
+        if: steps.minify.outputs.found == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release delete minified-scripts --cleanup-tag -y 2>/dev/null || echo "No existing release to delete"
+
+      - name: Create release
+        if: steps.minify.outputs.found == 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: minified-scripts
@@ -105,17 +115,19 @@ jobs:
           body: |
             ## PowerShell Scripts - Minified
 
-            Minified versions of all PowerShell scripts, automatically updated on commit.
+            Minified scripts, synced automatically with the repository.
+
+            **Scripts:** ${{ steps.minify.outputs.list }}
 
             **Format:**
-            - `*.min.ps1` - Standard scripts
+            - `*.min.ps1` - Root scripts
             - `extra-*.min.ps1` - Utility scripts
 
-            **Updated:** ${{ github.event.head_commit.timestamp }}
+            **Updated:** ${{ github.event.head_commit.timestamp || 'manual trigger' }}
             **Commit:** [`${{ github.sha }}`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})
 
             ---
-            *Maintained by GitHub Actions using PSMinifier*
+            *Synced by GitHub Actions using PSMinifier*
           files: release_assets/*.ps1
           draft: false
           prerelease: false
@@ -123,3 +135,8 @@ jobs:
           fail_on_unmatched_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: No scripts found
+        if: steps.minify.outputs.found == 'false'
+        run: |
+          echo "### ⚠️ No Scripts Found" >> $GITHUB_STEP_SUMMARY
