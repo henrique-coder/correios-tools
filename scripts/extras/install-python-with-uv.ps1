@@ -1,8 +1,8 @@
 <#
 .SYNOPSIS
-    Installs UV and Python without admin privileges.
+    Installs UV and Python
 .DESCRIPTION
-    Configures UV (Astral) and Python for corporate Windows environments.
+    Configures UV and Python for corporate Windows environments.
 #>
 
 [CmdletBinding()]
@@ -13,10 +13,6 @@ param(
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
 
-# ==============================================================================
-# HELPER FUNCTIONS
-# ==============================================================================
-
 function Write-Status {
     param(
         [Parameter(Mandatory)][string]$Message,
@@ -24,7 +20,7 @@ function Write-Status {
     )
 
     $colors = @{ Info = "Gray"; Success = "Green"; Warning = "Yellow"; Error = "Red"; Debug = "DarkGray" }
-    $prefixes = @{ Info = "INFO"; Success = "OK"; Warning = "WARN"; Error = "FAIL"; Debug = "DEBUG" }
+    $prefixes = @{ Info = "INFO"; Success = "OK"; Warning = "AVISO"; Error = "ERRO"; Debug = "DEBUG" }
 
     Write-Host "  > [$($prefixes[$Type])] $Message" -ForegroundColor $colors[$Type]
 }
@@ -40,30 +36,26 @@ function Test-CommandExists {
     return [bool](Get-Command $Command -ErrorAction SilentlyContinue)
 }
 
-# ==============================================================================
-# UV FUNCTIONS
-# ==============================================================================
-
 function Install-Uv {
-    Write-Status "UV not found. Installing..." -Type Warning
+    Write-Status "UV não encontrado. Instalando..." -Type Warning
 
     try {
         $script = Invoke-RestMethod -Uri "https://astral.sh/uv/install.ps1" -UseBasicParsing
         & ([ScriptBlock]::Create($script))
     }
     catch {
-        Write-Status "Primary install failed, trying alternative..." -Type Warning
+        Write-Status "Instalação primária falhou, tentando alternativa..." -Type Warning
 
         try {
             $proc = Start-Process -FilePath "powershell.exe" `
                 -ArgumentList "-ExecutionPolicy", "ByPass", "-NoProfile", "-Command", `
-                    "Invoke-RestMethod -Uri 'https://astral.sh/uv/install.ps1' -UseBasicParsing | Invoke-Expression" `
+                "Invoke-RestMethod -Uri 'https://astral.sh/uv/install.ps1' -UseBasicParsing | Invoke-Expression" `
                 -Wait -PassThru -NoNewWindow
 
-            if ($proc.ExitCode -ne 0) { throw "Exit code: $($proc.ExitCode)" }
+            if ($proc.ExitCode -ne 0) { throw "Código de saída: $($proc.ExitCode)" }
         }
         catch {
-            Write-Status "Installation failed: $_" -Type Error
+            Write-Status "Instalação falhou: $_" -Type Error
             return $false
         }
     }
@@ -71,49 +63,45 @@ function Install-Uv {
     Update-PathFromRegistry
 
     if (-not (Test-CommandExists "uv")) {
-        Write-Status "UV not found in PATH after install" -Type Error
+        Write-Status "UV não encontrado no PATH após instalação" -Type Error
         return $false
     }
 
-    Write-Status "UV installed!" -Type Success
+    Write-Status "UV instalado com sucesso!" -Type Success
     return $true
 }
 
 function Update-Uv {
-    Write-Status "Checking for UV updates..." -Type Debug
-    try { & uv self update 2>&1 | Out-Null } catch {}
+    Write-Status "Verificando atualizações do UV..." -Type Debug
+    try { & uv self update 2>&1 | Out-Null } catch { }
 }
 
 function Install-Python {
     param([Parameter(Mandatory)][string]$Version)
 
-    Write-Status "Installing Python $Version..." -Type Info
+    Write-Status "Instalando Python $Version..." -Type Info
 
-    $args = @("python", "install", $Version, "--default")
+    $uvArgs = @("python", "install", $Version, "--default")
     if ($Version -match "^3\.(1[4-9]|[2-9][0-9])") {
-        $args += "--preview"
-        Write-Status "Using preview mode (pre-release version)" -Type Warning
+        $uvArgs += "--preview"
+        Write-Status "Usando modo preview (versão pré-lançamento)" -Type Warning
     }
 
     try {
-        & uv --native-tls @args
-        if ($LASTEXITCODE -ne 0) { throw "Exit code: $LASTEXITCODE" }
-        Write-Status "Python $Version installed!" -Type Success
+        & uv --native-tls @uvArgs
+        if ($LASTEXITCODE -ne 0) { throw "Código de saída: $LASTEXITCODE" }
+        Write-Status "Python $Version instalado com sucesso!" -Type Success
         return $true
     }
     catch {
-        Write-Status "Python install failed: $_" -Type Error
+        Write-Status "Falha ao instalar Python: $_" -Type Error
         return $false
     }
 }
 
-# ==============================================================================
-# MAIN LOGIC
-# ==============================================================================
-
 function Main {
     Write-Host ""
-    Write-Status "Checking UV..." -Type Info
+    Write-Status "Verificando UV..." -Type Info
 
     Update-PathFromRegistry
 
@@ -127,16 +115,12 @@ function Main {
     if (-not (Install-Python -Version $PythonVersion)) { return 1 }
 
     Write-Host ""
-    Write-Status "Environment ready!" -Type Success
+    Write-Status "Ambiente pronto!" -Type Success
     Write-Status "UV: $(uv --version)" -Type Info
     Write-Status "Python: $(uv run python --version)" -Type Info
     Write-Host ""
 
     return 0
 }
-
-# ==============================================================================
-# ENTRY POINT
-# ==============================================================================
 
 exit (Main)

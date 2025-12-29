@@ -11,10 +11,6 @@ param()
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
 
-# ==============================================================================
-# HELPER FUNCTIONS
-# ==============================================================================
-
 function Write-Status {
     param(
         [Parameter(Mandatory)][string]$Message,
@@ -22,7 +18,7 @@ function Write-Status {
     )
 
     $colors = @{ Info = "Gray"; Success = "Green"; Warning = "Yellow"; Error = "Red"; Debug = "DarkGray" }
-    $prefixes = @{ Info = "INFO"; Success = "OK"; Warning = "WARN"; Error = "FAIL"; Debug = "DEBUG" }
+    $prefixes = @{ Info = "INFO"; Success = "OK"; Warning = "AVISO"; Error = "ERRO"; Debug = "DEBUG" }
 
     Write-Host "  > [$($prefixes[$Type])] $Message" -ForegroundColor $colors[$Type]
 }
@@ -41,12 +37,12 @@ function Test-CommandExists {
 function Invoke-SafeCommand {
     param(
         [Parameter(Mandatory)][scriptblock]$ScriptBlock,
-        [string]$ErrorMessage = "Command failed"
+        [string]$ErrorMessage = "Comando falhou"
     )
 
     try {
         & $ScriptBlock
-        if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) { throw "Exit code: $LASTEXITCODE" }
+        if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) { throw "Código de saída: $LASTEXITCODE" }
         return $true
     }
     catch {
@@ -55,23 +51,15 @@ function Invoke-SafeCommand {
     }
 }
 
-# ==============================================================================
-# MAIN LOGIC
-# ==============================================================================
-
 function Main {
     Write-Host ""
-    Write-Status "Starting task..." -Type Info
+    Write-Status "Iniciando tarefa..." -Type Info
 
     # YOUR CODE HERE
 
-    Write-Status "Task completed!" -Type Success
+    Write-Status "Tarefa concluída!" -Type Success
     Write-Host ""
     return 0
 }
-
-# ==============================================================================
-# ENTRY POINT (No Read-Host, use exit 1 for errors)
-# ==============================================================================
 
 exit (Main)
