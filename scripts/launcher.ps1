@@ -9,6 +9,13 @@ $DirData = "$DirBase\data"
 $DirExtensions = "$DirData\extensions"
 $SelfPath = $MyInvocation.MyCommand.Path
 
+# --- FORCE CONSOLE HOST (CMD STYLE) ---
+# If running in ISE or a hidden window, tries to relaunch in a visible console.
+if ($Host.Name -ne "ConsoleHost") {
+    Start-Process powershell.exe -ArgumentList "-ExecutionPolicy Bypass -File `"$SelfPath`""
+    Exit
+}
+
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
 function Draw-Header {
@@ -37,7 +44,8 @@ function Check-SelfUpdate {
             Write-Host "  [!] ATUALIZACAO ENCONTRADA. REINICIANDO..." -ForegroundColor Magenta
             Copy-Item $TempSelf $SelfPath -Force
             Remove-Item $TempSelf -Force
-            Start-Process powershell.exe -ArgumentList "-ExecutionPolicy Bypass -WindowStyle Maximized -File `"$SelfPath`""
+            # Relaunch in the same console window
+            Start-Process powershell.exe -ArgumentList "-NoLogo -ExecutionPolicy Bypass -File `"$SelfPath`"" -WindowStyle Normal
             Exit
         }
         Remove-Item $TempSelf -Force
@@ -90,10 +98,13 @@ function Configure-BrowserPrefs ($BrowserName) {
         $PrefPath = "$env:LOCALAPPDATA\Google\Chrome\User Data\Default\Preferences"
     }
 
+    if ([string]::IsNullOrWhiteSpace($PrefPath)) { return }
+
     if (Test-Path $PrefPath) {
         try {
             $Content = Get-Content $PrefPath -Raw
             if ($Content -notmatch '"restore_on_startup":1') {
+                Write-Host "  [*] Configurando sessao do $BrowserName..." -ForegroundColor Yellow
                 $NewContent = $Content -replace '"restore_on_startup":\d', '"restore_on_startup":1'
                 if ($NewContent -ne $Content) {
                     Set-Content -Path $PrefPath -Value $NewContent -Encoding UTF8
@@ -104,6 +115,11 @@ function Configure-BrowserPrefs ($BrowserName) {
 }
 
 function Restart-And-Launch ($BrowserName, $ProcessName, $StartUrl, $LoadExtArg) {
+    if ([string]::IsNullOrWhiteSpace($BrowserName) -or [string]::IsNullOrWhiteSpace($ProcessName)) {
+        Write-Error "  [!] Erro interno: Nome do navegador invalido."
+        return
+    }
+
     Write-Host "  >>> Reiniciando $BrowserName para aplicar ferramentas..." -ForegroundColor Yellow
     
     Stop-Process -Name $ProcessName -Force -ErrorAction SilentlyContinue
@@ -122,9 +138,15 @@ function Restart-And-Launch ($BrowserName, $ProcessName, $StartUrl, $LoadExtArg)
         $ArgsList += "--load-extension=`"$LoadExtArg`""
     }
 
-    Start-Process $ProcessName -ArgumentList $ArgsList
-    Write-Host "  [V] $BrowserName iniciado." -ForegroundColor Green
+    try {
+        Start-Process $ProcessName -ArgumentList $ArgsList
+        Write-Host "  [V] $BrowserName iniciado." -ForegroundColor Green
+    } catch {
+        Write-Warning "  [!] Nao foi possivel iniciar $BrowserName. Ele esta instalado?"
+    }
 }
+
+# --- MAIN EXECUTION ---
 
 Draw-Header
 Check-SelfUpdate
