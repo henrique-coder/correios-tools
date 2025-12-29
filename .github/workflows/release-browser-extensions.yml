@@ -5,6 +5,7 @@ on:
     branches:
       - dev
     paths:
+      - ".github/workflows/release-browser-extensions.yml"
       - "extensions/**"
   workflow_dispatch:
 
