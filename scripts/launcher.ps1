@@ -9,6 +9,10 @@ $DirData = "$DirBase\data"
 $DirExtensions = "$DirData\extensions"
 $SelfPath = $MyInvocation.MyCommand.Path
 
+[Console]::BackgroundColor = "Black"
+[Console]::ForegroundColor = "White"
+Clear-Host
+
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
 function Draw-Header {
@@ -37,7 +41,7 @@ function Check-SelfUpdate {
             Write-Host "  [!] ATUALIZACAO ENCONTRADA. REINICIANDO..." -ForegroundColor Magenta
             Copy-Item $TempSelf $SelfPath -Force
             Remove-Item $TempSelf -Force
-            Start-Process powershell.exe -ArgumentList "-ExecutionPolicy Bypass -WindowStyle Maximized -File `"$SelfPath`""
+            Start-Process powershell.exe -ArgumentList "-ExecutionPolicy Bypass -WindowStyle Maximized -NoLogo -File `"$SelfPath`""
             Exit
         }
         Remove-Item $TempSelf -Force
@@ -123,7 +127,7 @@ function Restart-And-Launch {
     Stop-Process -Name $ProcessName -Force -ErrorAction SilentlyContinue
     Start-Sleep -Seconds 1
     
-    Configure-BrowserPrefs $BrowserName
+    Configure-BrowserPrefs -BrowserName $BrowserName
 
     $ArgsList = @(
         "--restore-last-session",
