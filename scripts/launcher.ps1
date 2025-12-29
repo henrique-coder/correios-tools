@@ -94,7 +94,6 @@ function Configure-BrowserPrefs ($BrowserName) {
         try {
             $Content = Get-Content $PrefPath -Raw
             if ($Content -notmatch '"restore_on_startup":1') {
-                Write-Host "  [*] Configurando sessao do $BrowserName..." -ForegroundColor Yellow
                 $NewContent = $Content -replace '"restore_on_startup":\d', '"restore_on_startup":1'
                 if ($NewContent -ne $Content) {
                     Set-Content -Path $PrefPath -Value $NewContent -Encoding UTF8
@@ -104,50 +103,12 @@ function Configure-BrowserPrefs ($BrowserName) {
     }
 }
 
-Draw-Header
-Check-SelfUpdate
-
-Write-Host "  [*] Fechando navegadores ativos..." -ForegroundColor Cyan
-Stop-Process -Name "msedge", "chrome" -ErrorAction SilentlyContinue -Force
-
-Update-Extensions
-$LoadExtArg = Get-ExtensionString
-
-if ([string]::IsNullOrWhiteSpace($LoadExtArg)) {
-    Write-Warning "  [!] Nenhuma ferramenta carregada."
-}
-
-$StartUrl = "https://sroweb.correios.com.br/app/entregaexternaautomatica/lancamento/index.php"
-
-while ($true) {
-    Draw-Header
-    Write-Host "  SELECIONE O NAVEGADOR:" -ForegroundColor Yellow
-    Write-Host ""
-    Write-Host "  [1] Microsoft Edge" -ForegroundColor White
-    Write-Host "  [2] Google Chrome" -ForegroundColor White
-    Write-Host ""
-    Write-Host "  [ENTER] Sair" -ForegroundColor DarkGray
-    Write-Host ""
+function Restart-And-Launch ($BrowserName, $ProcessName, $StartUrl, $LoadExtArg) {
+    Write-Host "  >>> Reiniciando $BrowserName para aplicar ferramentas..." -ForegroundColor Yellow
     
-    $InputUser = Read-Host "  > Opcao"
-
-    if ($InputUser -eq "") { Exit }
-
-    $BrowserBin = ""
-    $BrowserName = ""
-
-    if ($InputUser -eq "1") { 
-        $BrowserBin = "msedge"
-        $BrowserName = "Edge"
-    } elseif ($InputUser -eq "2") { 
-        $BrowserBin = "chrome"
-        $BrowserName = "Chrome"
-    } else {
-        continue
-    }
-
-    Write-Host ""
-    Write-Host "  >>> Iniciando $BrowserName..." -ForegroundColor Green
+    Stop-Process -Name $ProcessName -Force -ErrorAction SilentlyContinue
+    Start-Sleep -Seconds 1
+    
     Configure-BrowserPrefs $BrowserName
 
     $ArgsList = @(
@@ -161,9 +122,51 @@ while ($true) {
         $ArgsList += "--load-extension=`"$LoadExtArg`""
     }
 
-    Start-Process $BrowserBin -ArgumentList $ArgsList
+    Start-Process $ProcessName -ArgumentList $ArgsList
+    Write-Host "  [V] $BrowserName iniciado." -ForegroundColor Green
+}
+
+Draw-Header
+Check-SelfUpdate
+
+Write-Host "  [*] Preparando ambiente..." -ForegroundColor Cyan
+Update-Extensions
+$LoadExtArg = Get-ExtensionString
+
+if ([string]::IsNullOrWhiteSpace($LoadExtArg)) {
+    Write-Warning "  [!] Nenhuma ferramenta carregada."
+}
+
+$StartUrl = "https://sroweb.correios.com.br/app/entregaexternaautomatica/lancamento/index.php"
+
+while ($true) {
+    Draw-Header
+    Write-Host "  SELECIONE O NAVEGADOR:" -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "  [0] ABRIR TODOS (Edge + Chrome)" -ForegroundColor White
+    Write-Host "  [1] Microsoft Edge" -ForegroundColor White
+    Write-Host "  [2] Google Chrome" -ForegroundColor White
+    Write-Host ""
+    Write-Host "  [ENTER] Sair" -ForegroundColor DarkGray
+    Write-Host ""
+    
+    $InputUser = Read-Host "  > Opcao"
+
+    if ($InputUser -eq "") { Exit }
+
+    if ($InputUser -eq "0") {
+        Restart-And-Launch "Edge" "msedge" $StartUrl $LoadExtArg
+        Start-Sleep -Seconds 2
+        Restart-And-Launch "Chrome" "chrome" $StartUrl $LoadExtArg
+    } elseif ($InputUser -eq "1") { 
+        Restart-And-Launch "Edge" "msedge" $StartUrl $LoadExtArg
+    } elseif ($InputUser -eq "2") { 
+        Restart-And-Launch "Chrome" "chrome" $StartUrl $LoadExtArg
+    } else {
+        continue
+    }
     
     Write-Host ""
-    Write-Host "  [V] Navegador rodando. Pronto para o proximo comando." -ForegroundColor DarkGray
+    Write-Host "  [!] Concluido. Aguardando proximo comando..." -ForegroundColor DarkGray
     Start-Sleep -Seconds 2
 }
