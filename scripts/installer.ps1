@@ -61,7 +61,7 @@ function Create-Shortcut {
         $Shortcut.Save()
         Write-Host "[OK] Atalho criado: $LinkPath" -ForegroundColor Green
     } catch {
-        Write-Error "Falha ao criar atalho em: $LinkPath. Erro: $_"
+        Write-Error "Falha ao criar atalho em: $LinkPath"
     }
 }
 
