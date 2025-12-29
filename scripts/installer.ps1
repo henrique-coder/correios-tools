@@ -51,7 +51,7 @@ try {
     $WshShell = New-Object -comObject WScript.Shell
     $Shortcut = $WshShell.CreateShortcut($ShortcutPath)
     $Shortcut.TargetPath = "powershell.exe"
-    $Shortcut.Arguments = "-ExecutionPolicy Bypass -WindowStyle Maximized -File `"$LauncherLocal`""
+    $Shortcut.Arguments = "-NoLogo -ExecutionPolicy Bypass -File `"$LauncherLocal`""
     $Shortcut.IconLocation = $IconLocal
     $Shortcut.Description = "Correios Tools Launcher"
     $Shortcut.Save()
