@@ -12,6 +12,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: release-browser-extensions
+  cancel-in-progress: true
+
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
@@ -27,68 +31,71 @@ jobs:
         run: |
           extensions=$(find extensions -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort)
           changed_extensions=""
-          for ext in $extensions; do
-            if git diff --name-only HEAD^ HEAD | grep -q "^extensions/$ext/"; then
-              changed_extensions="$changed_extensions $ext"
-              echo "Detected changes in: $ext"
-            fi
-          done
+
           if [ -z "$(git rev-parse HEAD^ 2>/dev/null)" ]; then
             changed_extensions="$extensions"
             echo "First commit detected, processing all extensions"
+          else
+            for ext in $extensions; do
+              if git diff --name-only HEAD^ HEAD | grep -q "^extensions/$ext/"; then
+                changed_extensions="$changed_extensions $ext"
+                echo "Detected changes in: $ext"
+              fi
+            done
           fi
+
+          changed_extensions=$(echo "$changed_extensions" | xargs)
           echo "extensions=$changed_extensions" >> $GITHUB_OUTPUT
 
       - name: Create ZIP archives
         if: steps.changed-extensions.outputs.extensions != ''
         run: |
           mkdir -p release_assets
-          for ext in ${{ steps.changed-extensions.outputs.extensions }}; do
+
+          IFS=' ' read -ra EXTENSIONS <<< "${{ steps.changed-extensions.outputs.extensions }}"
+          for ext in "${EXTENSIONS[@]}"; do
             echo "Creating ZIP for: $ext"
             cd "extensions/$ext"
             zip -9 -r "../../release_assets/${ext}.zip" .
             cd ../..
             echo "✓ Created ${ext}.zip"
           done
+
           ls -lh release_assets/
 
-      - name: Get or create release
+      - name: Upload to release
         if: steps.changed-extensions.outputs.extensions != ''
         uses: softprops/action-gh-release@v2
         with:
           tag_name: browser-extensions
-          name: Browser Extensions (Zipped)
+          name: Browser Extensions
           body: |
             ## Browser Extensions - Automated Release
 
-            This release contains zipped versions of all browser extensions.
-            Each ZIP file is automatically updated when changes are committed to the corresponding extension folder.
+            Zipped versions of all browser extensions, automatically updated on commit.
 
-            **Last updated:** ${{ github.event.head_commit.timestamp }}
-            **Commit:** ${{ github.sha }}
-
-            ### Available Extensions:
-            ${{ steps.changed-extensions.outputs.extensions }}
+            **Updated:** ${{ github.event.head_commit.timestamp }}
+            **Commit:** [`${{ github.sha }}`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})
 
             ---
-            *This release is automatically maintained by GitHub Actions.*
+            *Maintained by GitHub Actions*
           files: release_assets/*.zip
           draft: false
           prerelease: false
           make_latest: true
-          overwrite_files: true
+          fail_on_unmatched_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Release summary
+      - name: Summary
         if: steps.changed-extensions.outputs.extensions != ''
         run: |
-          echo "### ✅ Release Updated Successfully" >> $GITHUB_STEP_SUMMARY
+          echo "### ✅ Release Updated" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Extensions processed:**" >> $GITHUB_STEP_SUMMARY
-          for ext in ${{ steps.changed-extensions.outputs.extensions }}; do
+          echo "**Extensions:**" >> $GITHUB_STEP_SUMMARY
+
+          IFS=' ' read -ra EXTENSIONS <<< "${{ steps.changed-extensions.outputs.extensions }}"
+          for ext in "${EXTENSIONS[@]}"; do
             size=$(du -h "release_assets/${ext}.zip" | cut -f1)
             echo "- \`${ext}.zip\` (${size})" >> $GITHUB_STEP_SUMMARY
           done
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Release:** [Browser Extensions (Zipped)](${{ github.server_url }}/${{ github.repository }}/releases/tag/browser-extensions)" >> $GITHUB_STEP_SUMMARY

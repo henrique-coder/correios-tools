@@ -12,23 +12,30 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: release-minified-scripts
+  cancel-in-progress: true
+
 jobs:
   minify-and-release:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v6
+      - name: Checkout repository
+        uses: actions/checkout@v6
 
-      - shell: pwsh
+      - name: Check PowerShell version
+        shell: pwsh
         run: |
           Write-Host "PowerShell version: $($PSVersionTable.PSVersion)"
 
-      - shell: pwsh
+      - name: Install PSMinifier
+        shell: pwsh
         run: |
           Install-Module PSMinifier -Force -Scope CurrentUser
           Import-Module PSMinifier
 
-      - name: Minify Scripts
+      - name: Minify scripts
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path release_assets | Out-Null
@@ -68,7 +75,7 @@ jobs:
 
               if ($script.DirectoryName.Replace("\", "/") -match "/extras$") {
                 $fileName = "extra-$fileName"
-                Write-Host "Type: Extra Utility (Prefix added)" -ForegroundColor Magenta
+                Write-Host "Type: Extra Utility" -ForegroundColor Magenta
               }
 
               $outputPath = Join-Path "release_assets" $fileName
@@ -77,53 +84,42 @@ jobs:
               $processedCount++
               $totalOriginal += $originalSize
               $totalMinified += $minifiedSize
-            } catch {
+            }
+            catch {
               Write-Host "Error processing $($script.Name): $_" -ForegroundColor Red
             }
           }
 
           Write-Host "`n========================================" -ForegroundColor Cyan
-          Write-Host "TOTAL SUMMARY" -ForegroundColor Cyan
-          Write-Host "Scripts: $processedCount"
+          Write-Host "TOTAL: $processedCount scripts" -ForegroundColor Cyan
           if ($totalOriginal -gt 0) {
             $totalRatio = [math]::Round((1 - ($totalMinified / $totalOriginal)) * 100, 2)
-            Write-Host "Total Compression: $totalRatio%" -ForegroundColor Green
+            Write-Host "Compression: $totalRatio%" -ForegroundColor Green
           }
 
-      - name: Clean Old Release
-        shell: bash
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release delete minified-scripts --cleanup-tag -y || true
-
-      - name: Create Release
+      - name: Upload to release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: minified-scripts
           name: Minified Scripts
           body: |
-            ## PowerShell Scripts - Minified Release
+            ## PowerShell Scripts - Minified
 
-            This release contains minified versions of all PowerShell scripts.
-            Each script is automatically minified when changes are committed.
+            Minified versions of all PowerShell scripts, automatically updated on commit.
 
             **Format:**
             - `*.min.ps1` - Standard scripts
-            - `extra-*.min.ps1` - Utility scripts (from extras folder)
+            - `extra-*.min.ps1` - Utility scripts
 
-            **Last updated:** ${{ github.event.head_commit.timestamp }}
-            **Commit:** ${{ github.sha }}
-
-            ### Minification Details:
-            - Removes comments and inline help
-            - Removes unnecessary whitespace
-            - Preserves all functionality and logic
-            - Does not rename variables or optimize code
+            **Updated:** ${{ github.event.head_commit.timestamp }}
+            **Commit:** [`${{ github.sha }}`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})
 
             ---
-            *This release is automatically maintained by GitHub Actions using PSMinifier.*
+            *Maintained by GitHub Actions using PSMinifier*
           files: release_assets/*.ps1
           draft: false
           prerelease: false
           make_latest: true
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
