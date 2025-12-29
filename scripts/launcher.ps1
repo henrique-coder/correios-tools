@@ -9,13 +9,6 @@ $DirData = "$DirBase\data"
 $DirExtensions = "$DirData\extensions"
 $SelfPath = $MyInvocation.MyCommand.Path
 
-# --- FORCE CONSOLE HOST (CMD STYLE) ---
-# If running in ISE or a hidden window, tries to relaunch in a visible console.
-if ($Host.Name -ne "ConsoleHost") {
-    Start-Process powershell.exe -ArgumentList "-ExecutionPolicy Bypass -File `"$SelfPath`""
-    Exit
-}
-
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
 function Draw-Header {
@@ -44,8 +37,7 @@ function Check-SelfUpdate {
             Write-Host "  [!] ATUALIZACAO ENCONTRADA. REINICIANDO..." -ForegroundColor Magenta
             Copy-Item $TempSelf $SelfPath -Force
             Remove-Item $TempSelf -Force
-            # Relaunch in the same console window
-            Start-Process powershell.exe -ArgumentList "-NoLogo -ExecutionPolicy Bypass -File `"$SelfPath`"" -WindowStyle Normal
+            Start-Process powershell.exe -ArgumentList "-ExecutionPolicy Bypass -WindowStyle Maximized -File `"$SelfPath`""
             Exit
         }
         Remove-Item $TempSelf -Force
@@ -90,15 +82,15 @@ function Get-ExtensionString {
     return ($ExtPaths -join ",")
 }
 
-function Configure-BrowserPrefs ($BrowserName) {
+function Configure-BrowserPrefs {
+    param([string]$BrowserName)
+    
     $PrefPath = ""
     if ($BrowserName -eq "Edge") {
         $PrefPath = "$env:LOCALAPPDATA\Microsoft\Edge\User Data\Default\Preferences"
     } elseif ($BrowserName -eq "Chrome") {
         $PrefPath = "$env:LOCALAPPDATA\Google\Chrome\User Data\Default\Preferences"
     }
-
-    if ([string]::IsNullOrWhiteSpace($PrefPath)) { return }
 
     if (Test-Path $PrefPath) {
         try {
@@ -114,9 +106,15 @@ function Configure-BrowserPrefs ($BrowserName) {
     }
 }
 
-function Restart-And-Launch ($BrowserName, $ProcessName, $StartUrl, $LoadExtArg) {
+function Restart-And-Launch {
+    param (
+        [string]$BrowserName,
+        [string]$ProcessName,
+        [string]$StartUrl,
+        [string]$LoadExtArg
+    )
+
     if ([string]::IsNullOrWhiteSpace($BrowserName) -or [string]::IsNullOrWhiteSpace($ProcessName)) {
-        Write-Error "  [!] Erro interno: Nome do navegador invalido."
         return
     }
 
@@ -142,11 +140,9 @@ function Restart-And-Launch ($BrowserName, $ProcessName, $StartUrl, $LoadExtArg)
         Start-Process $ProcessName -ArgumentList $ArgsList
         Write-Host "  [V] $BrowserName iniciado." -ForegroundColor Green
     } catch {
-        Write-Warning "  [!] Nao foi possivel iniciar $BrowserName. Ele esta instalado?"
+        Write-Warning "  [!] Nao foi possivel iniciar $BrowserName."
     }
 }
-
-# --- MAIN EXECUTION ---
 
 Draw-Header
 Check-SelfUpdate
@@ -177,13 +173,13 @@ while ($true) {
     if ($InputUser -eq "") { Exit }
 
     if ($InputUser -eq "0") {
-        Restart-And-Launch "Edge" "msedge" $StartUrl $LoadExtArg
+        Restart-And-Launch -BrowserName "Edge" -ProcessName "msedge" -StartUrl $StartUrl -LoadExtArg $LoadExtArg
         Start-Sleep -Seconds 2
-        Restart-And-Launch "Chrome" "chrome" $StartUrl $LoadExtArg
+        Restart-And-Launch -BrowserName "Chrome" -ProcessName "chrome" -StartUrl $StartUrl -LoadExtArg $LoadExtArg
     } elseif ($InputUser -eq "1") { 
-        Restart-And-Launch "Edge" "msedge" $StartUrl $LoadExtArg
+        Restart-And-Launch -BrowserName "Edge" -ProcessName "msedge" -StartUrl $StartUrl -LoadExtArg $LoadExtArg
     } elseif ($InputUser -eq "2") { 
-        Restart-And-Launch "Chrome" "chrome" $StartUrl $LoadExtArg
+        Restart-And-Launch -BrowserName "Chrome" -ProcessName "chrome" -StartUrl $StartUrl -LoadExtArg $LoadExtArg
     } else {
         continue
     }
