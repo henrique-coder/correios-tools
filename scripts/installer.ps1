@@ -10,6 +10,9 @@ Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 
 Clear-Host
+[Console]::BackgroundColor = "Black"
+[Console]::ForegroundColor = "White"
+Clear-Host
 Write-Host ">>> INSTALANDO CORREIOS TOOLS <<<" -ForegroundColor Cyan
 
 $Browsers = Get-Process -Name "msedge", "chrome" -ErrorAction SilentlyContinue
@@ -45,20 +48,26 @@ try {
     Exit
 }
 
-$ShortcutPath = "$DirBase\Correios Tools.lnk"
+$WshShell = New-Object -comObject WScript.Shell
 
-try {
-    $WshShell = New-Object -comObject WScript.Shell
-    $Shortcut = $WshShell.CreateShortcut($ShortcutPath)
-    $Shortcut.TargetPath = "powershell.exe"
-    $Shortcut.Arguments = "-NoLogo -ExecutionPolicy Bypass -File `"$LauncherLocal`""
-    $Shortcut.IconLocation = $IconLocal
-    $Shortcut.Description = "Correios Tools Launcher"
-    $Shortcut.Save()
-    Write-Host "[OK] Atalho criado." -ForegroundColor Green
-} catch {
-    Write-Error "Falha ao criar atalho."
+function Create-Shortcut ($Path) {
+    try {
+        $Shortcut = $WshShell.CreateShortcut($Path)
+        $Shortcut.TargetPath = "powershell.exe"
+        $Shortcut.Arguments = "-NoLogo -ExecutionPolicy Bypass -WindowStyle Maximized -File `"$LauncherLocal`""
+        $Shortcut.IconLocation = $IconLocal
+        $Shortcut.Description = "Correios Tools Launcher"
+        $Shortcut.Save()
+        Write-Host "[OK] Atalho criado em: $Path" -ForegroundColor Green
+    } catch {
+        Write-Error "Falha ao criar atalho em: $Path"
+    }
 }
 
+Create-Shortcut "$DirBase\Correios Tools.lnk"
+
+$UserDesktop = [Environment]::GetFolderPath("Desktop")
+Create-Shortcut "$UserDesktop\Correios Tools.lnk"
+
 Start-Process "explorer.exe" -ArgumentList $DirBase
-[System.Windows.Forms.MessageBox]::Show("Instalacao Concluida!`n`nA pasta foi aberta. Voce ja pode usar o atalho 'Correios Tools'.", "Sucesso", "OK", "Information")
+[System.Windows.Forms.MessageBox]::Show("Instalacao Concluida!`n`nOs atalhos foram criados na Area de Trabalho e na pasta publica.", "Sucesso", "OK", "Information")
