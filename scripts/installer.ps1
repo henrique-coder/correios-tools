@@ -48,19 +48,20 @@ try {
     Exit
 }
 
-$WshShell = New-Object -comObject WScript.Shell
-
-function Create-Shortcut ($Path) {
+function Create-Shortcut {
+    param([string]$LinkPath)
+    
     try {
-        $Shortcut = $WshShell.CreateShortcut($Path)
+        $WshShell = New-Object -comObject WScript.Shell
+        $Shortcut = $WshShell.CreateShortcut($LinkPath)
         $Shortcut.TargetPath = "powershell.exe"
         $Shortcut.Arguments = "-NoLogo -ExecutionPolicy Bypass -WindowStyle Maximized -File `"$LauncherLocal`""
         $Shortcut.IconLocation = $IconLocal
         $Shortcut.Description = "Correios Tools Launcher"
         $Shortcut.Save()
-        Write-Host "[OK] Atalho criado em: $Path" -ForegroundColor Green
+        Write-Host "[OK] Atalho criado: $LinkPath" -ForegroundColor Green
     } catch {
-        Write-Error "Falha ao criar atalho em: $Path"
+        Write-Error "Falha ao criar atalho em: $LinkPath. Erro: $_"
     }
 }
 
