@@ -86,15 +86,11 @@ jobs:
               $fileName = [System.IO.Path]::GetFileNameWithoutExtension($scriptPath)
               $directory = [System.IO.Path]::GetDirectoryName($relativePath)
               $minPs1Name = "${fileName}.min.ps1"
-              $minTxtName = "${fileName}.min.ps1.txt"
               $minPs1Path = Join-Path "release_assets" $directory $minPs1Name
-              $minTxtPath = Join-Path "release_assets" $directory $minTxtName
               $outputDir = Join-Path "release_assets" $directory
               New-Item -ItemType Directory -Force -Path $outputDir | Out-Null
               [System.IO.File]::WriteAllText($minPs1Path, $minifiedContent, [System.Text.UTF8Encoding]::new($false))
-              [System.IO.File]::WriteAllText($minTxtPath, $minifiedContent, [System.Text.UTF8Encoding]::new($false))
               Write-Host "✓ Created: $minPs1Path" -ForegroundColor Green
-              Write-Host "✓ Created: $minTxtPath" -ForegroundColor Green
               $processedCount++
               $totalOriginalSize += $originalSize
               $totalMinifiedSize += $minifiedSize
@@ -132,7 +128,6 @@ jobs:
 
             **Format:**
             - `.min.ps1` - Minified PowerShell script (executable)
-            - `.min.ps1.txt` - Same content as .min.ps1 (for sites that block .ps1 files)
 
             **Last updated:** ${{ github.event.head_commit.timestamp }}
             **Commit:** ${{ github.sha }}
@@ -167,3 +162,4 @@ jobs:
           }
           Write-Output "" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
           Write-Output "**Release:** [Minified Scripts](${{ github.server_url }}/${{ github.repository }}/releases/tag/minified-scripts)" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          
