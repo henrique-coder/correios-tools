@@ -5,6 +5,7 @@ on:
     branches:
       - dev
     paths:
+      - ".github/workflows/release-minified-scripts.yml"
       - "scripts/**"
   workflow_dispatch:
 
