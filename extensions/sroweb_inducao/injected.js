@@ -227,7 +227,9 @@
     elPrevisao.innerText = state.previsao || "--/--/----";
 
     let html = "";
-    html += `<div class="sro-row"><span class="sro-key">Objeto:</span> <span class="sro-val">${state.codigo || "--"}</span></div>`;
+    html += `<div class="sro-row"><span class="sro-key">Objeto:</span> <span class="sro-val">${
+      state.codigo || "--"
+    }</span></div>`;
     if (state.detalhes.msg)
       html += `<div class="sro-row"><span class="sro-key">Sistema:</span> <span class="sro-val">${state.detalhes.msg}</span></div>`;
     if (state.detalhes.carteiro)

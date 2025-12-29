@@ -23,7 +23,7 @@ if ($Browsers) {
         [System.Windows.Forms.MessageBoxButtons]::YesNo,
         [System.Windows.Forms.MessageBoxIcon]::Question
     )
-    
+
     if ($Result -eq "Yes") {
         Stop-Process -Name "msedge", "chrome" -Force -ErrorAction SilentlyContinue
         Write-Host "[OK] Navegadores fechados." -ForegroundColor Green
@@ -50,7 +50,7 @@ try {
 
 function Create-Shortcut {
     param([string]$LinkPath)
-    
+
     try {
         $WshShell = New-Object -comObject WScript.Shell
         $Shortcut = $WshShell.CreateShortcut($LinkPath)
