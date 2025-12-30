@@ -5,6 +5,10 @@
     Detailed description. No admin privileges required.
 #>
 
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+[Console]::InputEncoding  = [System.Text.Encoding]::UTF8
+try { chcp 65001 | Out-Null } catch {}
+
 [CmdletBinding()]
 param()
 
