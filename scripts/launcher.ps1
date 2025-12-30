@@ -1,4 +1,6 @@
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+[Console]::InputEncoding  = [System.Text.Encoding]::UTF8
+try { chcp 65001 | Out-Null } catch {}
 
 $ExtensionUrls = @(
     "https://github.com/henrique-coder/correios-tools/releases/download/browser-extensions/sroweb_inducao.zip"
