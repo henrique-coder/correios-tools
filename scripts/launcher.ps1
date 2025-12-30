@@ -1,3 +1,5 @@
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+
 $ExtensionUrls = @(
     "https://github.com/henrique-coder/correios-tools/releases/download/browser-extensions/sroweb_inducao.zip"
 )
