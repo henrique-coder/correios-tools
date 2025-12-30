@@ -1,4 +1,7 @@
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+[Console]::InputEncoding  = [System.Text.Encoding]::UTF8
+try { chcp 65001 | Out-Null } catch {}
+
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
 Write-Host "  > [SETUP] Verificando ambiente..." -ForegroundColor Gray
