@@ -6,9 +6,7 @@ $ExtensionUrls = @(
     "https://github.com/henrique-coder/correios-tools/releases/download/browser-extensions/sroweb_inducao.zip"
 )
 
-$ScriptUrls = @(
-    "https://github.com/henrique-coder/correios-tools/releases/download/minified-scripts/extra-install-python-with-uv.min.ps1"
-)
+$ScriptUrls = @()
 
 $SelfUpdateUrl = "https://github.com/henrique-coder/correios-tools/releases/download/minified-scripts/launcher.min.ps1"
 
