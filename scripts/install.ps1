@@ -2,13 +2,13 @@
 [Console]::InputEncoding  = [System.Text.Encoding]::UTF8
 try { chcp 65001 | Out-Null } catch {}
 
-$UrlLauncher = "https://github.com/henrique-coder/correios-tools/releases/download/minified-scripts/launcher.min.ps1"
-$UrlIcon = "https://raw.githubusercontent.com/henrique-coder/correios-tools/refs/heads/dev/assets/icon.ico"
+$launcherUrl = "https://github.com/henrique-coder/correios-tools/releases/download/minified-scripts/launcher.min.ps1"
+$iconUrl = "https://raw.githubusercontent.com/henrique-coder/correios-tools/refs/heads/dev/assets/icon.ico"
 
-$BaseDir = "C:\Users\Public\correios-tools"
-$DataDir = "$BaseDir\data"
-$LauncherPath = "$DataDir\launcher.ps1"
-$IconPath = "$DataDir\icon.ico"
+$baseDir = "C:\Users\Public\correios-tools"
+$dataDir = "$baseDir\data"
+$launcherPath = "$dataDir\launcher.ps1"
+$iconPath = "$dataDir\icon.ico"
 
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
@@ -38,15 +38,15 @@ if ($browsers) {
     }
 }
 
-if (!(Test-Path $DataDir)) {
-    New-Item -ItemType Directory -Path $DataDir -Force | Out-Null
+if (!(Test-Path $dataDir)) {
+    New-Item -ItemType Directory -Path $dataDir -Force | Out-Null
 }
 
 try {
     Write-Host "Baixando arquivos do sistema..." -ForegroundColor Yellow
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-    Invoke-WebRequest -Uri $UrlLauncher -OutFile $LauncherPath -UseBasicParsing
-    Invoke-WebRequest -Uri $UrlIcon -OutFile $IconPath -UseBasicParsing
+    Invoke-WebRequest -Uri $launcherUrl -OutFile $launcherPath -UseBasicParsing
+    Invoke-WebRequest -Uri $iconUrl -OutFile $iconPath -UseBasicParsing
     Write-Host "[OK] Arquivos do sistema baixados." -ForegroundColor Green
 }
 catch {
@@ -60,29 +60,29 @@ catch {
 }
 
 function New-Shortcut {
-    param([string]$LinkPath)
+    param([string]$linkPath)
 
     try {
         $shell = New-Object -ComObject WScript.Shell
-        $shortcut = $shell.CreateShortcut($LinkPath)
+        $shortcut = $shell.CreateShortcut($linkPath)
         $shortcut.TargetPath = "powershell.exe"
-        $shortcut.Arguments = "-NoLogo -ExecutionPolicy Bypass -WindowStyle Maximized -File `"$LauncherPath`""
-        $shortcut.IconLocation = $IconPath
+        $shortcut.Arguments = "-NoLogo -ExecutionPolicy Bypass -WindowStyle Maximized -File `"$launcherPath`""
+        $shortcut.IconLocation = $iconPath
         $shortcut.Description = "Correios Tools Launcher"
         $shortcut.Save()
-        Write-Host "[OK] Atalho criado: $LinkPath" -ForegroundColor Green
+        Write-Host "[OK] Atalho criado: $linkPath" -ForegroundColor Green
     }
     catch {
-        Write-Error "Falha ao criar atalho em: $LinkPath"
+        Write-Error "Falha ao criar atalho em: $linkPath"
     }
 }
 
-New-Shortcut "$BaseDir\Correios Tools.lnk"
+New-Shortcut "$baseDir\Correios Tools.lnk"
 
-$userDesktop = [Environment]::GetFolderPath("Desktop")
-New-Shortcut "$userDesktop\Correios Tools.lnk"
+$desktopPath = [Environment]::GetFolderPath("Desktop")
+New-Shortcut "$desktopPath\Correios Tools.lnk"
 
-Start-Process "explorer.exe" -ArgumentList $BaseDir
+Start-Process "explorer.exe" -ArgumentList $baseDir
 [System.Windows.Forms.MessageBox]::Show(
     "Instalacao Concluida!`n`nOs atalhos foram criados na Area de Trabalho e na pasta publica.",
     "Sucesso",

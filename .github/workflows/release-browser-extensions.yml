@@ -24,7 +24,16 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Create ZIP archives
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+
+      - name: Install minifiers
+        run: |
+          npm install -g html-minifier-terser terser csso-cli
+
+      - name: Minify and create ZIP archives
         id: build
         run: |
           mkdir -p release_assets
@@ -33,12 +42,53 @@ jobs:
           for dir in extensions/*/; do
             if [ -d "$dir" ]; then
               ext=$(basename "$dir")
-              echo "Creating ZIP for: $ext"
-              cd "$dir"
-              zip -9 -r "../../release_assets/${ext}.zip" .
-              cd ../..
+              echo "Processing: $ext"
+
+              temp_dir=$(mktemp -d)
+              cp -r "$dir"* "$temp_dir/"
+
+              # Minify HTML files
+              find "$temp_dir" -name "*.html" -type f | while read file; do
+                echo "  Minifying HTML: $(basename "$file")"
+                html-minifier-terser \
+                  --collapse-whitespace \
+                  --remove-comments \
+                  --remove-redundant-attributes \
+                  --remove-empty-attributes \
+                  --minify-css true \
+                  --minify-js true \
+                  -o "$file" "$file" 2>/dev/null || true
+              done
+
+              # Minify JS files
+              find "$temp_dir" -name "*.js" -type f | while read file; do
+                echo "  Minifying JS: $(basename "$file")"
+                terser "$file" \
+                  --compress \
+                  --mangle \
+                  --output "$file" 2>/dev/null || true
+              done
+
+              # Minify CSS files
+              find "$temp_dir" -name "*.css" -type f | while read file; do
+                echo "  Minifying CSS: $(basename "$file")"
+                csso "$file" --output "$file" 2>/dev/null || true
+              done
+
+              # Minify JSON files (remove whitespace)
+              find "$temp_dir" -name "*.json" -type f | while read file; do
+                echo "  Minifying JSON: $(basename "$file")"
+                jq -c '.' "$file" > "$file.tmp" && mv "$file.tmp" "$file" 2>/dev/null || true
+              done
+
+              # Create ZIP with maximum compression
+              cd "$temp_dir"
+              zip -9 -r "$GITHUB_WORKSPACE/release_assets/${ext}.zip" .
+              cd "$GITHUB_WORKSPACE"
+
+              rm -rf "$temp_dir"
               extensions="$extensions $ext"
-              echo "✓ ${ext}.zip"
+              echo "✓ ${ext}.zip (minified)"
             fi
           done
 
@@ -68,7 +118,7 @@ jobs:
           body: |
             ## Browser Extensions
 
-            Zipped browser extensions, synced with the repository.
+            Minified and zipped browser extensions, synced with the repository.
 
             **Extensions:** ${{ steps.build.outputs.list }}
 
@@ -84,7 +134,7 @@ jobs:
 
       - name: Summary
         run: |
-          echo "### ✅ Release Synced" >> $GITHUB_STEP_SUMMARY
+          echo "### ✅ Release Synced (Minified)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Extensions:**" >> $GITHUB_STEP_SUMMARY
           for ext in ${{ steps.build.outputs.list }}; do

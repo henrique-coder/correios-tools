@@ -1,18 +1,47 @@
 (function () {
   "use strict";
 
+  const UI_TEXT = {
+    waiting: "AGUARDANDO...",
+    reading: "LENDO...",
+    readyToInduct: "PRONTO P/ INDUZIR",
+    notInducted: "NÃO INDUZIDO",
+    alreadyInducted: "JÁ INDUZIDO",
+    objectInducted: "OBJETO INDUZIDO",
+    deleted: "EXCLUÍDO",
+    district: "DISTRITO",
+    deliveryForecast: "PREVISÃO DE ENTREGA",
+    moreInfo: "▼ MAIS INFORMAÇÕES",
+    lessInfo: "▲ MENOS INFORMAÇÕES",
+    resetPositionHint: "Clique duas vezes para resetar a posição",
+    processing: "Processando...",
+    validated: "Validado",
+    invalidObject: "Objeto inválido",
+    objectInList: "Objeto já consta na lista.",
+    inclusionConfirmed: "Inclusão confirmada.",
+    objectRemoved: "Objeto removido da lista.",
+    defaultDate: "--/--/----",
+    defaultDistrict: "--",
+    labelObject: "Objeto:",
+    labelSystem: "Sistema:",
+    labelPostman: "Carteiro:",
+    labelServices: "Serviços:",
+  };
+
+  const STORAGE_KEY_POSITION = "sro_position";
+
   let state = {
     trackingCode: null,
     launchId: null,
-    status: "AGUARDANDO...",
+    status: UI_TEXT.waiting,
     mode: "loading",
-    district: "--",
-    deliveryDate: "--/--/----",
+    district: UI_TEXT.defaultDistrict,
+    deliveryDate: UI_TEXT.defaultDate,
     details: {},
   };
 
   let uiInitialized = false;
-  let isDetailsOpen = localStorage.getItem("sro_details_open") === "true";
+  let isDetailsOpen = false;
   let dragConfig = {
     active: false,
     currentX: 0,
@@ -23,12 +52,8 @@
     yOffset: 0,
   };
 
-  function initUI() {
-    if (document.getElementById("sro-styles")) return;
-
-    const style = document.createElement("style");
-    style.id = "sro-styles";
-    style.innerHTML = `
+  function buildStyles() {
+    return `
       #sro-container { position: fixed; top: 15px; right: 15px; z-index: 999999; display: flex; flex-direction: column; }
       .sro-card { width: 280px; background: #fff; border-radius: 6px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); font-family: 'Segoe UI', Arial, sans-serif; overflow: hidden; opacity: 0; transform: translateY(-10px); transition: opacity 0.2s, transform 0.2s; border-left: 10px solid #999; display: none; }
       .sro-card.visible { display: block; opacity: 1; transform: translateY(0); }
@@ -61,33 +86,44 @@
       .mode-info .sro-header { background: #e3f2fd; }
       .mode-info .sro-status-text { color: #0d47a1; }
     `;
-    document.head.appendChild(style);
+  }
 
-    const container = document.createElement("div");
-    container.id = "sro-container";
-
-    container.innerHTML = `
+  function buildCardHtml() {
+    return `
       <div id="sro-card" class="sro-card mode-loading">
-        <div id="sro-header" class="sro-header" title="Clique duas vezes para resetar a posição">
-          <span id="sro-status" class="sro-status-text">AGUARDANDO...</span>
+        <div id="sro-header" class="sro-header" title="${UI_TEXT.resetPositionHint}">
+          <span id="sro-status" class="sro-status-text">${UI_TEXT.waiting}</span>
           <span id="sro-icon" class="sro-icon">⏳</span>
         </div>
         <div class="sro-body">
-          <div class="sro-label">DISTRITO</div>
-          <div id="sro-distrito" class="sro-distrito">--</div>
+          <div class="sro-label">${UI_TEXT.district}</div>
+          <div id="sro-distrito" class="sro-distrito">${UI_TEXT.defaultDistrict}</div>
           <div class="sro-previsao-box">
-            <div class="sro-label">PREVISÃO DE ENTREGA</div>
-            <div id="sro-previsao" class="sro-previsao-val">--/--/----</div>
+            <div class="sro-label">${UI_TEXT.deliveryForecast}</div>
+            <div id="sro-previsao" class="sro-previsao-val">${UI_TEXT.defaultDate}</div>
           </div>
         </div>
         <div id="sro-details" class="sro-details">
           <div id="sro-details-content" class="sro-detail-content"></div>
         </div>
         <div id="sro-footer" class="sro-footer">
-          <span id="sro-footer-text">▼ MAIS INFORMAÇÕES</span>
+          <span id="sro-footer-text">${UI_TEXT.moreInfo}</span>
         </div>
       </div>
     `;
+  }
+
+  function initUI() {
+    if (document.getElementById("sro-styles")) return;
+
+    const style = document.createElement("style");
+    style.id = "sro-styles";
+    style.innerHTML = buildStyles();
+    document.head.appendChild(style);
+
+    const container = document.createElement("div");
+    container.id = "sro-container";
+    container.innerHTML = buildCardHtml();
     document.body.appendChild(container);
 
     document
@@ -101,7 +137,29 @@
     document.addEventListener("mousemove", drag, false);
 
     applyDetailsState();
+    restorePosition();
     uiInitialized = true;
+  }
+
+  function savePosition() {
+    localStorage.setItem(
+      STORAGE_KEY_POSITION,
+      JSON.stringify({ x: dragConfig.currentX, y: dragConfig.currentY }),
+    );
+  }
+
+  function restorePosition() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY_POSITION));
+      if (saved && typeof saved.x === "number" && typeof saved.y === "number") {
+        dragConfig.currentX = saved.x;
+        dragConfig.currentY = saved.y;
+        dragConfig.xOffset = saved.x;
+        dragConfig.yOffset = saved.y;
+        const container = document.getElementById("sro-container");
+        if (container) setTranslate(saved.x, saved.y, container);
+      }
+    } catch (e) {}
   }
 
   function resetPosition() {
@@ -111,6 +169,7 @@
     dragConfig.currentY = 0;
     const container = document.getElementById("sro-container");
     if (container) setTranslate(0, 0, container);
+    savePosition();
   }
 
   function dragStart(e) {
@@ -130,6 +189,7 @@
     dragConfig.initialY = dragConfig.currentY;
     dragConfig.active = false;
     adjustPositionInBounds();
+    savePosition();
   }
 
   function drag(e) {
@@ -191,17 +251,16 @@
     const footerTxt = document.getElementById("sro-footer-text");
     if (isDetailsOpen) {
       detailsEl.classList.add("open");
-      footerTxt.innerText = "▲ MENOS INFORMAÇÕES";
+      footerTxt.innerText = UI_TEXT.lessInfo;
     } else {
       detailsEl.classList.remove("open");
-      footerTxt.innerText = "▼ MAIS INFORMAÇÕES";
+      footerTxt.innerText = UI_TEXT.moreInfo;
     }
     setTimeout(adjustPositionInBounds, 310);
   }
 
   function toggleDetails() {
     isDetailsOpen = !isDetailsOpen;
-    localStorage.setItem("sro_details_open", isDetailsOpen);
     applyDetailsState();
   }
 
@@ -224,16 +283,20 @@
     elStatus.innerText = state.status;
     elIcon.innerText = icon;
     elDistrito.innerText = state.district;
-    elPrevisao.innerText = state.deliveryDate || "--/--/----";
+    elPrevisao.innerText = state.deliveryDate || UI_TEXT.defaultDate;
 
     let html = "";
-    html += `<div class="sro-row"><span class="sro-key">Objeto:</span> <span class="sro-val">${state.trackingCode || "--"}</span></div>`;
+    html += `<div class="sro-row"><span class="sro-key">${
+      UI_TEXT.labelObject
+    }</span> <span class="sro-val">${
+      state.trackingCode || UI_TEXT.defaultDistrict
+    }</span></div>`;
     if (state.details.message)
-      html += `<div class="sro-row"><span class="sro-key">Sistema:</span> <span class="sro-val">${state.details.message}</span></div>`;
+      html += `<div class="sro-row"><span class="sro-key">${UI_TEXT.labelSystem}</span> <span class="sro-val">${state.details.message}</span></div>`;
     if (state.details.postman)
-      html += `<div class="sro-row"><span class="sro-key">Carteiro:</span> <span class="sro-val">${state.details.postman}</span></div>`;
+      html += `<div class="sro-row"><span class="sro-key">${UI_TEXT.labelPostman}</span> <span class="sro-val">${state.details.postman}</span></div>`;
     if (state.details.services)
-      html += `<div class="sro-row"><span class="sro-key">Serviços:</span> <span class="sro-val">${state.details.services}</span></div>`;
+      html += `<div class="sro-row"><span class="sro-key">${UI_TEXT.labelServices}</span> <span class="sro-val">${state.details.services}</span></div>`;
 
     elContent.innerHTML = html;
     setTimeout(adjustPositionInBounds, 100);
@@ -243,11 +306,11 @@
     state = {
       trackingCode: newCode,
       launchId: null,
-      status: "LENDO...",
+      status: UI_TEXT.reading,
       mode: "loading",
-      district: "--",
-      deliveryDate: "--/--/----",
-      details: { message: "Processando..." },
+      district: UI_TEXT.defaultDistrict,
+      deliveryDate: UI_TEXT.defaultDate,
+      details: { message: UI_TEXT.processing },
     };
     render();
   }
@@ -276,15 +339,15 @@
       if (json.validacao) {
         if (state.mode !== "success" && state.mode !== "error") {
           state.mode = "info";
-          state.status = "PRONTO P/ INDUZIR";
+          state.status = UI_TEXT.readyToInduct;
         }
-        state.deliveryDate = json.previsaoEntrega?.data || "--/--/----";
-        state.details.message = json.ultimoEventoDescricao || "Validado";
+        state.deliveryDate = json.previsaoEntrega?.data || UI_TEXT.defaultDate;
+        state.details.message = json.ultimoEventoDescricao || UI_TEXT.validated;
       } else {
         state.mode = "error";
-        state.status = "NÃO INDUZIDO";
-        state.details.message = json.excecao || "Objeto inválido";
-        state.deliveryDate = "--/--/----";
+        state.status = UI_TEXT.notInducted;
+        state.details.message = json.excecao || UI_TEXT.invalidObject;
+        state.deliveryDate = UI_TEXT.defaultDate;
       }
     } else if (urlLower.includes("enderecocontroller.php")) {
       if (json.servico) {
@@ -305,18 +368,18 @@
     ) {
       if (json.id) {
         state.mode = "success";
-        state.status = "JÁ INDUZIDO";
+        state.status = UI_TEXT.alreadyInducted;
         state.launchId = json.idLancamento;
         state.district = `${json.numeroDistrito} ${json.distritoComplemento}`;
         if (json.carteiro?.nome) state.details.postman = json.carteiro.nome;
-        state.details.message = "Objeto já consta na lista.";
+        state.details.message = UI_TEXT.objectInList;
       }
     } else if (urlLower.includes("lancamentocontroller.php?acao=salvar")) {
       if (json.idLancamento) {
         state.launchId = json.idLancamento;
         state.mode = "success";
-        state.status = "OBJETO INDUZIDO";
-        state.details.message = "Inclusão confirmada.";
+        state.status = UI_TEXT.objectInducted;
+        state.details.message = UI_TEXT.inclusionConfirmed;
         if (json.dataPrevista) state.deliveryDate = json.dataPrevista;
       }
     } else if (urlLower.includes("lancamentocontroller.php?acao=listar")) {
@@ -330,10 +393,10 @@
       }
     } else if (urlLower.includes("objetocontroller.php?acao=excluir")) {
       state.mode = "error";
-      state.status = "EXCLUÍDO";
-      state.district = "--";
-      state.details.message = "Objeto removido da lista.";
-      state.deliveryDate = "--/--/----";
+      state.status = UI_TEXT.deleted;
+      state.district = UI_TEXT.defaultDistrict;
+      state.details.message = UI_TEXT.objectRemoved;
+      state.deliveryDate = UI_TEXT.defaultDate;
     }
     render();
   }
@@ -376,7 +439,9 @@
     return nativeOpen.apply(this, arguments);
   };
   XMLHttpRequest.prototype.send = function (body) {
-    const targetLower = this._sroTargetUrl ? this._sroTargetUrl.toLowerCase() : "";
+    const targetLower = this._sroTargetUrl
+      ? this._sroTargetUrl.toLowerCase()
+      : "";
 
     if (
       targetLower &&
@@ -392,7 +457,9 @@
       } catch (e) {}
     }
     this.addEventListener("load", function () {
-      const urlCheck = this._sroTargetUrl ? this._sroTargetUrl.toLowerCase() : "";
+      const urlCheck = this._sroTargetUrl
+        ? this._sroTargetUrl.toLowerCase()
+        : "";
       if (urlCheck && urlCheck.includes("controller.php")) {
         try {
           const data = JSON.parse(this.responseText);

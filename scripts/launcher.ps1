@@ -8,20 +8,22 @@ if (-not $mutex.WaitOne(0, $false)) {
 [Console]::InputEncoding  = [System.Text.Encoding]::UTF8
 try { chcp 65001 | Out-Null } catch {}
 
-$ExtensionUrls = @(
+$extensionUrls = @(
     "https://github.com/henrique-coder/correios-tools/releases/download/browser-extensions/sroweb_inducao.zip"
 )
 
-$ScriptUrls = @()
+$scriptUrls = @()
 
-$SelfUpdateUrl = "https://github.com/henrique-coder/correios-tools/releases/download/minified-scripts/launcher.min.ps1"
+$selfUpdateUrl = "https://github.com/henrique-coder/correios-tools/releases/download/minified-scripts/launcher.min.ps1"
 
-$BaseDir = "C:\Users\Public\correios-tools"
-$DataDir = "$BaseDir\data"
-$ExtensionsDir = "$DataDir\extensions"
-$ScriptsDir = "$DataDir\scripts"
-$IconPath = "$DataDir\icon.ico"
-$SelfPath = $MyInvocation.MyCommand.Path
+$baseDir = "C:\Users\Public\correios-tools"
+$dataDir = "$baseDir\data"
+$extensionsDir = "$dataDir\extensions"
+$scriptsDir = "$dataDir\scripts"
+$iconPath = "$dataDir\icon.ico"
+$selfPath = $MyInvocation.MyCommand.Path
+
+$startUrl = "https://sroweb.correios.com.br/app/entregaexternaautomatica/lancamento/index.php"
 
 [Console]::BackgroundColor = "Black"
 [Console]::ForegroundColor = "White"
@@ -62,7 +64,7 @@ function Restore-Shortcuts {
     $shell = New-Object -ComObject WScript.Shell
 
     $shortcutPaths = @(
-        "$BaseDir\Correios Tools.lnk",
+        "$baseDir\Correios Tools.lnk",
         "$([Environment]::GetFolderPath("Desktop"))\Correios Tools.lnk"
     )
 
@@ -71,8 +73,8 @@ function Restore-Shortcuts {
             try {
                 $shortcut = $shell.CreateShortcut($linkPath)
                 $shortcut.TargetPath = "powershell.exe"
-                $shortcut.Arguments = "-NoLogo -ExecutionPolicy Bypass -WindowStyle Maximized -File `"$SelfPath`""
-                $shortcut.IconLocation = $IconPath
+                $shortcut.Arguments = "-NoLogo -ExecutionPolicy Bypass -WindowStyle Maximized -File `"$selfPath`""
+                $shortcut.IconLocation = $iconPath
                 $shortcut.Description = "Correios Tools Launcher"
                 $shortcut.Save()
                 Write-Host "  [+] Atalho restaurado: $linkPath" -ForegroundColor DarkGray
@@ -84,18 +86,18 @@ function Restore-Shortcuts {
 
 function Update-Self {
     Write-Host "  [*] Verificando integridade do sistema..." -ForegroundColor Cyan
-    $tempPath = "$DataDir\launcher_new.tmp"
+    $tempPath = "$dataDir\launcher_new.tmp"
 
     try {
-        Invoke-WebRequest -Uri $SelfUpdateUrl -OutFile $tempPath -UseBasicParsing
+        Invoke-WebRequest -Uri $selfUpdateUrl -OutFile $tempPath -UseBasicParsing
         $newContent = Get-Content $tempPath -Raw
-        $oldContent = Get-Content $SelfPath -Raw
+        $oldContent = Get-Content $selfPath -Raw
 
         if ($newContent.Length -ne $oldContent.Length) {
             Write-Host "  [!] ATUALIZACAO ENCONTRADA. REINICIANDO..." -ForegroundColor Magenta
-            Copy-Item $tempPath $SelfPath -Force
+            Copy-Item $tempPath $selfPath -Force
             Remove-Item $tempPath -Force
-            Start-Process powershell.exe -ArgumentList "-ExecutionPolicy Bypass -WindowStyle Maximized -NoLogo -File `"$SelfPath`""
+            Start-Process powershell.exe -ArgumentList "-ExecutionPolicy Bypass -WindowStyle Maximized -NoLogo -File `"$selfPath`""
             Exit
         }
         Remove-Item $tempPath -Force
@@ -108,18 +110,18 @@ function Update-Self {
 function Sync-Extensions {
     Write-Host "  [*] Sincronizando ferramentas de navegador..." -ForegroundColor Cyan
 
-    if (Test-Path $ExtensionsDir) { Remove-Item $ExtensionsDir -Recurse -Force }
-    New-Item -ItemType Directory -Path $ExtensionsDir -Force | Out-Null
+    if (Test-Path $extensionsDir) { Remove-Item $extensionsDir -Recurse -Force }
+    New-Item -ItemType Directory -Path $extensionsDir -Force | Out-Null
 
     $count = 0
-    foreach ($url in $ExtensionUrls) {
+    foreach ($url in $extensionUrls) {
         $count++
         try {
             $fileName = [System.IO.Path]::GetFileNameWithoutExtension($url)
             if ([string]::IsNullOrWhiteSpace($fileName)) { $fileName = "Ext_$count" }
 
-            $zipPath = "$DataDir\$fileName.zip"
-            $destFolder = "$ExtensionsDir\$fileName"
+            $zipPath = "$dataDir\$fileName.zip"
+            $destFolder = "$extensionsDir\$fileName"
 
             New-Item -ItemType Directory -Path $destFolder -Force | Out-Null
 
@@ -135,20 +137,20 @@ function Sync-Extensions {
 }
 
 function Invoke-RemoteScripts {
-    if ($ScriptUrls.Count -eq 0) {
-        if (Test-Path $ScriptsDir) { Remove-Item $ScriptsDir -Recurse -Force }
+    if ($scriptUrls.Count -eq 0) {
+        if (Test-Path $scriptsDir) { Remove-Item $scriptsDir -Recurse -Force }
         return
     }
 
     Write-Host "  [*] Executando scripts de automacao..." -ForegroundColor Cyan
 
-    if (Test-Path $ScriptsDir) { Remove-Item $ScriptsDir -Recurse -Force }
-    New-Item -ItemType Directory -Path $ScriptsDir -Force | Out-Null
+    if (Test-Path $scriptsDir) { Remove-Item $scriptsDir -Recurse -Force }
+    New-Item -ItemType Directory -Path $scriptsDir -Force | Out-Null
 
-    foreach ($url in $ScriptUrls) {
+    foreach ($url in $scriptUrls) {
         try {
             $fileName = [System.IO.Path]::GetFileName($url)
-            $localPath = "$ScriptsDir\$fileName"
+            $localPath = "$scriptsDir\$fileName"
 
             Invoke-WebRequest -Uri $url -OutFile $localPath -UseBasicParsing
 
@@ -170,7 +172,7 @@ function Invoke-RemoteScripts {
 
 function Get-ExtensionPaths {
     $paths = @()
-    $dirs = Get-ChildItem -Path $ExtensionsDir -Directory -Recurse
+    $dirs = Get-ChildItem -Path $extensionsDir -Directory -Recurse
 
     foreach ($dir in $dirs) {
         if (Test-Path "$($dir.FullName)\manifest.json") {
@@ -182,13 +184,13 @@ function Get-ExtensionPaths {
 }
 
 function Set-BrowserRestoreSession {
-    param([string]$BrowserName)
+    param([string]$browserName)
 
     $prefPath = ""
-    if ($BrowserName -eq "Edge") {
+    if ($browserName -eq "Edge") {
         $prefPath = "$env:LOCALAPPDATA\Microsoft\Edge\User Data\Default\Preferences"
     }
-    elseif ($BrowserName -eq "Chrome") {
+    elseif ($browserName -eq "Chrome") {
         $prefPath = "$env:LOCALAPPDATA\Google\Chrome\User Data\Default\Preferences"
     }
 
@@ -208,38 +210,38 @@ function Set-BrowserRestoreSession {
 
 function Start-BrowserWithExtensions {
     param (
-        [string]$BrowserName,
-        [string]$ProcessName,
-        [string]$StartUrl,
-        [string]$ExtensionArg
+        [string]$browserName,
+        [string]$processName,
+        [string]$targetUrl,
+        [string]$extensionArg
     )
 
-    if ([string]::IsNullOrWhiteSpace($BrowserName)) { return }
+    if ([string]::IsNullOrWhiteSpace($browserName)) { return }
 
-    Write-Host "  >>> Reiniciando $BrowserName..." -ForegroundColor Yellow
+    Write-Host "  >>> Reiniciando $browserName..." -ForegroundColor Yellow
 
-    Stop-Process -Name $ProcessName -Force -ErrorAction SilentlyContinue
+    Stop-Process -Name $processName -Force -ErrorAction SilentlyContinue
     Start-Sleep -Seconds 1
 
-    Set-BrowserRestoreSession -BrowserName $BrowserName
+    Set-BrowserRestoreSession -browserName $browserName
 
     $launchArgs = @(
         "--restore-last-session",
         "--no-first-run",
         "--no-default-browser-check",
-        $StartUrl
+        $targetUrl
     )
 
-    if (-not [string]::IsNullOrWhiteSpace($ExtensionArg)) {
-        $launchArgs += "--load-extension=`"$ExtensionArg`""
+    if (-not [string]::IsNullOrWhiteSpace($extensionArg)) {
+        $launchArgs += "--load-extension=`"$extensionArg`""
     }
 
     try {
-        Start-Process $ProcessName -ArgumentList $launchArgs
-        Write-Host "  [V] $BrowserName iniciado." -ForegroundColor Green
+        Start-Process $processName -ArgumentList $launchArgs
+        Write-Host "  [V] $browserName iniciado." -ForegroundColor Green
     }
     catch {
-        Write-Warning "  [!] Nao foi possivel iniciar $BrowserName."
+        Write-Warning "  [!] Nao foi possivel iniciar $browserName."
     }
 }
 
@@ -258,8 +260,6 @@ if ([string]::IsNullOrWhiteSpace($extensionArg)) {
     Write-Warning "  [!] Nenhuma extensao carregada."
 }
 
-$startUrl = "https://sroweb.correios.com.br/app/entregaexternaautomatica/lancamento/index.php"
-
 while ($true) {
     Show-Header
     Write-Host "  SELECIONE O NAVEGADOR:" -ForegroundColor Yellow
@@ -276,15 +276,15 @@ while ($true) {
     if ($userInput -eq "") { Exit }
 
     if ($userInput -eq "0") {
-        Start-BrowserWithExtensions -BrowserName "Edge" -ProcessName "msedge" -StartUrl $startUrl -ExtensionArg $extensionArg
+        Start-BrowserWithExtensions -browserName "Edge" -processName "msedge" -targetUrl $startUrl -extensionArg $extensionArg
         Start-Sleep -Seconds 2
-        Start-BrowserWithExtensions -BrowserName "Chrome" -ProcessName "chrome" -StartUrl $startUrl -ExtensionArg $extensionArg
+        Start-BrowserWithExtensions -browserName "Chrome" -processName "chrome" -targetUrl $startUrl -extensionArg $extensionArg
     }
     elseif ($userInput -eq "1") {
-        Start-BrowserWithExtensions -BrowserName "Edge" -ProcessName "msedge" -StartUrl $startUrl -ExtensionArg $extensionArg
+        Start-BrowserWithExtensions -browserName "Edge" -processName "msedge" -targetUrl $startUrl -extensionArg $extensionArg
     }
     elseif ($userInput -eq "2") {
-        Start-BrowserWithExtensions -BrowserName "Chrome" -ProcessName "chrome" -StartUrl $startUrl -ExtensionArg $extensionArg
+        Start-BrowserWithExtensions -browserName "Chrome" -processName "chrome" -targetUrl $startUrl -extensionArg $extensionArg
     }
     else {
         continue
