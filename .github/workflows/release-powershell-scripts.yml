@@ -1,11 +1,11 @@
-name: Release Minified Scripts
+name: Release PowerShell Scripts
 
 on:
   push:
     branches:
       - dev
     paths:
-      - ".github/workflows/release-minified-scripts.yml"
+      - ".github/workflows/release-powershell-scripts.yml"
       - "scripts/**"
   workflow_dispatch:
 
@@ -13,7 +13,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: release-minified-scripts
+  group: release-powershell-scripts
   cancel-in-progress: true
 
 jobs:
@@ -86,11 +86,11 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: minified-scripts
-          name: Minified Scripts
+          name: PowerShell Scripts
           body: |
-            ## PowerShell Scripts - Minified
+            ## PowerShell Scripts (Minified)
 
-            Minified scripts, synced with the repository.
+            Minified `.ps1` scripts, synced with the repository.
 
             **Scripts:** ${{ steps.build.outputs.list }}
 
@@ -106,6 +106,6 @@ jobs:
 
       - name: Summary
         run: |
-          echo "### ✅ Release Synced" >> $GITHUB_STEP_SUMMARY
+          echo "### ✅ PowerShell Scripts Released" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Scripts:** ${{ steps.build.outputs.list }}" >> $GITHUB_STEP_SUMMARY
