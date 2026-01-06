@@ -253,6 +253,8 @@
   }
 
   function processData(url, json) {
+    const urlLower = url.toLowerCase();
+
     let codeFromUrl = null;
     try {
       const u = new URL(url, window.location.origin);
@@ -263,14 +265,14 @@
     } catch (e) {}
 
     if (
-      url.includes("ObjetoController.php?acao=validar") &&
+      urlLower.includes("objetocontroller.php?acao=validar") &&
       codeFromUrl &&
       codeFromUrl !== state.trackingCode
     ) {
       resetState(codeFromUrl);
     }
 
-    if (url.includes("ObjetoController.php?acao=validar")) {
+    if (urlLower.includes("objetocontroller.php?acao=validar")) {
       if (json.validacao) {
         if (state.mode !== "success" && state.mode !== "error") {
           state.mode = "info";
@@ -284,7 +286,7 @@
         state.details.message = json.excecao || "Objeto inválido";
         state.deliveryDate = "--/--/----";
       }
-    } else if (url.includes("EnderecoController.php")) {
+    } else if (urlLower.includes("enderecocontroller.php")) {
       if (json.servico) {
         let s = [];
         if (json.servico.ar === "S") s.push("AR");
@@ -292,14 +294,14 @@
         if (json.servico.dd === "S") s.push("DD");
         state.details.services = s.join(" + ");
       }
-    } else if (url.includes("DistritamentoTrechoController.php")) {
+    } else if (urlLower.includes("distritamentotrechocontroller.php")) {
       if (Array.isArray(json) && json.length > 0 && json[0].rotulo) {
         const parts = json[0].rotulo.split(" ");
         state.district =
           parts.length >= 2 ? `${parts[0]} ${parts[1]}` : json[0].rotulo;
       }
     } else if (
-      url.includes("LancamentoController.php?acao=pesquisarLoecObjeto")
+      urlLower.includes("lancamentocontroller.php?acao=pesquisarloecobjeto")
     ) {
       if (json.id) {
         state.mode = "success";
@@ -309,7 +311,7 @@
         if (json.carteiro?.nome) state.details.postman = json.carteiro.nome;
         state.details.message = "Objeto já consta na lista.";
       }
-    } else if (url.includes("LancamentoController.php?acao=salvar")) {
+    } else if (urlLower.includes("lancamentocontroller.php?acao=salvar")) {
       if (json.idLancamento) {
         state.launchId = json.idLancamento;
         state.mode = "success";
@@ -317,7 +319,7 @@
         state.details.message = "Inclusão confirmada.";
         if (json.dataPrevista) state.deliveryDate = json.dataPrevista;
       }
-    } else if (url.includes("LancamentoController.php?acao=listar")) {
+    } else if (urlLower.includes("lancamentocontroller.php?acao=listar")) {
       if (Array.isArray(json) && state.launchId) {
         const item = json.find((i) => i.idLancamento === state.launchId);
         if (item) {
@@ -326,7 +328,7 @@
           render();
         }
       }
-    } else if (url.includes("ObjetoController.php?acao=excluir")) {
+    } else if (urlLower.includes("objetocontroller.php?acao=excluir")) {
       state.mode = "error";
       state.status = "EXCLUÍDO";
       state.district = "--";
@@ -339,9 +341,10 @@
   const nativeFetch = window.fetch;
   window.fetch = async function (...args) {
     const url = args[0] ? args[0].toString() : "";
+    const urlLower = url.toLowerCase();
     const init = args[1];
     if (
-      url.includes("LancamentoController.php?acao=salvar") &&
+      urlLower.includes("lancamentocontroller.php?acao=salvar") &&
       init &&
       init.body
     ) {
@@ -355,7 +358,7 @@
     }
     const response = await nativeFetch.apply(this, args);
     try {
-      if (url.includes("Controller.php")) {
+      if (urlLower.includes("controller.php")) {
         const clone = response.clone();
         clone
           .json()
@@ -373,9 +376,11 @@
     return nativeOpen.apply(this, arguments);
   };
   XMLHttpRequest.prototype.send = function (body) {
+    const targetLower = this._sroTargetUrl ? this._sroTargetUrl.toLowerCase() : "";
+
     if (
-      this._sroTargetUrl &&
-      this._sroTargetUrl.includes("LancamentoController.php?acao=salvar") &&
+      targetLower &&
+      targetLower.includes("lancamentocontroller.php?acao=salvar") &&
       body
     ) {
       try {
@@ -387,7 +392,8 @@
       } catch (e) {}
     }
     this.addEventListener("load", function () {
-      if (this._sroTargetUrl && this._sroTargetUrl.includes("Controller.php")) {
+      const urlCheck = this._sroTargetUrl ? this._sroTargetUrl.toLowerCase() : "";
+      if (urlCheck && urlCheck.includes("controller.php")) {
         try {
           const data = JSON.parse(this.responseText);
           processData(this._sroTargetUrl, data);
