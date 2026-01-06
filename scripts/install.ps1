@@ -23,7 +23,7 @@ $browsers = Get-Process -Name "msedge", "chrome" -ErrorAction SilentlyContinue
 if ($browsers) {
     $result = [System.Windows.Forms.MessageBox]::Show(
         "Precisamos fechar o Chrome e o Edge para configurar o ambiente.`n`nPodemos fechar agora?",
-        "Configuração Correios Tools",
+        "Configuracao Correios Tools",
         [System.Windows.Forms.MessageBoxButtons]::YesNo,
         [System.Windows.Forms.MessageBoxIcon]::Question
     )
@@ -33,7 +33,7 @@ if ($browsers) {
         Write-Host "[OK] Navegadores fechados." -ForegroundColor Green
     }
     else {
-        Write-Warning "Instalação cancelada pelo usuário."
+        Write-Warning "Instalacao cancelada pelo usuario."
         Exit
     }
 }
@@ -51,7 +51,7 @@ try {
 }
 catch {
     [System.Windows.Forms.MessageBox]::Show(
-        "Falha ao baixar arquivos. Verifique a conexão.",
+        "Falha ao baixar arquivos. Verifique a conexao.",
         "Erro Fatal",
         "OK",
         "Error"
@@ -84,7 +84,7 @@ New-Shortcut "$userDesktop\Correios Tools.lnk"
 
 Start-Process "explorer.exe" -ArgumentList $BaseDir
 [System.Windows.Forms.MessageBox]::Show(
-    "Instalação Concluída!`n`nOs atalhos foram criados na Área de Trabalho e na pasta pública.",
+    "Instalacao Concluida!`n`nOs atalhos foram criados na Area de Trabalho e na pasta publica.",
     "Sucesso",
     "OK",
     "Information"
