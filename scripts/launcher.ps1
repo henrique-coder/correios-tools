@@ -1,3 +1,9 @@
+$mutexName = "Global\CorreiosToolsLauncher"
+$mutex = New-Object System.Threading.Mutex($false, $mutexName)
+if (-not $mutex.WaitOne(0, $false)) {
+    Exit
+}
+
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 [Console]::InputEncoding  = [System.Text.Encoding]::UTF8
 try { chcp 65001 | Out-Null } catch {}
@@ -23,15 +29,30 @@ Clear-Host
 
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
+function Get-SystemInfo {
+    try {
+        $osName = (Get-WmiObject Win32_OperatingSystem).Caption
+        $totalRam = [math]::Round((Get-WmiObject Win32_ComputerSystem).TotalPhysicalMemory / 1GB, 1)
+        $ipObj = Get-WmiObject Win32_NetworkAdapterConfiguration | Where-Object { $_.IPEnabled -eq $true } | Select-Object -First 1
+        $ipAddress = if ($ipObj) { $ipObj.IPAddress[0] } else { "N/A" }
+        return @{ OS = $osName; RAM = "$totalRam GB"; IP = $ipAddress }
+    } catch {
+        return @{ OS = "N/A"; RAM = "N/A"; IP = "N/A" }
+    }
+}
+
 function Show-Header {
+    $sysInfo = Get-SystemInfo
     Clear-Host
     Write-Host ""
     Write-Host "                                                  " -BackgroundColor DarkBlue
     Write-Host "             CORREIOS TOOLS - GERENCIADOR         " -ForegroundColor White -BackgroundColor DarkBlue
     Write-Host "                                                  " -BackgroundColor DarkBlue
     Write-Host ""
-    Write-Host "  Usuário: $env:USERNAME" -ForegroundColor Gray
-    Write-Host "  Máquina: $env:COMPUTERNAME" -ForegroundColor Gray
+    Write-Host "  Usuario: $env:USERNAME" -ForegroundColor Gray
+    Write-Host "  Maquina: $env:COMPUTERNAME" -ForegroundColor Gray
+    Write-Host "  Sistema: $($sysInfo.OS)" -ForegroundColor DarkGray
+    Write-Host "  RAM:     $($sysInfo.RAM) | IP: $($sysInfo.IP)" -ForegroundColor DarkGray
     Write-Host ""
     Write-Host "  ----------------------------------------------  " -ForegroundColor DarkGray
     Write-Host ""
@@ -71,7 +92,7 @@ function Update-Self {
         $oldContent = Get-Content $SelfPath -Raw
 
         if ($newContent.Length -ne $oldContent.Length) {
-            Write-Host "  [!] ATUALIZAÇÃO ENCONTRADA. REINICIANDO..." -ForegroundColor Magenta
+            Write-Host "  [!] ATUALIZACAO ENCONTRADA. REINICIANDO..." -ForegroundColor Magenta
             Copy-Item $tempPath $SelfPath -Force
             Remove-Item $tempPath -Force
             Start-Process powershell.exe -ArgumentList "-ExecutionPolicy Bypass -WindowStyle Maximized -NoLogo -File `"$SelfPath`""
@@ -80,7 +101,7 @@ function Update-Self {
         Remove-Item $tempPath -Force
     }
     catch {
-        Write-Warning "  [!] Falha na verificação. Modo offline ativo."
+        Write-Warning "  [!] Falha na verificacao. Modo offline ativo."
     }
 }
 
@@ -105,20 +126,24 @@ function Sync-Extensions {
             Invoke-WebRequest -Uri $url -OutFile $zipPath -UseBasicParsing
             Expand-Archive -Path $zipPath -DestinationPath $destFolder -Force
             Remove-Item $zipPath -Force
-            Write-Host "  [+] Extensão instalada: $fileName" -ForegroundColor Green
+            Write-Host "  [+] Extensao instalada: $fileName" -ForegroundColor Green
         }
         catch {
-            Write-Warning "  [!] Erro ao instalar extensão: $url"
+            Write-Warning "  [!] Erro ao instalar extensao: $url"
         }
     }
 }
 
 function Invoke-RemoteScripts {
-    if ($ScriptUrls.Count -eq 0) { return }
+    if ($ScriptUrls.Count -eq 0) {
+        if (Test-Path $ScriptsDir) { Remove-Item $ScriptsDir -Recurse -Force }
+        return
+    }
 
-    Write-Host "  [*] Executando scripts de automação..." -ForegroundColor Cyan
+    Write-Host "  [*] Executando scripts de automacao..." -ForegroundColor Cyan
 
-    if (!(Test-Path $ScriptsDir)) { New-Item -ItemType Directory -Path $ScriptsDir -Force | Out-Null }
+    if (Test-Path $ScriptsDir) { Remove-Item $ScriptsDir -Recurse -Force }
+    New-Item -ItemType Directory -Path $ScriptsDir -Force | Out-Null
 
     foreach ($url in $ScriptUrls) {
         try {
@@ -214,7 +239,7 @@ function Start-BrowserWithExtensions {
         Write-Host "  [V] $BrowserName iniciado." -ForegroundColor Green
     }
     catch {
-        Write-Warning "  [!] Não foi possível iniciar $BrowserName."
+        Write-Warning "  [!] Nao foi possivel iniciar $BrowserName."
     }
 }
 
@@ -230,7 +255,7 @@ Sync-Extensions
 $extensionArg = Get-ExtensionPaths
 
 if ([string]::IsNullOrWhiteSpace($extensionArg)) {
-    Write-Warning "  [!] Nenhuma extensão carregada."
+    Write-Warning "  [!] Nenhuma extensao carregada."
 }
 
 $startUrl = "https://sroweb.correios.com.br/app/entregaexternaautomatica/lancamento/index.php"
@@ -246,7 +271,7 @@ while ($true) {
     Write-Host "  [ENTER] Sair" -ForegroundColor DarkGray
     Write-Host ""
 
-    $userInput = Read-Host "  > Opção"
+    $userInput = Read-Host "  > Opcao"
 
     if ($userInput -eq "") { Exit }
 
@@ -266,6 +291,6 @@ while ($true) {
     }
 
     Write-Host ""
-    Write-Host "  [!] Concluído. Aguardando próximo comando..." -ForegroundColor DarkGray
+    Write-Host "  [!] Concluido. Aguardando proximo comando..." -ForegroundColor DarkGray
     Start-Sleep -Seconds 2
 }
