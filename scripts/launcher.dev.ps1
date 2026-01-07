@@ -40,7 +40,7 @@ try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::
 [xml]$xaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Correios Tools Launcher" Height="520" Width="420"
+        Title="Correios Tools Launcher" Height="500" Width="420"
         WindowStartupLocation="CenterScreen" ResizeMode="CanMinimize"
         Background="#1E1E1E" WindowStyle="None" AllowsTransparency="True">
     <Window.Resources>
@@ -93,7 +93,6 @@ try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::
             </Grid>
             <TextBlock Name="TxtStatus" Grid.Row="1" Text="Iniciando..." Foreground="#AAAAAA" Margin="0,20,0,10" HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center"/>
             <StackPanel Grid.Row="2" VerticalAlignment="Center" HorizontalAlignment="Center">
-                <TextBlock Text="Clique no navegador para abrir com as extensoes" Foreground="#666666" FontSize="11" HorizontalAlignment="Center" Margin="0,0,0,15"/>
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
@@ -312,28 +311,78 @@ function Get-ExtensionPaths {
     return ($paths -join ",")
 }
 
+function Wait-ProcessExit {
+    param([string]$processName)
+    $timeout = 30
+    $elapsed = 0
+    while ($elapsed -lt $timeout) {
+        $proc = Get-Process -Name $processName -ErrorAction SilentlyContinue
+        if ($proc -eq $null) { return $true }
+        Start-Sleep -Milliseconds 200
+        $elapsed += 0.2
+        [System.Windows.Threading.Dispatcher]::CurrentDispatcher.Invoke([Action]{}, [System.Windows.Threading.DispatcherPriority]::Background)
+    }
+    return $false
+}
+
+function Set-PreferencesFile {
+    param([string]$prefPath)
+    if (!(Test-Path $prefPath)) { return }
+    try {
+        $prefs = Get-Content $prefPath -Raw -Encoding UTF8 | ConvertFrom-Json
+        $modified = $false
+        if ($prefs.session -eq $null) {
+            $prefs | Add-Member -NotePropertyName "session" -NotePropertyValue @{} -Force
+        }
+        if ($prefs.session.restore_on_startup -ne 1) {
+            $prefs.session.restore_on_startup = 1
+            $modified = $true
+        }
+        if ($prefs.extensions -eq $null) {
+            $prefs | Add-Member -NotePropertyName "extensions" -NotePropertyValue @{} -Force
+        }
+        if ($prefs.extensions.ui -eq $null) {
+            $prefs.extensions | Add-Member -NotePropertyName "ui" -NotePropertyValue @{} -Force
+        }
+        if ($prefs.extensions.ui.developer_mode -ne $true) {
+            $prefs.extensions.ui.developer_mode = $true
+            $modified = $true
+        }
+        if ($modified) {
+            $prefs | ConvertTo-Json -Depth 100 -Compress | Set-Content $prefPath -Encoding UTF8
+        }
+    } catch {}
+}
+
 function Set-BrowserPreferences {
     param([string]$browserName)
-    $prefPath = ""
-    if ($browserName -eq "Edge") { $prefPath = "$env:LOCALAPPDATA\Microsoft\Edge\User Data\Default\Preferences" }
-    elseif ($browserName -eq "Chrome") { $prefPath = "$env:LOCALAPPDATA\Google\Chrome\User Data\Default\Preferences" }
-    if (Test-Path $prefPath) {
-        try {
-            $content = Get-Content $prefPath -Raw
-            if ($content -notmatch '"restore_on_startup":1') {
-                $newContent = $content -replace '"restore_on_startup":\d', '"restore_on_startup":1'
-                if ($newContent -ne $content) { Set-Content $prefPath $newContent -Encoding UTF8 }
-            }
-        } catch {}
+    $userDataPath = ""
+    if ($browserName -eq "Edge") {
+        $userDataPath = "$env:LOCALAPPDATA\Microsoft\Edge\User Data"
+    } elseif ($browserName -eq "Chrome") {
+        $userDataPath = "$env:LOCALAPPDATA\Google\Chrome\User Data"
+    }
+    if (!(Test-Path $userDataPath)) { return }
+    $defaultPref = "$userDataPath\Default\Preferences"
+    if (Test-Path $defaultPref) { Set-PreferencesFile $defaultPref }
+    $profiles = Get-ChildItem -Path $userDataPath -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -match "^Profile \d+$" }
+    foreach ($profile in $profiles) {
+        $profilePref = "$($profile.FullName)\Preferences"
+        if (Test-Path $profilePref) { Set-PreferencesFile $profilePref }
     }
 }
 
 function Start-Browser {
     param([string]$browserName, [string]$processName, [string]$extensionPaths)
-    Update-Status "Iniciando $browserName..." $true
-    Stop-Process -Name $processName -Force -ErrorAction SilentlyContinue
-    Start-Sleep -Milliseconds 500
+    $existingProcess = Get-Process -Name $processName -ErrorAction SilentlyContinue
+    if ($existingProcess) {
+        Update-Status "Fechando $browserName... Aguarde." $true
+        Stop-Process -Name $processName -Force -ErrorAction SilentlyContinue
+        Wait-ProcessExit $processName
+    }
+    Update-Status "Aplicando configuracoes do $browserName..." $true
     Set-BrowserPreferences $browserName
+    Update-Status "Iniciando $browserName..." $true
     $browserArgs = @("--restore-last-session", "--no-first-run", "--no-default-browser-check", $startUrl)
     if (-not [string]::IsNullOrWhiteSpace($extensionPaths)) { $browserArgs += "--load-extension=`"$extensionPaths`"" }
     try {
@@ -358,7 +407,7 @@ function Invoke-StartupSequence {
         Update-Status "Preparando extensoes para primeiro uso..." $true
         Invoke-SyncExtensions
     }
-    Update-Status "Pronto! Clique no navegador desejado." $false
+    Update-Status "Pronto! Selecione o navegador." $false
     $script:isProcessing = $false
     Set-ButtonsEnabled $true
 }
