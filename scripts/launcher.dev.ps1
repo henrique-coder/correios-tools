@@ -457,3 +457,5 @@ $BtnChrome.Add_Click({
 $window.Add_Loaded({ Invoke-StartupSequence })
 $window.Add_MouseLeftButtonDown({ $window.DragMove() })
 [void]$window.ShowDialog()
+
+# debug comment
