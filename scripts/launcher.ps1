@@ -1,349 +1,296 @@
-# =============================================================================
-# BOOTSTRAPPER (GARANTE MODO GRÁFICO SEGURO)
-# =============================================================================
-if ([System.Threading.Thread]::CurrentThread.GetApartmentState() -ne 'STA') {
-    # Reinicia oculto e em modo STA (Single Threaded Apartment) necessário para GUI
-    Start-Process powershell.exe -ArgumentList "-NoProfile -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$MyInvocation.MyCommand.Path`""
+$mutexName = "Global\CorreiosToolsLauncher"
+$mutex = New-Object System.Threading.Mutex($false, $mutexName)
+if (-not $mutex.WaitOne(0, $false)) {
     Exit
 }
 
-# =============================================================================
-# BLOCO DE SEGURANÇA (TRY/CATCH GLOBAL)
-# =============================================================================
-try {
-    # 1. Bloqueio de Multiplas Instancias
-    $mutexName = "Global\CorreiosToolsLauncher_V4"
-    $mutex = New-Object System.Threading.Mutex($false, $mutexName)
-    if (-not $mutex.WaitOne(0, $false)) { Exit }
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+[Console]::InputEncoding  = [System.Text.Encoding]::UTF8
+try { chcp 65001 | Out-Null } catch {}
 
-    # 2. Carrega Bibliotecas Visuais
-    Add-Type -AssemblyName PresentationFramework, System.Drawing, System.Windows.Forms, Microsoft.VisualBasic
+$extensionUrls = @(
+    "https://github.com/henrique-coder/correios-tools/releases/download/browser-extensions/sroweb_inducao.zip"
+)
 
-    # 3. Configurações e Caminhos
-    [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-    try { chcp 65001 | Out-Null } catch {}
-    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+$scriptUrls = @()
 
-    $BaseDir = "C:\Users\Public\correios-tools"
-    $DataDir = "$BaseDir\data"
-    $AssetsDir = "$DataDir\assets"
-    $ExtensionsDir = "$DataDir\extensions"
-    $ScriptsDir = "$DataDir\scripts"
-    $SelfPath = $MyInvocation.MyCommand.Path
+$selfUpdateUrl = "https://github.com/henrique-coder/correios-tools/releases/download/minified-scripts/launcher.min.ps1"
 
-    # Garante que pastas existam
-    if (!(Test-Path $AssetsDir)) { New-Item -ItemType Directory -Path $AssetsDir -Force | Out-Null }
+$baseDir = "C:\Users\Public\correios-tools"
+$dataDir = "$baseDir\data"
+$extensionsDir = "$dataDir\extensions"
+$scriptsDir = "$dataDir\scripts"
+$iconPath = "$dataDir\icon.ico"
+$selfPath = $MyInvocation.MyCommand.Path
 
-    # URLs
-    $IconEdgeUrl = "https://raw.githubusercontent.com/henrique-coder/correios-tools/refs/heads/dev/assets/edge_icon.png"
-    $IconChromeUrl = "https://raw.githubusercontent.com/henrique-coder/correios-tools/refs/heads/dev/assets/chrome_icon.png"
-    $ExtensionUrls = @("https://github.com/henrique-coder/correios-tools/releases/download/browser-extensions/sroweb_inducao.zip")
-    $SelfUpdateUrl = "https://github.com/henrique-coder/correios-tools/releases/download/minified-scripts/launcher.min.ps1"
-    $StartUrl = "https://sroweb.correios.com.br/app/entregaexternaautomatica/lancamento/index.php"
+$startUrl = "https://sroweb.correios.com.br/app/entregaexternaautomatica/lancamento/index.php"
 
-    # =========================================================================
-    # FUNÇÕES DE UTILIDADE
-    # =========================================================================
-    function Update-UI {
-        # Mantem a janela responsiva (anti-travamento)
-        [System.Windows.Threading.Dispatcher]::CurrentDispatcher.Invoke([Action]{}, [System.Windows.Threading.DispatcherPriority]::Background)
+[Console]::BackgroundColor = "Black"
+[Console]::ForegroundColor = "White"
+Clear-Host
+
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+
+function Get-SystemInfo {
+    try {
+        $osName = (Get-WmiObject Win32_OperatingSystem).Caption
+        $totalRam = [math]::Round((Get-WmiObject Win32_ComputerSystem).TotalPhysicalMemory / 1GB, 1)
+        $ipObj = Get-WmiObject Win32_NetworkAdapterConfiguration | Where-Object { $_.IPEnabled -eq $true } | Select-Object -First 1
+        $ipAddress = if ($ipObj) { $ipObj.IPAddress[0] } else { "N/A" }
+        return @{ OS = $osName; RAM = "$totalRam GB"; IP = $ipAddress }
+    } catch {
+        return @{ OS = "N/A"; RAM = "N/A"; IP = "N/A" }
+    }
+}
+
+function Show-Header {
+    $sysInfo = Get-SystemInfo
+    Clear-Host
+    Write-Host ""
+    Write-Host "                                                  " -BackgroundColor DarkBlue
+    Write-Host "             CORREIOS TOOLS - GERENCIADOR         " -ForegroundColor White -BackgroundColor DarkBlue
+    Write-Host "                                                  " -BackgroundColor DarkBlue
+    Write-Host ""
+    Write-Host "  Usuario: $env:USERNAME" -ForegroundColor Gray
+    Write-Host "  Maquina: $env:COMPUTERNAME" -ForegroundColor Gray
+    Write-Host "  Sistema: $($sysInfo.OS)" -ForegroundColor DarkGray
+    Write-Host "  RAM:     $($sysInfo.RAM) | IP: $($sysInfo.IP)" -ForegroundColor DarkGray
+    Write-Host ""
+    Write-Host "  ----------------------------------------------  " -ForegroundColor DarkGray
+    Write-Host ""
+}
+
+function Restore-Shortcuts {
+    $shell = New-Object -ComObject WScript.Shell
+
+    $shortcutPaths = @(
+        "$baseDir\Correios Tools.lnk",
+        "$([Environment]::GetFolderPath("Desktop"))\Correios Tools.lnk"
+    )
+
+    foreach ($linkPath in $shortcutPaths) {
+        if (!(Test-Path $linkPath)) {
+            try {
+                $shortcut = $shell.CreateShortcut($linkPath)
+                $shortcut.TargetPath = "powershell.exe"
+                $shortcut.Arguments = "-NoLogo -ExecutionPolicy Bypass -WindowStyle Maximized -File `"$selfPath`""
+                $shortcut.IconLocation = $iconPath
+                $shortcut.Description = "Correios Tools Launcher"
+                $shortcut.Save()
+                Write-Host "  [+] Atalho restaurado: $linkPath" -ForegroundColor DarkGray
+            }
+            catch { }
+        }
+    }
+}
+
+function Update-Self {
+    Write-Host "  [*] Verificando integridade do sistema..." -ForegroundColor Cyan
+    $tempPath = "$dataDir\launcher_new.tmp"
+
+    try {
+        Invoke-WebRequest -Uri $selfUpdateUrl -OutFile $tempPath -UseBasicParsing
+        $newContent = Get-Content $tempPath -Raw
+        $oldContent = Get-Content $selfPath -Raw
+
+        if ($newContent.Length -ne $oldContent.Length) {
+            Write-Host "  [!] ATUALIZACAO ENCONTRADA. REINICIANDO..." -ForegroundColor Magenta
+            Copy-Item $tempPath $selfPath -Force
+            Remove-Item $tempPath -Force
+            Start-Process powershell.exe -ArgumentList "-ExecutionPolicy Bypass -WindowStyle Maximized -NoLogo -File `"$selfPath`""
+            Exit
+        }
+        Remove-Item $tempPath -Force
+    }
+    catch {
+        Write-Warning "  [!] Falha na verificacao. Modo offline ativo."
+    }
+}
+
+function Sync-Extensions {
+    Write-Host "  [*] Sincronizando ferramentas de navegador..." -ForegroundColor Cyan
+
+    if (Test-Path $extensionsDir) { Remove-Item $extensionsDir -Recurse -Force }
+    New-Item -ItemType Directory -Path $extensionsDir -Force | Out-Null
+
+    $count = 0
+    foreach ($url in $extensionUrls) {
+        $count++
+        try {
+            $fileName = [System.IO.Path]::GetFileNameWithoutExtension($url)
+            if ([string]::IsNullOrWhiteSpace($fileName)) { $fileName = "Ext_$count" }
+
+            $zipPath = "$dataDir\$fileName.zip"
+            $destFolder = "$extensionsDir\$fileName"
+
+            New-Item -ItemType Directory -Path $destFolder -Force | Out-Null
+
+            Invoke-WebRequest -Uri $url -OutFile $zipPath -UseBasicParsing
+            Expand-Archive -Path $zipPath -DestinationPath $destFolder -Force
+            Remove-Item $zipPath -Force
+            Write-Host "  [+] Extensao instalada: $fileName" -ForegroundColor Green
+        }
+        catch {
+            Write-Warning "  [!] Erro ao instalar extensao: $url"
+        }
+    }
+}
+
+function Invoke-RemoteScripts {
+    if ($scriptUrls.Count -eq 0) {
+        if (Test-Path $scriptsDir) { Remove-Item $scriptsDir -Recurse -Force }
+        return
     }
 
-    function Log-Message {
-        param([string]$Msg, [string]$Color = "#CCCCCC")
-        if ($txtLog) {
-            $txtLog.Dispatcher.Invoke({
-                $para = New-Object System.Windows.Documents.Paragraph
-                $run = New-Object System.Windows.Documents.Run($Msg)
-                try {
-                    $brush = (New-Object System.Windows.Media.BrushConverter).ConvertFromString($Color)
-                    $run.Foreground = $brush
-                } catch { $run.Foreground = [System.Windows.Media.Brushes]::White }
-                $para.Inlines.Add($run)
-                $para.Margin = "0"
-                $txtLog.Document.Blocks.Add($para)
-                $txtLog.ScrollToEnd()
-            })
-            Update-UI
+    Write-Host "  [*] Executando scripts de automacao..." -ForegroundColor Cyan
+
+    if (Test-Path $scriptsDir) { Remove-Item $scriptsDir -Recurse -Force }
+    New-Item -ItemType Directory -Path $scriptsDir -Force | Out-Null
+
+    foreach ($url in $scriptUrls) {
+        try {
+            $fileName = [System.IO.Path]::GetFileName($url)
+            $localPath = "$scriptsDir\$fileName"
+
+            Invoke-WebRequest -Uri $url -OutFile $localPath -UseBasicParsing
+
+            Write-Host ""
+            Write-Host "  ::::::::::::::::::::::::::::::::::::::::::::::::::" -ForegroundColor DarkGray
+            Write-Host "    EXEC: $fileName" -ForegroundColor Yellow
+            Write-Host "  ::::::::::::::::::::::::::::::::::::::::::::::::::" -ForegroundColor DarkGray
+
+            & $localPath
+        }
+        catch {
+            Write-Warning "  [!] Falha ao executar script: $url"
+            Write-Warning "      Erro: $_"
+        }
+    }
+    Write-Host ""
+    Write-Host "  ----------------------------------------------  " -ForegroundColor DarkGray
+}
+
+function Get-ExtensionPaths {
+    $paths = @()
+    $dirs = Get-ChildItem -Path $extensionsDir -Directory -Recurse
+
+    foreach ($dir in $dirs) {
+        if (Test-Path "$($dir.FullName)\manifest.json") {
+            $paths += $dir.FullName
         }
     }
 
-    function Get-CachedImage {
-        param($Url, $Name)
-        $LocalPath = "$AssetsDir\$Name"
-        # Se nao existe, retorna $null agora e baixa depois em background
-        if (Test-Path $LocalPath) { return $LocalPath }
-        return $null
+    return ($paths -join ",")
+}
+
+function Set-BrowserRestoreSession {
+    param([string]$browserName)
+
+    $prefPath = ""
+    if ($browserName -eq "Edge") {
+        $prefPath = "$env:LOCALAPPDATA\Microsoft\Edge\User Data\Default\Preferences"
+    }
+    elseif ($browserName -eq "Chrome") {
+        $prefPath = "$env:LOCALAPPDATA\Google\Chrome\User Data\Default\Preferences"
     }
 
-    # =========================================================================
-    # INTERFACE GRÁFICA (XAML)
-    # =========================================================================
-    # Caminhos iniciais (podem ser nulos se for a primeira vez)
-    $ImgEdge = Get-CachedImage $IconEdgeUrl "edge.png"
-    $ImgChrome = Get-CachedImage $IconChromeUrl "chrome.png"
-
-    $xaml = @"
-    <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-            xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-            Title="Correios Tools" Height="580" Width="400" WindowStyle="None" ResizeMode="NoResize" AllowsTransparency="True" Background="Transparent">
-        
-        <Window.Resources>
-            <Style TargetType="Button">
-                <Setter Property="Background" Value="#2D2D30"/>
-                <Setter Property="Foreground" Value="White"/>
-                <Setter Property="FontSize" Value="14"/>
-                <Setter Property="Cursor" Value="Hand"/>
-                <Setter Property="Template">
-                    <Setter.Value>
-                        <ControlTemplate TargetType="Button">
-                            <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="8" BorderBrush="#444" BorderThickness="1">
-                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="5"/>
-                            </Border>
-                            <ControlTemplate.Triggers>
-                                <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter TargetName="border" Property="Background" Value="#444444"/>
-                                </Trigger>
-                                <Trigger Property="IsPressed" Value="True">
-                                    <Setter TargetName="border" Property="Background" Value="#007ACC"/>
-                                </Trigger>
-                                <Trigger Property="IsEnabled" Value="False">
-                                    <Setter TargetName="border" Property="Background" Value="#1E1E1E"/>
-                                    <Setter Property="Foreground" Value="#555555"/>
-                                </Trigger>
-                            </ControlTemplate.Triggers>
-                        </ControlTemplate>
-                    </Setter.Value>
-                </Setter>
-            </Style>
-        </Window.Resources>
-
-        <Border Background="#1E1E1E" CornerRadius="10" BorderBrush="#333" BorderThickness="2">
-            <Grid Margin="15">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/> <RowDefinition Height="Auto"/> <RowDefinition Height="Auto"/> <RowDefinition Height="*"/>    <RowDefinition Height="Auto"/> </Grid.RowDefinitions>
-
-                <Grid Grid.Row="0" Margin="0,0,0,15">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-                    <StackPanel>
-                        <TextBlock Text="CORREIOS TOOLS" Foreground="White" FontSize="18" FontWeight="Bold"/>
-                        <TextBlock x:Name="lblSysInfo" Text="Iniciando..." Foreground="#888" FontSize="11"/>
-                    </StackPanel>
-                    <Button x:Name="btnClose" Grid.Column="1" Content=" X " Width="30" Height="30" Background="#992222" FontWeight="Bold"/>
-                </Grid>
-
-                <Grid Grid.Row="1" Margin="0,0,0,10">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-                    
-                    <Button x:Name="btnEdge" Grid.Column="0" Height="100" Margin="0,0,5,0">
-                        <StackPanel>
-                            <Image x:Name="imgEdge" Source="$ImgEdge" Height="48" Margin="0,0,0,5"/>
-                            <TextBlock Text="EDGE" FontWeight="Bold"/>
-                        </StackPanel>
-                    </Button>
-
-                    <Button x:Name="btnChrome" Grid.Column="1" Height="100" Margin="5,0,0,0">
-                        <StackPanel>
-                            <Image x:Name="imgChrome" Source="$ImgChrome" Height="48" Margin="0,0,0,5"/>
-                            <TextBlock Text="CHROME" FontWeight="Bold"/>
-                        </StackPanel>
-                    </Button>
-                </Grid>
-
-                <Button x:Name="btnDual" Grid.Row="2" Content="ABRIR AMBOS" Height="45" Background="#005A9E" FontWeight="Bold" Margin="0,0,0,15"/>
-
-                <RichTextBox x:Name="txtLog" Grid.Row="3" Background="#111" Foreground="#CCC" BorderThickness="0" IsReadOnly="True" VerticalScrollBarVisibility="Auto" Margin="0,0,0,10" Padding="5"/>
-
-                <Grid Grid.Row="4">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-                    <Button x:Name="btnUpdate" Grid.Column="0" Content="ATUALIZAR" FontSize="10" Height="35"/>
-                    <Button x:Name="btnExt" Grid.Column="1" Content="EXTENSÕES" FontSize="10" Height="35"/>
-                    <Button x:Name="btnScripts" Grid.Column="2" Content="SCRIPTS" FontSize="10" Height="35"/>
-                </Grid>
-            </Grid>
-        </Border>
-    </Window>
-"@
-
-    # Parse XAML com segurança
-    try {
-        $reader = (New-Object System.Xml.XmlNodeReader ([xml]$xaml))
-        $window = [System.Windows.Markup.XamlReader]::Load($reader)
-    } catch {
-        throw "Erro ao desenhar interface: $($_.Exception.Message)"
-    }
-
-    # Mapear Controles
-    $btnClose = $window.FindName("btnClose")
-    $btnEdge = $window.FindName("btnEdge")
-    $btnChrome = $window.FindName("btnChrome")
-    $btnDual = $window.FindName("btnDual")
-    $txtLog = $window.FindName("txtLog")
-    $lblSysInfo = $window.FindName("lblSysInfo")
-    $btnUpdate = $window.FindName("btnUpdate")
-    $btnExt = $window.FindName("btnExt")
-    $btnScripts = $window.FindName("btnScripts")
-    $imgEdgeCtrl = $window.FindName("imgEdge")
-    $imgChromeCtrl = $window.FindName("imgChrome")
-
-    # Eventos Básicos
-    $window.Add_MouseLeftButtonDown({ try { $window.DragMove() } catch {} })
-    $btnClose.Add_Click({ $window.Close() })
-
-    # Info do Sistema
-    try {
-        $os = (Get-WmiObject Win32_OperatingSystem).Caption -replace "Microsoft Windows", "Win"
-        $ram = [math]::Round((Get-WmiObject Win32_ComputerSystem).TotalPhysicalMemory / 1GB, 0)
-        $lblSysInfo.Text = "$os | ${ram}GB RAM | $env:COMPUTERNAME"
-    } catch {
-        $lblSysInfo.Text = "$env:COMPUTERNAME"
-    }
-
-    # =========================================================================
-    # LÓGICA DE NEGÓCIO
-    # =========================================================================
-
-    function Toggle-Buttons($State) {
-        $btnEdge.IsEnabled = $State
-        $btnChrome.IsEnabled = $State
-        $btnDual.IsEnabled = $State
-        Update-UI
-    }
-
-    function Download-Images-Bg {
-        # Baixa imagens se nao existirem e atualiza a UI
+    if (Test-Path $prefPath) {
         try {
-            if (!(Test-Path "$AssetsDir\edge.png")) {
-                Invoke-WebRequest -Uri $IconEdgeUrl -OutFile "$AssetsDir\edge.png" -UseBasicParsing
-                $imgEdgeCtrl.Source = "$AssetsDir\edge.png"
+            $content = Get-Content $prefPath -Raw
+            if ($content -notmatch '"restore_on_startup":1') {
+                $newContent = $content -replace '"restore_on_startup":\d', '"restore_on_startup":1'
+                if ($newContent -ne $content) {
+                    Set-Content -Path $prefPath -Value $newContent -Encoding UTF8
+                }
             }
-            if (!(Test-Path "$AssetsDir\chrome.png")) {
-                Invoke-WebRequest -Uri $IconChromeUrl -OutFile "$AssetsDir\chrome.png" -UseBasicParsing
-                $imgChromeCtrl.Source = "$AssetsDir\chrome.png"
-            }
-        } catch {}
-    }
-
-    function Start-Browser {
-        param($Name, $Bin, $Url)
-        Toggle-Buttons $false
-        Log-Message "Iniciando $Name..." "White"
-        
-        try {
-            Stop-Process -Name $Bin -Force -ErrorAction SilentlyContinue
-            Start-Sleep -Milliseconds 500
-            
-            # Configura sessao
-            $pref = if ($Name -eq "Edge") { "$env:LOCALAPPDATA\Microsoft\Edge\User Data\Default\Preferences" } else { "$env:LOCALAPPDATA\Google\Chrome\User Data\Default\Preferences" }
-            if (Test-Path $pref) {
-                try {
-                    $c = Get-Content $pref -Raw
-                    if ($c -match '"restore_on_startup":\d' -and $c -notmatch '"restore_on_startup":1') {
-                        $c = $c -replace '"restore_on_startup":\d', '"restore_on_startup":1'
-                        Set-Content $pref $c -Encoding UTF8
-                    }
-                } catch {}
-            }
-
-            # Extensoes
-            $extPath = ""
-            if (Test-Path $ExtensionsDir) {
-                $items = Get-ChildItem $ExtensionsDir -Directory -Recurse | Where { Test-Path "$($_.FullName)\manifest.json" }
-                if ($items) { $extPath = ($items.FullName -join ",") }
-            }
-
-            $args = @("--restore-last-session", "--no-first-run", "--no-default-browser-check", $Url)
-            if ($extPath) { $args += "--load-extension=`"$extPath`"" }
-
-            $p = Start-Process $Bin -ArgumentList $args -PassThru
-            Log-Message "$Name Aberto." "#00FF00"
-            
-            # Foco
-            try { 
-                Start-Sleep -Seconds 1
-                [Microsoft.VisualBasic.Interaction]::AppActivate($p.Id) 
-            } catch {}
-
-        } catch {
-            Log-Message "Erro: $_" "#FF5555"
-        } finally {
-            Toggle-Buttons $true
         }
+        catch { }
+    }
+}
+
+function Start-BrowserWithExtensions {
+    param (
+        [string]$browserName,
+        [string]$processName,
+        [string]$targetUrl,
+        [string]$extensionArg
+    )
+
+    if ([string]::IsNullOrWhiteSpace($browserName)) { return }
+
+    Write-Host "  >>> Reiniciando $browserName..." -ForegroundColor Yellow
+
+    Stop-Process -Name $processName -Force -ErrorAction SilentlyContinue
+    Start-Sleep -Seconds 1
+
+    Set-BrowserRestoreSession -browserName $browserName
+
+    $launchArgs = @(
+        "--restore-last-session",
+        "--no-first-run",
+        "--no-default-browser-check",
+        $targetUrl
+    )
+
+    if (-not [string]::IsNullOrWhiteSpace($extensionArg)) {
+        $launchArgs += "--load-extension=`"$extensionArg`""
     }
 
-    function Task-Update {
-        Log-Message "Verificando Launcher..." "Cyan"
-        $tmp = "$DataDir\new.tmp"
-        try {
-            Invoke-WebRequest $SelfUpdateUrl -OutFile $tmp -UseBasicParsing
-            if ((Get-Content $tmp -Raw).Length -ne (Get-Content $SelfPath -Raw).Length) {
-                Log-Message "Atualizando..." "Magenta"
-                Copy-Item $tmp $SelfPath -Force
-                Start-Process powershell.exe -ArgumentList "-NoProfile -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$SelfPath`""
-                $window.Close()
-            } else {
-                Log-Message "Launcher atualizado." "Green"
-            }
-            Remove-Item $tmp -Force
-        } catch { Log-Message "Falha no update." "Red" }
+    try {
+        Start-Process $processName -ArgumentList $launchArgs
+        Write-Host "  [V] $browserName iniciado." -ForegroundColor Green
+    }
+    catch {
+        Write-Warning "  [!] Nao foi possivel iniciar $browserName."
+    }
+}
+
+Show-Header
+Restore-Shortcuts
+Update-Self
+
+Write-Host "  [*] Preparando ambiente..." -ForegroundColor Cyan
+
+Invoke-RemoteScripts
+
+Sync-Extensions
+$extensionArg = Get-ExtensionPaths
+
+if ([string]::IsNullOrWhiteSpace($extensionArg)) {
+    Write-Warning "  [!] Nenhuma extensao carregada."
+}
+
+while ($true) {
+    Show-Header
+    Write-Host "  SELECIONE O NAVEGADOR:" -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "  [0] ABRIR TODOS (Edge + Chrome)" -ForegroundColor White
+    Write-Host "  [1] Microsoft Edge" -ForegroundColor White
+    Write-Host "  [2] Google Chrome" -ForegroundColor White
+    Write-Host ""
+    Write-Host "  [ENTER] Sair" -ForegroundColor DarkGray
+    Write-Host ""
+
+    $userInput = Read-Host "  > Opcao"
+
+    if ($userInput -eq "") { Exit }
+
+    if ($userInput -eq "0") {
+        Start-BrowserWithExtensions -browserName "Edge" -processName "msedge" -targetUrl $startUrl -extensionArg $extensionArg
+        Start-Sleep -Seconds 2
+        Start-BrowserWithExtensions -browserName "Chrome" -processName "chrome" -targetUrl $startUrl -extensionArg $extensionArg
+    }
+    elseif ($userInput -eq "1") {
+        Start-BrowserWithExtensions -browserName "Edge" -processName "msedge" -targetUrl $startUrl -extensionArg $extensionArg
+    }
+    elseif ($userInput -eq "2") {
+        Start-BrowserWithExtensions -browserName "Chrome" -processName "chrome" -targetUrl $startUrl -extensionArg $extensionArg
+    }
+    else {
+        continue
     }
 
-    function Task-Ext {
-        Log-Message "Baixando Extensões..." "Cyan"
-        if (Test-Path $ExtensionsDir) { Remove-Item $ExtensionsDir -Recurse -Force }
-        try {
-            New-Item -ItemType Directory -Path $ExtensionsDir -Force | Out-Null
-            $i=0
-            foreach ($u in $ExtensionUrls) {
-                $i++
-                $z = "$DataDir\ext$i.zip"
-                $d = "$ExtensionsDir\ext$i"
-                Invoke-WebRequest $u -OutFile $z -UseBasicParsing
-                Expand-Archive $z $d -Force
-                Remove-Item $z -Force
-                Log-Message "Extensão $i OK." "Green"
-            }
-        } catch { Log-Message "Erro Ext: $_" "Red" }
-    }
-
-    # Binds
-    $btnEdge.Add_Click({ Start-Browser "Edge" "msedge" $StartUrl })
-    $btnChrome.Add_Click({ Start-Browser "Chrome" "chrome" $StartUrl })
-    $btnDual.Add_Click({ 
-        Toggle-Buttons $false
-        Start-Browser "Edge" "msedge" $StartUrl
-        Start-Sleep 1
-        Start-Browser "Chrome" "chrome" $StartUrl 
-        Toggle-Buttons $true
-    })
-    $btnUpdate.Add_Click({ Task-Update })
-    $btnExt.Add_Click({ Task-Ext })
-    $btnScripts.Add_Click({ Log-Message "Sem scripts extras." "Yellow" }) # Placeholder seguro
-
-    # Auto-Start
-    $window.Add_Loaded({
-        Log-Message "Iniciado." "White"
-        Update-UI
-        # Roda tarefas pesadas APOS a janela aparecer
-        Download-Images-Bg
-        Task-Update
-        Task-Ext
-    })
-
-    # Show
-    $window.ShowDialog() | Out-Null
-
-} catch {
-    # SE TUDO FALHAR, MOSTRA ERRO NATIVO
-    [System.Windows.Forms.MessageBox]::Show("Erro Crítico no Launcher:`n`n$($_)", "Erro Correios Tools", 0, 16)
+    Write-Host ""
+    Write-Host "  [!] Concluido. Aguardando proximo comando..." -ForegroundColor DarkGray
+    Start-Sleep -Seconds 2
 }
