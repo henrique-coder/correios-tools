@@ -1,3 +1,7 @@
+$mutexName = "Global\CorreiosToolsLauncherUI"
+$mutex = New-Object System.Threading.Mutex($false, $mutexName)
+if (-not $mutex.WaitOne(0, $false)) { Exit }
+
 Add-Type -MemberDefinition @"
 [DllImport("user32.dll")]
 public static extern bool ShowWindowAsync(IntPtr hWnd, int nCmdShow);
@@ -6,12 +10,10 @@ public static extern bool ShowWindowAsync(IntPtr hWnd, int nCmdShow);
 $hwnd = (Get-Process -Id $pid).MainWindowHandle
 if ($hwnd -ne [IntPtr]::Zero) { [Native.Win32]::ShowWindowAsync($hwnd, 0) | Out-Null }
 
-$mutexName = "Global\CorreiosToolsLauncherUI"
-$mutex = New-Object System.Threading.Mutex($false, $mutexName)
-if (-not $mutex.WaitOne(0, $false)) { Exit }
-
 Add-Type -AssemblyName PresentationFramework
 Add-Type -AssemblyName System.Windows.Forms
+
+$script:isProcessing = $false
 
 $baseDir = "C:\Users\Public\correios-tools"
 $dataDir = "$baseDir\data"
@@ -28,6 +30,7 @@ $extensionUrls = @("https://github.com/henrique-coder/correios-tools/releases/do
 $scriptUrls = @()
 $startUrl = "https://sroweb.correios.com.br/app/entregaexternaautomatica/lancamento/index.php"
 
+if (!(Test-Path $dataDir)) { New-Item -ItemType Directory -Path $dataDir -Force | Out-Null }
 if (!(Test-Path $assetsDir)) { New-Item -ItemType Directory -Path $assetsDir -Force | Out-Null }
 $edgeIconPath = "$assetsDir\edge.png"
 $chromeIconPath = "$assetsDir\chrome.png"
@@ -37,7 +40,7 @@ try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::
 [xml]$xaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Correios Tools Launcher" Height="550" Width="420"
+        Title="Correios Tools Launcher" Height="580" Width="420"
         WindowStartupLocation="CenterScreen" ResizeMode="CanMinimize"
         Background="#1E1E1E" WindowStyle="None" AllowsTransparency="True">
     <Window.Resources>
@@ -61,6 +64,10 @@ try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::
                             <Trigger Property="IsPressed" Value="True">
                                 <Setter TargetName="border" Property="Background" Value="#007ACC"/>
                             </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="border" Property="Background" Value="#1A1A1A"/>
+                                <Setter Property="Foreground" Value="#555555"/>
+                            </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
@@ -75,6 +82,7 @@ try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
             <Grid Grid.Row="0">
                 <Grid.ColumnDefinitions>
@@ -84,7 +92,7 @@ try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::
                 <TextBlock Text="CORREIOS TOOLS" Foreground="White" FontSize="18" FontWeight="Bold" VerticalAlignment="Center"/>
                 <Button Name="BtnClose" Content="X" Grid.Column="1" Background="Transparent" Foreground="#FF5555" FontWeight="Bold" Width="30"/>
             </Grid>
-            <TextBlock Name="TxtStatus" Grid.Row="1" Text="Pronto para iniciar..." Foreground="#AAAAAA" Margin="0,20,0,10" HorizontalAlignment="Center"/>
+            <TextBlock Name="TxtStatus" Grid.Row="1" Text="Iniciando..." Foreground="#AAAAAA" Margin="0,20,0,10" HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center"/>
             <StackPanel Grid.Row="2" VerticalAlignment="Center" HorizontalAlignment="Center">
                 <Grid>
                     <Grid.ColumnDefinitions>
@@ -115,12 +123,21 @@ try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="10"/>
                     <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Button Name="BtnUpdate" Grid.Column="0" Content="Buscar Atualizacoes" Height="35" FontSize="11"/>
+                <Button Name="BtnReset" Grid.Column="2" Content="Limpar Cache" Height="35" FontSize="11"/>
+            </Grid>
+            <Grid Grid.Row="5" Margin="0,10,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="10"/>
+                    <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="10"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
-                <Button Name="BtnUpdate" Grid.Column="0" Content="Atualizar Script" Height="35" FontSize="11"/>
-                <Button Name="BtnExt" Grid.Column="2" Content="Sincronizar Extensoes" Height="35" FontSize="11"/>
-                <Button Name="BtnScripts" Grid.Column="4" Content="Scripts Extras" Height="35" FontSize="11"/>
+                <Button Name="BtnExt" Grid.Column="0" Content="Sincronizar Extensoes" Height="35" FontSize="11"/>
+                <Button Name="BtnScripts" Grid.Column="2" Content="Scripts Extras" Height="35" FontSize="11"/>
+                <Button Name="BtnHelp" Grid.Column="4" Content="Ajuda" Height="35" FontSize="11"/>
             </Grid>
         </Grid>
     </Border>
@@ -134,22 +151,43 @@ $BtnEdge = $window.FindName("BtnEdge")
 $BtnChrome = $window.FindName("BtnChrome")
 $BtnAll = $window.FindName("BtnAll")
 $BtnUpdate = $window.FindName("BtnUpdate")
+$BtnReset = $window.FindName("BtnReset")
 $BtnExt = $window.FindName("BtnExt")
 $BtnScripts = $window.FindName("BtnScripts")
+$BtnHelp = $window.FindName("BtnHelp")
 $TxtStatus = $window.FindName("TxtStatus")
 $ImgEdge = $window.FindName("ImgEdge")
 $ImgChrome = $window.FindName("ImgChrome")
 $PbMain = $window.FindName("PbMain")
 
-function Set-Status {
-    param([string]$msg, [bool]$loading = $false)
-    $TxtStatus.Text = $msg
+$allButtons = @($BtnEdge, $BtnChrome, $BtnAll, $BtnUpdate, $BtnReset, $BtnExt, $BtnScripts, $BtnHelp)
+
+function Set-ButtonsEnabled {
+    param([bool]$enabled)
+    foreach ($btn in $allButtons) { $btn.IsEnabled = $enabled }
+}
+
+function Update-Status {
+    param([string]$message, [bool]$loading = $false)
+    $TxtStatus.Text = $message
     $PbMain.IsIndeterminate = $loading
     $PbMain.Opacity = if ($loading) { 1 } else { 0 }
     [System.Windows.Threading.Dispatcher]::CurrentDispatcher.Invoke([Action]{}, [System.Windows.Threading.DispatcherPriority]::Background)
 }
 
-function Load-WindowIcon {
+function Invoke-SafeAction {
+    param([scriptblock]$action)
+    if ($script:isProcessing) { return }
+    $script:isProcessing = $true
+    Set-ButtonsEnabled $false
+    try { & $action }
+    finally {
+        $script:isProcessing = $false
+        Set-ButtonsEnabled $true
+    }
+}
+
+function Initialize-WindowIcon {
     try {
         if (!(Test-Path $iconPath)) { Invoke-WebRequest -Uri $iconUrl -OutFile $iconPath -UseBasicParsing }
         if (Test-Path $iconPath) {
@@ -163,53 +201,63 @@ function Load-WindowIcon {
     } catch {}
 }
 
-function Download-Assets {
+function Initialize-BrowserIcons {
     try {
         if (!(Test-Path $edgeIconPath)) { Invoke-WebRequest -Uri $edgeIconUrl -OutFile $edgeIconPath -UseBasicParsing }
         if (!(Test-Path $chromeIconPath)) { Invoke-WebRequest -Uri $chromeIconUrl -OutFile $chromeIconPath -UseBasicParsing }
-        $edgeBitmap = New-Object System.Windows.Media.Imaging.BitmapImage
-        $edgeBitmap.BeginInit()
-        $edgeBitmap.UriSource = New-Object Uri($edgeIconPath)
-        $edgeBitmap.CacheOption = "OnLoad"
-        $edgeBitmap.EndInit()
-        $ImgEdge.Source = $edgeBitmap
-        $chromeBitmap = New-Object System.Windows.Media.Imaging.BitmapImage
-        $chromeBitmap.BeginInit()
-        $chromeBitmap.UriSource = New-Object Uri($chromeIconPath)
-        $chromeBitmap.CacheOption = "OnLoad"
-        $chromeBitmap.EndInit()
-        $ImgChrome.Source = $chromeBitmap
+        if (Test-Path $edgeIconPath) {
+            $edgeBitmap = New-Object System.Windows.Media.Imaging.BitmapImage
+            $edgeBitmap.BeginInit()
+            $edgeBitmap.UriSource = New-Object Uri($edgeIconPath)
+            $edgeBitmap.CacheOption = "OnLoad"
+            $edgeBitmap.EndInit()
+            $ImgEdge.Source = $edgeBitmap
+        }
+        if (Test-Path $chromeIconPath) {
+            $chromeBitmap = New-Object System.Windows.Media.Imaging.BitmapImage
+            $chromeBitmap.BeginInit()
+            $chromeBitmap.UriSource = New-Object Uri($chromeIconPath)
+            $chromeBitmap.CacheOption = "OnLoad"
+            $chromeBitmap.EndInit()
+            $ImgChrome.Source = $chromeBitmap
+        }
     } catch {}
 }
 
-function Update-Self-Logic {
-    Set-Status "Verificando atualizacoes..." $true
+function Invoke-SelfUpdate {
+    param([bool]$silent = $false)
+    if (!$silent) { Update-Status "Verificando atualizacoes do aplicativo..." $true }
     try {
         $tempPath = "$dataDir\launcher_new.tmp"
         Invoke-WebRequest -Uri $selfUpdateUrl -OutFile $tempPath -UseBasicParsing
         $newContent = Get-Content $tempPath -Raw
         $oldContent = Get-Content $selfPath -Raw
         if ($newContent.Length -ne $oldContent.Length) {
-            Set-Status "Atualizacao encontrada. Reiniciando..." $true
+            Update-Status "Atualizacao encontrada! Reiniciando..." $true
             Copy-Item $tempPath $selfPath -Force
             Remove-Item $tempPath -Force
             Start-Process powershell.exe -ArgumentList "-ExecutionPolicy Bypass -WindowStyle Hidden -File `"$selfPath`""
+            $window.Close()
             Exit
         }
         Remove-Item $tempPath -Force
-        Set-Status "Sistema atualizado." $false
+        if (!$silent) { Update-Status "Aplicativo atualizado! Nenhuma nova versao disponivel." $false }
+        return $true
     } catch {
-        Set-Status "Erro na verificacao. Modo offline." $false
+        if (!$silent) { Update-Status "Sem conexao. Modo offline ativado." $false }
+        return $false
     }
 }
 
-function Sync-Extensions-Logic {
-    Set-Status "Sincronizando extensoes..." $true
+function Invoke-SyncExtensions {
+    Update-Status "Sincronizando extensoes... Aguarde." $true
     if (Test-Path $extensionsDir) { Remove-Item $extensionsDir -Recurse -Force }
     New-Item -ItemType Directory -Path $extensionsDir -Force | Out-Null
     $count = 0
+    $total = $extensionUrls.Count
     foreach ($url in $extensionUrls) {
         $count++
+        Update-Status "Baixando extensao $count de $total..." $true
         try {
             $fileName = [System.IO.Path]::GetFileNameWithoutExtension($url)
             if ([string]::IsNullOrWhiteSpace($fileName)) { $fileName = "Ext_$count" }
@@ -221,14 +269,22 @@ function Sync-Extensions-Logic {
             Remove-Item $zipPath -Force
         } catch {}
     }
-    Set-Status "Extensoes sincronizadas." $false
+    Update-Status "Extensoes sincronizadas com sucesso!" $false
 }
 
-function Run-Scripts-Logic {
-    Set-Status "Executando scripts extras..." $true
+function Invoke-RunExtraScripts {
+    Update-Status "Executando scripts extras... Aguarde." $true
     if (Test-Path $scriptsDir) { Remove-Item $scriptsDir -Recurse -Force }
     New-Item -ItemType Directory -Path $scriptsDir -Force | Out-Null
+    $count = 0
+    $total = $scriptUrls.Count
+    if ($total -eq 0) {
+        Update-Status "Nenhum script extra configurado." $false
+        return
+    }
     foreach ($url in $scriptUrls) {
+        $count++
+        Update-Status "Executando script $count de $total..." $true
         try {
             $fileName = [System.IO.Path]::GetFileName($url)
             $localPath = "$scriptsDir\$fileName"
@@ -236,7 +292,24 @@ function Run-Scripts-Logic {
             & $localPath
         } catch {}
     }
-    Set-Status "Scripts executados." $false
+    Update-Status "Scripts extras executados!" $false
+}
+
+function Invoke-ClearCache {
+    Update-Status "Limpando cache... Aguarde." $true
+    try {
+        if (Test-Path $extensionsDir) { Remove-Item $extensionsDir -Recurse -Force }
+        if (Test-Path $scriptsDir) { Remove-Item $scriptsDir -Recurse -Force }
+        if (Test-Path $assetsDir) { Remove-Item $assetsDir -Recurse -Force }
+        New-Item -ItemType Directory -Path $assetsDir -Force | Out-Null
+        Update-Status "Baixando icones novamente..." $true
+        Initialize-BrowserIcons
+        Update-Status "Sincronizando extensoes..." $true
+        Invoke-SyncExtensions
+        Update-Status "Cache limpo e recursos atualizados!" $false
+    } catch {
+        Update-Status "Erro ao limpar cache." $false
+    }
 }
 
 function Get-ExtensionPaths {
@@ -250,70 +323,124 @@ function Get-ExtensionPaths {
     return ($paths -join ",")
 }
 
-function Prepare-Browser {
-    param($name)
+function Set-BrowserPreferences {
+    param([string]$browserName)
     $prefPath = ""
-    if ($name -eq "Edge") { $prefPath = "$env:LOCALAPPDATA\Microsoft\Edge\User Data\Default\Preferences" }
-    elseif ($name -eq "Chrome") { $prefPath = "$env:LOCALAPPDATA\Google\Chrome\User Data\Default\Preferences" }
+    if ($browserName -eq "Edge") { $prefPath = "$env:LOCALAPPDATA\Microsoft\Edge\User Data\Default\Preferences" }
+    elseif ($browserName -eq "Chrome") { $prefPath = "$env:LOCALAPPDATA\Google\Chrome\User Data\Default\Preferences" }
     if (Test-Path $prefPath) {
         try {
             $content = Get-Content $prefPath -Raw
             if ($content -notmatch '"restore_on_startup":1') {
-                $new = $content -replace '"restore_on_startup":\d', '"restore_on_startup":1'
-                if ($new -ne $content) { Set-Content $prefPath $new -Encoding UTF8 }
+                $newContent = $content -replace '"restore_on_startup":\d', '"restore_on_startup":1'
+                if ($newContent -ne $content) { Set-Content $prefPath $newContent -Encoding UTF8 }
             }
         } catch {}
     }
 }
 
-function Launch-Browser {
-    param($browser, $process, $extPaths)
-    Set-Status "Iniciando $browser..." $true
-    Stop-Process -Name $process -Force -ErrorAction SilentlyContinue
+function Start-Browser {
+    param([string]$browserName, [string]$processName, [string]$extensionPaths)
+    Update-Status "Iniciando $browserName..." $true
+    Stop-Process -Name $processName -Force -ErrorAction SilentlyContinue
     Start-Sleep -Milliseconds 500
-    Prepare-Browser $browser
-    $args = @("--restore-last-session", "--no-first-run", "--no-default-browser-check", $startUrl)
-    if (-not [string]::IsNullOrWhiteSpace($extPaths)) { $args += "--load-extension=`"$extPaths`"" }
+    Set-BrowserPreferences $browserName
+    $browserArgs = @("--restore-last-session", "--no-first-run", "--no-default-browser-check", $startUrl)
+    if (-not [string]::IsNullOrWhiteSpace($extensionPaths)) { $browserArgs += "--load-extension=`"$extensionPaths`"" }
     try {
-        Start-Process $process -ArgumentList $args
-        Set-Status "$browser iniciado com sucesso!" $false
+        Start-Process $processName -ArgumentList $browserArgs
+        Update-Status "$browserName iniciado com sucesso!" $false
     } catch {
-        Set-Status "Erro ao iniciar $browser." $false
+        Update-Status "Erro ao iniciar $browserName." $false
     }
 }
 
+function Invoke-StartupSequence {
+    Set-ButtonsEnabled $false
+    $script:isProcessing = $true
+    Update-Status "Iniciando aplicativo..." $true
+    Initialize-WindowIcon
+    Update-Status "Carregando icones..." $true
+    Initialize-BrowserIcons
+    Update-Status "Verificando atualizacoes..." $true
+    Invoke-SelfUpdate -silent $true
+    $extensionPaths = Get-ExtensionPaths
+    if ([string]::IsNullOrWhiteSpace($extensionPaths)) {
+        Update-Status "Preparando extensoes para primeiro uso..." $true
+        Invoke-SyncExtensions
+    }
+    Update-Status "Pronto! Selecione um navegador para comecar." $false
+    $script:isProcessing = $false
+    Set-ButtonsEnabled $true
+}
+
 $BtnClose.Add_Click({ $window.Close() })
-$BtnUpdate.Add_Click({ Update-Self-Logic })
-$BtnExt.Add_Click({ Sync-Extensions-Logic })
-$BtnScripts.Add_Click({ Run-Scripts-Logic })
+
+$BtnUpdate.Add_Click({
+    Invoke-SafeAction {
+        Invoke-SelfUpdate -silent $false
+    }
+})
+
+$BtnReset.Add_Click({
+    Invoke-SafeAction {
+        Invoke-ClearCache
+    }
+})
+
+$BtnExt.Add_Click({
+    Invoke-SafeAction {
+        Invoke-SyncExtensions
+    }
+})
+
+$BtnScripts.Add_Click({
+    Invoke-SafeAction {
+        Invoke-RunExtraScripts
+    }
+})
+
+$BtnHelp.Add_Click({
+    Invoke-SafeAction {
+        Update-Status "Ajuda: Clique em Edge ou Chrome para abrir o sistema. Use 'Limpar Cache' se algo nao funcionar." $false
+    }
+})
 
 $BtnEdge.Add_Click({
-    $ext = Get-ExtensionPaths
-    if ([string]::IsNullOrWhiteSpace($ext)) { Sync-Extensions-Logic; $ext = Get-ExtensionPaths }
-    Launch-Browser "Edge" "msedge" $ext
+    Invoke-SafeAction {
+        $ext = Get-ExtensionPaths
+        if ([string]::IsNullOrWhiteSpace($ext)) {
+            Invoke-SyncExtensions
+            $ext = Get-ExtensionPaths
+        }
+        Start-Browser "Edge" "msedge" $ext
+    }
 })
 
 $BtnChrome.Add_Click({
-    $ext = Get-ExtensionPaths
-    if ([string]::IsNullOrWhiteSpace($ext)) { Sync-Extensions-Logic; $ext = Get-ExtensionPaths }
-    Launch-Browser "Chrome" "chrome" $ext
+    Invoke-SafeAction {
+        $ext = Get-ExtensionPaths
+        if ([string]::IsNullOrWhiteSpace($ext)) {
+            Invoke-SyncExtensions
+            $ext = Get-ExtensionPaths
+        }
+        Start-Browser "Chrome" "chrome" $ext
+    }
 })
 
 $BtnAll.Add_Click({
-    $ext = Get-ExtensionPaths
-    if ([string]::IsNullOrWhiteSpace($ext)) { Sync-Extensions-Logic; $ext = Get-ExtensionPaths }
-    Launch-Browser "Edge" "msedge" $ext
-    Start-Sleep -Seconds 1
-    Launch-Browser "Chrome" "chrome" $ext
+    Invoke-SafeAction {
+        $ext = Get-ExtensionPaths
+        if ([string]::IsNullOrWhiteSpace($ext)) {
+            Invoke-SyncExtensions
+            $ext = Get-ExtensionPaths
+        }
+        Start-Browser "Edge" "msedge" $ext
+        Start-Sleep -Seconds 1
+        Start-Browser "Chrome" "chrome" $ext
+    }
 })
 
-$window.Add_Loaded({
-    Set-Status "Carregando recursos..." $true
-    Load-WindowIcon
-    Download-Assets
-    Update-Self-Logic
-    Set-Status "Pronto." $false
-})
-
+$window.Add_Loaded({ Invoke-StartupSequence })
 $window.Add_MouseLeftButtonDown({ $window.DragMove() })
 [void]$window.ShowDialog()
