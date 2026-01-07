@@ -89,7 +89,7 @@ $xaml = @"
                 <Button Name="BtnClose" Content="X" Grid.Column="1" Background="Transparent" Foreground="#FF5555" FontWeight="Bold" Width="30"/>
             </Grid>
 
-            <TextBlock Name="TxtStatus" Grid.Row="1" Text="Pronto para iniciar..." Foreground="#AAAAAA" Margin="0,20,0,10" HorizontalAlignment="Center"/>
+            <TextBlock Name="TxtStatus" Grid.Row="1" Text="Inicializando..." Foreground="#AAAAAA" Margin="0,20,0,10" HorizontalAlignment="Center"/>
 
             <StackPanel Grid.Row="2" VerticalAlignment="Center" HorizontalAlignment="Center">
                 <Grid>
@@ -129,7 +129,7 @@ $xaml = @"
                     <ColumnDefinition Width="10"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
-                <Button Name="BtnUpdate" Grid.Column="0" Content="Atualizar Script" Height="35" FontSize="11"/>
+                <Button Name="BtnUpdate" Grid.Column="0" Content="Forcar Update" Height="35" FontSize="11"/>
                 <Button Name="BtnExt" Grid.Column="2" Content="Sincronizar Extensoes" Height="35" FontSize="11"/>
                 <Button Name="BtnScripts" Grid.Column="4" Content="Scripts Extras" Height="35" FontSize="11"/>
             </Grid>
@@ -193,25 +193,25 @@ function Download-Assets {
 }
 
 function Update-Self-Logic {
-    Set-Status "Verificando atualizacoes..." $true
+    param([bool]$force = $false)
+    Set-Status "Buscando atualizacoes..." $true
     try {
         $tempPath = "$dataDir\launcher_new.tmp"
-        Invoke-WebRequest -Uri $selfUpdateUrl -OutFile $tempPath -UseBasicParsing
+        Invoke-WebRequest -Uri $selfUpdateUrl -OutFile $tempPath -UseBasicParsing -TimeoutSec 10
         $newContent = Get-Content $tempPath -Raw
         $oldContent = Get-Content $selfPath -Raw
 
-        if ($newContent.Length -ne $oldContent.Length) {
-            Set-Status "Atualizacao encontrada. Reiniciando..." $true
+        if ($force -or ($newContent.Length -ne $oldContent.Length)) {
+            Set-Status "Atualizando sistema..." $true
             Copy-Item $tempPath $selfPath -Force
             Remove-Item $tempPath -Force
             Start-Process powershell.exe -ArgumentList "-ExecutionPolicy Bypass -WindowStyle Hidden -File `"$selfPath`""
             Exit
         }
         Remove-Item $tempPath -Force
-        Set-Status "Sistema atualizado." $false
     }
     catch {
-        Set-Status "Erro na verificacao. Modo offline." $false
+        
     }
 }
 
@@ -304,7 +304,7 @@ function Launch-Browser {
 
 $BtnClose.Add_Click({ $window.Close() })
 
-$BtnUpdate.Add_Click({ Update-Self-Logic })
+$BtnUpdate.Add_Click({ Update-Self-Logic -force $true; Set-Status "Sistema atualizado." $false })
 $BtnExt.Add_Click({ Sync-Extensions-Logic })
 $BtnScripts.Add_Click({ Run-Scripts-Logic })
 
@@ -329,10 +329,10 @@ $BtnAll.Add_Click({
 })
 
 $window.Add_Loaded({
-    Set-Status "Carregando recursos..." $true
+    Update-Self-Logic
+    Set-Status "Carregando visual..." $true
     Load-WindowIcon
     Download-Assets
-    Update-Self-Logic
     Set-Status "Pronto." $false
 })
 
