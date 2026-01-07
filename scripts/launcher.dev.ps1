@@ -124,7 +124,7 @@ try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::
                     <ColumnDefinition Width="10"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
-                <Button Name="BtnUpdate" Grid.Column="0" Content="Buscar Atualizacoes" Height="35" FontSize="11"/>
+                <Button Name="BtnUpdate" Grid.Column="0" Content="Reinstalar App" Height="35" FontSize="11"/>
                 <Button Name="BtnReset" Grid.Column="2" Content="Recriar Cache" Height="35" FontSize="11"/>
                 <Button Name="BtnScripts" Grid.Column="4" Content="Ferramentas" Height="35" FontSize="11"/>
             </Grid>
@@ -232,6 +232,23 @@ function Invoke-SelfUpdate {
     } catch {
         if (!$silent) { Update-Status "Sem conexao. Modo offline ativado." $false }
         return $false
+    }
+}
+
+function Invoke-ForceReinstall {
+    Update-Status "Reinstalando aplicativo... Aguarde." $true
+    try {
+        $tempPath = "$dataDir\launcher_new.tmp"
+        Invoke-WebRequest -Uri $selfUpdateUrl -OutFile $tempPath -UseBasicParsing
+        Update-Status "Download concluido. Aplicando atualizacao..." $true
+        Copy-Item $tempPath $selfPath -Force
+        Remove-Item $tempPath -Force
+        Update-Status "Reinstalacao concluida! Reiniciando..." $true
+        Start-Process powershell.exe -ArgumentList "-ExecutionPolicy Bypass -WindowStyle Hidden -File `"$selfPath`""
+        $window.Close()
+        Exit
+    } catch {
+        Update-Status "Erro ao reinstalar. Verifique sua conexao." $false
     }
 }
 
@@ -416,7 +433,7 @@ $BtnClose.Add_Click({ $window.Close() })
 
 $BtnUpdate.Add_Click({
     Invoke-SafeAction {
-        Invoke-SelfUpdate -silent $false
+        Invoke-ForceReinstall
     }
 })
 
@@ -457,5 +474,3 @@ $BtnChrome.Add_Click({
 $window.Add_Loaded({ Invoke-StartupSequence })
 $window.Add_MouseLeftButtonDown({ $window.DragMove() })
 [void]$window.ShowDialog()
-
-# debug comment

@@ -69,7 +69,7 @@ $xaml = @"
             </Setter>
         </Style>
     </Window.Resources>
-    
+
     <Border BorderBrush="#333337" BorderThickness="1" CornerRadius="0">
         <Grid Margin="15">
             <Grid.RowDefinitions>
@@ -98,7 +98,7 @@ $xaml = @"
                         <ColumnDefinition Width="30"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    
+
                     <Button Name="BtnEdge" Width="130" Height="130" Background="Transparent">
                         <StackPanel>
                             <Image Name="ImgEdge" Width="90" Height="90" RenderOptions.BitmapScalingMode="HighQuality"/>
@@ -175,7 +175,7 @@ function Download-Assets {
     try {
         if (!(Test-Path $edgeIconPath)) { Invoke-WebRequest -Uri $edgeIconUrl -OutFile $edgeIconPath -UseBasicParsing }
         if (!(Test-Path $chromeIconPath)) { Invoke-WebRequest -Uri $chromeIconUrl -OutFile $chromeIconPath -UseBasicParsing }
-        
+
         $edgeBitmap = New-Object System.Windows.Media.Imaging.BitmapImage
         $edgeBitmap.BeginInit()
         $edgeBitmap.UriSource = New-Object Uri($edgeIconPath)
@@ -219,7 +219,7 @@ function Sync-Extensions-Logic {
     Set-Status "Sincronizando extensoes..." $true
     if (Test-Path $extensionsDir) { Remove-Item $extensionsDir -Recurse -Force }
     New-Item -ItemType Directory -Path $extensionsDir -Force | Out-Null
-    
+
     $count = 0
     foreach ($url in $extensionUrls) {
         $count++
@@ -241,7 +241,7 @@ function Run-Scripts-Logic {
     Set-Status "Executando scripts extras..." $true
     if (Test-Path $scriptsDir) { Remove-Item $scriptsDir -Recurse -Force }
     New-Item -ItemType Directory -Path $scriptsDir -Force | Out-Null
-    
+
     foreach ($url in $scriptUrls) {
         try {
             $fileName = [System.IO.Path]::GetFileName($url)
@@ -286,7 +286,7 @@ function Prepare-Browser {
 function Launch-Browser {
     param($browser, $process, $extPaths)
     Set-Status "Iniciando $browser..." $true
-    
+
     Stop-Process -Name $process -Force -ErrorAction SilentlyContinue
     Start-Sleep -Milliseconds 500
     Prepare-Browser $browser
