@@ -1,15 +1,22 @@
-Add-Type -AssemblyName PresentationFramework, System.Drawing, System.Windows.Forms, Microsoft.VisualBasic
+if ([System.Threading.Thread]::CurrentThread.GetApartmentState() -ne 'STA') {
+    $p = Start-Process powershell.exe -ArgumentList "-NoProfile -Sta -ExecutionPolicy Bypass -File `"$MyInvocation.MyCommand.Path`"" -PassThru
+    Exit
+}
 
 $mutexName = "Global\CorreiosToolsLauncher"
 $mutex = New-Object System.Threading.Mutex($false, $mutexName)
 if (-not $mutex.WaitOne(0, $false)) { Exit }
 
+Add-Type -AssemblyName PresentationFramework, System.Drawing, System.Windows.Forms, Microsoft.VisualBasic
+
+if (-not ([System.Management.Automation.PSTypeName]'Win32').Type) {
 $code = @"
 [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
 [DllImport("kernel32.dll")] public static extern IntPtr GetConsoleWindow();
 "@
-$win32 = Add-Type -MemberDefinition $code -Name "Win32" -Namespace Win32 -PassThru
-$win32::ShowWindow($win32::GetConsoleWindow(), 0)
+Add-Type -MemberDefinition $code -Name "Win32" -Namespace Win32
+}
+[Win32.Win32]::ShowWindow([Win32.Win32]::GetConsoleWindow(), 0)
 
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 try { chcp 65001 | Out-Null } catch {}
@@ -165,8 +172,13 @@ $xaml = @"
 </Window>
 "@
 
-$reader = (New-Object System.Xml.XmlNodeReader ([xml]$xaml))
-$window = [System.Windows.Markup.XamlReader]::Load($reader)
+try {
+    $reader = (New-Object System.Xml.XmlNodeReader ([xml]$xaml))
+    $window = [System.Windows.Markup.XamlReader]::Load($reader)
+} catch {
+    [System.Windows.Forms.MessageBox]::Show("Erro UI: " + $_.Exception.Message)
+    Exit
+}
 
 $lblSysInfo = $window.FindName("lblSysInfo")
 $btnClose = $window.FindName("btnClose")
@@ -261,7 +273,6 @@ function Start-Browser {
         
         Log-Message "$Name aberto com sucesso." "#00FF00"
         
-        # Tenta focar na janela
         Start-Sleep -Seconds 1
         Bring-To-Front -ProcessName $Bin
     } catch {
@@ -282,7 +293,7 @@ function Task-UpdateSelf {
             Log-Message "Nova versao encontrada! Reiniciando..." "Magenta"
             Copy-Item $temp $SelfPath -Force
             Remove-Item $temp -Force
-            Start-Process powershell.exe -ArgumentList "-ExecutionPolicy Bypass -WindowStyle Hidden -File `"$SelfPath`""
+            Start-Process powershell.exe -ArgumentList "-NoProfile -Sta -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$SelfPath`""
             $window.Close()
         } else {
             Log-Message "Launcher atualizado." "Green"
