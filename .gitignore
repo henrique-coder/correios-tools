@@ -1,0 +1,15 @@
+# IDE
+# ...
+
+# Cache
+# ...
+
+# Directories
+.debug/
+
+# Files
+# ...
+
+# Extensions
+*.env
+*.log
