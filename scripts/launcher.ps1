@@ -21,6 +21,7 @@ $extensionsDir = "$dataDir\extensions"
 $scriptsDir = "$dataDir\scripts"
 $assetsDir = "$dataDir\assets"
 $selfPath = $MyInvocation.MyCommand.Path
+$iconPath = "$dataDir\icon.ico"
 
 $edgeIconUrl = "https://raw.githubusercontent.com/henrique-coder/correios-tools/refs/heads/dev/assets/edge_icon.png"
 $chromeIconUrl = "https://raw.githubusercontent.com/henrique-coder/correios-tools/refs/heads/dev/assets/chrome_icon.png"
@@ -38,7 +39,7 @@ try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::
 $xaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Correios Tools Launcher" Height="520" Width="400"
+        Title="Correios Tools Launcher" Height="550" Width="420"
         WindowStartupLocation="CenterScreen" ResizeMode="CanMinimize"
         Background="#1E1E1E" WindowStyle="None" AllowsTransparency="True">
     <Window.Resources>
@@ -70,7 +71,7 @@ $xaml = @"
     </Window.Resources>
     
     <Border BorderBrush="#333337" BorderThickness="1" CornerRadius="0">
-        <Grid Margin="10">
+        <Grid Margin="15">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
@@ -88,49 +89,49 @@ $xaml = @"
                 <Button Name="BtnClose" Content="X" Grid.Column="1" Background="Transparent" Foreground="#FF5555" FontWeight="Bold" Width="30"/>
             </Grid>
 
-            <TextBlock Name="TxtStatus" Grid.Row="1" Text="Pronto para iniciar..." Foreground="#AAAAAA" Margin="0,15,0,10" HorizontalAlignment="Center"/>
+            <TextBlock Name="TxtStatus" Grid.Row="1" Text="Pronto para iniciar..." Foreground="#AAAAAA" Margin="0,20,0,10" HorizontalAlignment="Center"/>
 
             <StackPanel Grid.Row="2" VerticalAlignment="Center" HorizontalAlignment="Center">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="20"/>
+                        <ColumnDefinition Width="30"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
                     
-                    <Button Name="BtnEdge" Width="120" Height="120" Background="Transparent">
+                    <Button Name="BtnEdge" Width="130" Height="130" Background="Transparent">
                         <StackPanel>
-                            <Image Name="ImgEdge" Width="80" Height="80" RenderOptions.BitmapScalingMode="HighQuality"/>
+                            <Image Name="ImgEdge" Width="90" Height="90" RenderOptions.BitmapScalingMode="HighQuality"/>
                             <TextBlock Text="Edge" Foreground="White" HorizontalAlignment="Center" Margin="0,10,0,0"/>
                         </StackPanel>
                     </Button>
 
-                    <Button Name="BtnChrome" Grid.Column="2" Width="120" Height="120" Background="Transparent">
+                    <Button Name="BtnChrome" Grid.Column="2" Width="130" Height="130" Background="Transparent">
                         <StackPanel>
-                            <Image Name="ImgChrome" Width="80" Height="80" RenderOptions.BitmapScalingMode="HighQuality"/>
+                            <Image Name="ImgChrome" Width="90" Height="90" RenderOptions.BitmapScalingMode="HighQuality"/>
                             <TextBlock Text="Chrome" Foreground="White" HorizontalAlignment="Center" Margin="0,10,0,0"/>
                         </StackPanel>
                     </Button>
                 </Grid>
 
-                <Button Name="BtnAll" Content="ABRIR EM AMBOS OS NAVEGADORES" Margin="0,25,0,0" Height="40" FontSize="12" FontWeight="Bold" Background="#007ACC"/>
+                <Button Name="BtnAll" Content="ABRIR EM AMBOS OS NAVEGADORES" Margin="0,30,0,0" Height="45" FontSize="13" FontWeight="Bold" Background="#007ACC"/>
             </StackPanel>
 
-            <StackPanel Grid.Row="3" Margin="0,10">
-                 <ProgressBar Name="PbMain" Height="2" Background="#2D2D30" Foreground="#007ACC" IsIndeterminate="False" Opacity="0"/>
+            <StackPanel Grid.Row="3" Margin="0,15">
+                 <ProgressBar Name="PbMain" Height="3" Background="#2D2D30" Foreground="#007ACC" IsIndeterminate="False" Opacity="0"/>
             </StackPanel>
 
             <Grid Grid.Row="4" Margin="0,5,0,0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="5"/>
+                    <ColumnDefinition Width="10"/>
                     <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="5"/>
+                    <ColumnDefinition Width="10"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
-                <Button Name="BtnUpdate" Grid.Column="0" Content="Atualizar App" FontSize="10"/>
-                <Button Name="BtnExt" Grid.Column="2" Content="Sincronizar Ext" FontSize="10"/>
-                <Button Name="BtnScripts" Grid.Column="4" Content="Scripts Extras" FontSize="10"/>
+                <Button Name="BtnUpdate" Grid.Column="0" Content="Atualizar Script" Height="35" FontSize="11"/>
+                <Button Name="BtnExt" Grid.Column="2" Content="Sincronizar Extensoes" Height="35" FontSize="11"/>
+                <Button Name="BtnScripts" Grid.Column="4" Content="Scripts Extras" Height="35" FontSize="11"/>
             </Grid>
         </Grid>
     </Border>
@@ -160,6 +161,16 @@ function Set-Status {
     [System.Windows.Threading.Dispatcher]::CurrentDispatcher.Invoke([Action]{}, [System.Windows.Threading.DispatcherPriority]::Background)
 }
 
+function Load-WindowIcon {
+    try {
+        if (Test-Path $iconPath) {
+            $iconUri = New-Object Uri($iconPath)
+            $iconBitmap = New-Object System.Windows.Media.Imaging.BitmapImage($iconUri)
+            $window.Icon = $iconBitmap
+        }
+    } catch {}
+}
+
 function Download-Assets {
     try {
         if (!(Test-Path $edgeIconPath)) { Invoke-WebRequest -Uri $edgeIconUrl -OutFile $edgeIconPath -UseBasicParsing }
@@ -182,7 +193,7 @@ function Download-Assets {
 }
 
 function Update-Self-Logic {
-    Set-Status "Verificando atualizações..." $true
+    Set-Status "Verificando atualizacoes..." $true
     try {
         $tempPath = "$dataDir\launcher_new.tmp"
         Invoke-WebRequest -Uri $selfUpdateUrl -OutFile $tempPath -UseBasicParsing
@@ -190,7 +201,7 @@ function Update-Self-Logic {
         $oldContent = Get-Content $selfPath -Raw
 
         if ($newContent.Length -ne $oldContent.Length) {
-            Set-Status "Atualização encontrada. Reiniciando..." $true
+            Set-Status "Atualizacao encontrada. Reiniciando..." $true
             Copy-Item $tempPath $selfPath -Force
             Remove-Item $tempPath -Force
             Start-Process powershell.exe -ArgumentList "-ExecutionPolicy Bypass -WindowStyle Hidden -File `"$selfPath`""
@@ -200,12 +211,12 @@ function Update-Self-Logic {
         Set-Status "Sistema atualizado." $false
     }
     catch {
-        Set-Status "Erro na verificação. Modo offline." $false
+        Set-Status "Erro na verificacao. Modo offline." $false
     }
 }
 
 function Sync-Extensions-Logic {
-    Set-Status "Sincronizando extensões..." $true
+    Set-Status "Sincronizando extensoes..." $true
     if (Test-Path $extensionsDir) { Remove-Item $extensionsDir -Recurse -Force }
     New-Item -ItemType Directory -Path $extensionsDir -Force | Out-Null
     
@@ -223,7 +234,7 @@ function Sync-Extensions-Logic {
             Remove-Item $zipPath -Force
         } catch { }
     }
-    Set-Status "Extensões sincronizadas." $false
+    Set-Status "Extensoes sincronizadas." $false
 }
 
 function Run-Scripts-Logic {
@@ -319,6 +330,7 @@ $BtnAll.Add_Click({
 
 $window.Add_Loaded({
     Set-Status "Carregando recursos..." $true
+    Load-WindowIcon
     Download-Assets
     Update-Self-Logic
     Set-Status "Pronto." $false
