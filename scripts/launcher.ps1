@@ -126,7 +126,7 @@ try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::
                 </Grid.ColumnDefinitions>
                 <Button Name="BtnUpdate" Grid.Column="0" Content="Reinstalar App" Height="35" FontSize="11"/>
                 <Button Name="BtnReset" Grid.Column="2" Content="Recriar Cache" Height="35" FontSize="11"/>
-                <Button Name="BtnScripts" Grid.Column="4" Content="Ferramentas" Height="35" FontSize="11"/>
+                <Button Name="BtnScripts" Grid.Column="4" Content="Executar Extras" Height="35" FontSize="11"/>
             </Grid>
         </Grid>
     </Border>
@@ -418,12 +418,9 @@ function Invoke-StartupSequence {
     Update-Status "Carregando icones..." $true
     Initialize-BrowserIcons
     Update-Status "Verificando atualizacoes..." $true
-    Invoke-SelfUpdate -silent $true
-    $extensionPaths = Get-ExtensionPaths
-    if ([string]::IsNullOrWhiteSpace($extensionPaths)) {
-        Update-Status "Preparando extensoes para primeiro uso..." $true
-        Invoke-SyncExtensions
-    }
+    $hasUpdate = Invoke-SelfUpdate -silent $false
+    Update-Status "Atualizando recursos..." $true
+    Invoke-RecreateCache
     Update-Status "Pronto! Selecione o navegador." $false
     $script:isProcessing = $false
     Set-ButtonsEnabled $true
