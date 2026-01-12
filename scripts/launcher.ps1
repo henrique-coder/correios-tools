@@ -256,6 +256,9 @@ function Invoke-SyncExtensions {
     Update-Status "Sincronizando extensoes... Aguarde." $true
     if (Test-Path $extensionsDir) { Remove-Item $extensionsDir -Recurse -Force }
     New-Item -ItemType Directory -Path $extensionsDir -Force | Out-Null
+    
+    try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 } catch {}
+
     $count = 0
     $total = $extensionUrls.Count
     foreach ($url in $extensionUrls) {
@@ -266,11 +269,19 @@ function Invoke-SyncExtensions {
             if ([string]::IsNullOrWhiteSpace($fileName)) { $fileName = "Ext_$count" }
             $zipPath = "$dataDir\$fileName.zip"
             $destFolder = "$extensionsDir\$fileName"
+            
             New-Item -ItemType Directory -Path $destFolder -Force | Out-Null
-            Invoke-WebRequest -Uri $url -OutFile $zipPath -UseBasicParsing
+            
+            Start-Sleep -Milliseconds 500
+            
+            Invoke-WebRequest -Uri $url -OutFile $zipPath -UseBasicParsing -TimeoutSec 30
+            
             Expand-Archive -Path $zipPath -DestinationPath $destFolder -Force
             Remove-Item $zipPath -Force
-        } catch {}
+        } catch {
+            Update-Status "Falha ao baixar extensao $count. Verifique a internet." $false
+            Start-Sleep -Seconds 2
+        }
     }
 }
 
@@ -419,8 +430,14 @@ function Invoke-StartupSequence {
     Initialize-BrowserIcons
     Update-Status "Verificando atualizacoes..." $true
     $hasUpdate = Invoke-SelfUpdate -silent $false
-    Update-Status "Atualizando recursos..." $true
-    Invoke-RecreateCache
+    
+    $ext = Get-ExtensionPaths
+    $installedCount = if ([string]::IsNullOrWhiteSpace($ext)) { 0 } else { ($ext -split ",").Count }
+    if ($installedCount -lt $extensionUrls.Count) {
+        Update-Status "Detectado novas extensoes. Baixando..." $true
+        Invoke-SyncExtensions
+    }
+
     Update-Status "Pronto! Selecione o navegador." $false
     $script:isProcessing = $false
     Set-ButtonsEnabled $true
@@ -449,7 +466,9 @@ $BtnScripts.Add_Click({
 $BtnEdge.Add_Click({
     Invoke-SafeAction {
         $ext = Get-ExtensionPaths
-        if ([string]::IsNullOrWhiteSpace($ext)) {
+        $installedCount = if ([string]::IsNullOrWhiteSpace($ext)) { 0 } else { ($ext -split ",").Count }
+        
+        if ($installedCount -lt $extensionUrls.Count) {
             Invoke-SyncExtensions
             $ext = Get-ExtensionPaths
         }
@@ -460,7 +479,9 @@ $BtnEdge.Add_Click({
 $BtnChrome.Add_Click({
     Invoke-SafeAction {
         $ext = Get-ExtensionPaths
-        if ([string]::IsNullOrWhiteSpace($ext)) {
+        $installedCount = if ([string]::IsNullOrWhiteSpace($ext)) { 0 } else { ($ext -split ",").Count }
+
+        if ($installedCount -lt $extensionUrls.Count) {
             Invoke-SyncExtensions
             $ext = Get-ExtensionPaths
         }
