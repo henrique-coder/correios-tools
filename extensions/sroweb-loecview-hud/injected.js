@@ -1,14 +1,14 @@
-!function() {
-    "use strict";
+!(function () {
+  "use strict";
 
-    const DOM_TARGET_SELECTOR = ".botoes";
-    const HUD_ID = "sro-hud-dashboard";
+  const DOM_TARGET_SELECTOR = ".botoes";
+  const HUD_ID = "sro-hud-dashboard";
 
-    function injectStyles() {
-        if (document.getElementById("sro-hud-styles")) return;
-        const style = document.createElement("style");
-        style.id = "sro-hud-styles";
-        style.innerHTML = `
+  function injectStyles() {
+    if (document.getElementById("sro-hud-styles")) return;
+    const style = document.createElement("style");
+    style.id = "sro-hud-styles";
+    style.innerHTML = `
             #${HUD_ID} {
                 box-sizing: border-box;
                 width: 100%;
@@ -74,72 +74,92 @@
                 to { opacity: 1; transform: translateY(0); }
             }
         `;
-        document.head.appendChild(style);
+    document.head.appendChild(style);
+  }
+
+  const extractInt = (val) => {
+    if (typeof val === "number") return val;
+    if (!val) return 0;
+    const clean = val.toString().replace(/<[^>]*>/g, "");
+    return parseInt(clean, 10) || 0;
+  };
+
+  const calculateMetrics = (data) => {
+    if (!Array.isArray(data) || data.length === 0) return null;
+
+    let totalDistricts = data.length;
+    let totalObjects = 0;
+    let totalPoints = 0;
+    let totalExpired = 0;
+    let totalToday = 0;
+    let totalToExpire = 0;
+    let totalAR = 0;
+
+    data.forEach((d) => {
+      totalObjects += extractInt(d.qtde);
+      totalPoints += extractInt(d.qtdePontos);
+      totalExpired += extractInt(d.qtdeVencido);
+      totalToday += extractInt(d.qtdeHoje);
+      totalToExpire += extractInt(d.qtdeAVencer);
+      totalAR += extractInt(d.qtdeAR);
+    });
+
+    const deliveryDensity =
+      totalObjects > 0 ? (totalObjects / totalPoints).toFixed(2) : 0;
+    const chaosIndex =
+      totalObjects > 0 ? ((totalExpired / totalObjects) * 100).toFixed(1) : 0;
+    const operationalPressure =
+      totalObjects > 0
+        ? (((totalToday + totalToExpire) / totalObjects) * 100).toFixed(1)
+        : 0;
+    const arFactor =
+      totalObjects > 0 ? ((totalAR / totalObjects) * 100).toFixed(1) : 0;
+
+    return {
+      raw: {
+        totalDistricts,
+        totalObjects,
+        totalPoints,
+        totalExpired,
+        totalToday,
+        totalToExpire,
+        totalAR,
+      },
+      computed: { deliveryDensity, chaosIndex, operationalPressure, arFactor },
+    };
+  };
+
+  function renderDashboard(metrics) {
+    const oldDash = document.getElementById(HUD_ID);
+    if (oldDash) oldDash.remove();
+
+    if (!metrics) return;
+
+    const target = document.querySelector(DOM_TARGET_SELECTOR);
+    if (!target) return;
+
+    const m = metrics.raw;
+    const c = metrics.computed;
+
+    let statusColor = "border-success";
+    let statusText = "CONTROLADO";
+    if (c.chaosIndex > 20) {
+      statusColor = "border-warning";
+      statusText = "ATENÇÃO";
+    }
+    if (c.chaosIndex > 50) {
+      statusColor = "border-danger";
+      statusText = "CRÍTICO";
     }
 
-    const extractInt = (val) => {
-        if (typeof val === 'number') return val;
-        if (!val) return 0;
-        const clean = val.toString().replace(/<[^>]*>/g, '');
-        return parseInt(clean, 10) || 0;
-    };
+    const now = new Date();
+    const timeString = now.toLocaleTimeString("pt-BR");
 
-    const calculateMetrics = (data) => {
-        if (!Array.isArray(data) || data.length === 0) return null;
+    const container = document.createElement("div");
+    container.id = HUD_ID;
+    container.classList.add("hud-updated");
 
-        let totalDistricts = data.length;
-        let totalObjects = 0;
-        let totalPoints = 0;
-        let totalExpired = 0;
-        let totalToday = 0;
-        let totalToExpire = 0;
-        let totalAR = 0;
-
-        data.forEach(d => {
-            totalObjects += extractInt(d.qtde);
-            totalPoints += extractInt(d.qtdePontos);
-            totalExpired += extractInt(d.qtdeVencido);
-            totalToday += extractInt(d.qtdeHoje);
-            totalToExpire += extractInt(d.qtdeAVencer);
-            totalAR += extractInt(d.qtdeAR);
-        });
-
-        const deliveryDensity = totalObjects > 0 ? (totalObjects / totalPoints).toFixed(2) : 0;
-        const chaosIndex = totalObjects > 0 ? ((totalExpired / totalObjects) * 100).toFixed(1) : 0;
-        const operationalPressure = totalObjects > 0 ? (((totalToday + totalToExpire) / totalObjects) * 100).toFixed(1) : 0;
-        const arFactor = totalObjects > 0 ? ((totalAR / totalObjects) * 100).toFixed(1) : 0;
-
-        return {
-            raw: { totalDistricts, totalObjects, totalPoints, totalExpired, totalToday, totalToExpire, totalAR },
-            computed: { deliveryDensity, chaosIndex, operationalPressure, arFactor }
-        };
-    };
-
-    function renderDashboard(metrics) {
-        const oldDash = document.getElementById(HUD_ID);
-        if (oldDash) oldDash.remove();
-
-        if (!metrics) return;
-
-        const target = document.querySelector(DOM_TARGET_SELECTOR);
-        if (!target) return;
-
-        const m = metrics.raw;
-        const c = metrics.computed;
-
-        let statusColor = "border-success";
-        let statusText = "CONTROLADO";
-        if (c.chaosIndex > 20) { statusColor = "border-warning"; statusText = "ATENÇÃO"; }
-        if (c.chaosIndex > 50) { statusColor = "border-danger"; statusText = "CRÍTICO"; }
-
-        const now = new Date();
-        const timeString = now.toLocaleTimeString('pt-BR');
-
-        const container = document.createElement("div");
-        container.id = HUD_ID;
-        container.classList.add("hud-updated");
-
-        container.innerHTML = `
+    container.innerHTML = `
             <div class="hud-card border-info">
                 <div class="hud-title">Carga Total Suspensa</div>
                 <div class="hud-value">${m.totalObjects} <span style="font-size:0.8rem; color:#888;">objs</span></div>
@@ -181,51 +201,56 @@
             <div class="hud-footer-time">Atualizado às: ${timeString}</div>
         `;
 
-        target.parentNode.insertBefore(container, target);
-    }
+    target.parentNode.insertBefore(container, target);
+  }
 
-    function processResponse(url, body) {
-        if (!url || !url.includes("lancamentoController.php?acao=listar")) return;
+  function processResponse(url, body) {
+    if (!url || !url.includes("lancamentoController.php?acao=listar")) return;
+    try {
+      const data = typeof body === "string" ? JSON.parse(body) : body;
+      if (Array.isArray(data)) {
+        injectStyles();
+        const metrics = calculateMetrics(data);
+        setTimeout(() => renderDashboard(metrics), 300);
+      }
+    } catch (e) {}
+  }
+
+  const originalFetch = window.fetch;
+  window.fetch = async function (...args) {
+    const response = await originalFetch.apply(this, args);
+    const clone = response.clone();
+    const url = args[0] ? args[0].toString() : "";
+    if (url.includes("lancamentoController.php?acao=listar")) {
+      clone
+        .json()
+        .then((data) => processResponse(url, data))
+        .catch((e) => {});
+    }
+    return response;
+  };
+
+  const XHR = XMLHttpRequest.prototype;
+  const open = XHR.open;
+  const send = XHR.send;
+
+  XHR.open = function (method, url) {
+    this._sroUrl = url;
+    return open.apply(this, arguments);
+  };
+
+  XHR.send = function (postData) {
+    this.addEventListener("load", function () {
+      if (
+        this._sroUrl &&
+        this._sroUrl.includes("lancamentoController.php?acao=listar")
+      ) {
         try {
-            const data = (typeof body === 'string') ? JSON.parse(body) : body;
-            if (Array.isArray(data)) {
-                injectStyles();
-                const metrics = calculateMetrics(data);
-                setTimeout(() => renderDashboard(metrics), 300);
-            }
+          const data = JSON.parse(this.responseText);
+          processResponse(this._sroUrl, data);
         } catch (e) {}
-    }
-
-    const originalFetch = window.fetch;
-    window.fetch = async function(...args) {
-        const response = await originalFetch.apply(this, args);
-        const clone = response.clone();
-        const url = args[0] ? args[0].toString() : "";
-        if (url.includes("lancamentoController.php?acao=listar")) {
-            clone.json().then(data => processResponse(url, data)).catch(e => {});
-        }
-        return response;
-    };
-
-    const XHR = XMLHttpRequest.prototype;
-    const open = XHR.open;
-    const send = XHR.send;
-
-    XHR.open = function(method, url) {
-        this._sroUrl = url;
-        return open.apply(this, arguments);
-    };
-
-    XHR.send = function(postData) {
-        this.addEventListener('load', function() {
-            if (this._sroUrl && this._sroUrl.includes("lancamentoController.php?acao=listar")) {
-                try {
-                    const data = JSON.parse(this.responseText);
-                    processResponse(this._sroUrl, data);
-                } catch(e) {}
-            }
-        });
-        return send.apply(this, arguments);
-    };
-
-}();
+      }
+    });
+    return send.apply(this, arguments);
+  };
+})();

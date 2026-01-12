@@ -7,11 +7,12 @@ Add-Type -MemberDefinition @"
 public static extern bool ShowWindowAsync(IntPtr hWnd, int nCmdShow);
 "@ -Name Win32 -Namespace Native -PassThru | Out-Null
 
-$hwnd = (Get-Process -Id $pid).MainWindowHandle
-if ($hwnd -ne [IntPtr]::Zero) { [Native.Win32]::ShowWindowAsync($hwnd, 0) | Out-Null }
+$windowHandle = (Get-Process -Id $PID).MainWindowHandle
+if ($windowHandle -ne [IntPtr]::Zero) { [Native.Win32]::ShowWindowAsync($windowHandle, 0) | Out-Null }
 
 Add-Type -AssemblyName PresentationFramework
 Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
 
 $script:isProcessing = $false
 
@@ -28,8 +29,7 @@ $chromeIconUrl = "https://raw.githubusercontent.com/henrique-coder/correios-tool
 $selfUpdateUrl = "https://github.com/henrique-coder/correios-tools/releases/download/minified-scripts/launcher.min.ps1"
 $extensionUrls = @(
     "https://github.com/henrique-coder/correios-tools/releases/download/browser-extensions/sroweb-induction.zip",
-    "https://github.com/henrique-coder/correios-tools/releases/download/browser-extensions/sroweb-loecview-hud.zip",
-    "https://github.com/henrique-coder/correios-tools/releases/download/browser-extensions/tactical-checklist.zip"
+    "https://github.com/henrique-coder/correios-tools/releases/download/browser-extensions/sroweb-loecview-hud.zip"
 )
 $scriptUrls = @()
 $startUrl = "https://sroweb.correios.com.br/app/index.php"
@@ -177,15 +177,63 @@ function Invoke-SafeAction {
     }
 }
 
+function Get-FileHashFromUrl {
+    param([string]$url)
+    try {
+        $webClient = New-Object System.Net.WebClient
+        $webClient.Headers.Add("User-Agent", "PowerShell")
+        $data = $webClient.DownloadData($url)
+        $stream = New-Object System.IO.MemoryStream(,$data)
+        $hash = Get-FileHash -InputStream $stream -Algorithm SHA256
+        $stream.Dispose()
+        $webClient.Dispose()
+        return $hash.Hash
+    } catch {
+        return $null
+    }
+}
+
+function Get-LocalFileHash {
+    param([string]$filePath)
+    try {
+        if (Test-Path $filePath) {
+            return (Get-FileHash -Path $filePath -Algorithm SHA256).Hash
+        }
+        return $null
+    } catch {
+        return $null
+    }
+}
+
+function New-DesktopShortcut {
+    try {
+        $desktopPath = [Environment]::GetFolderPath("Desktop")
+        $shortcutPath = "$desktopPath\Correios Tools.lnk"
+        if (Test-Path $shortcutPath) { return }
+        $shell = New-Object -ComObject WScript.Shell
+        $shortcut = $shell.CreateShortcut($shortcutPath)
+        $shortcut.TargetPath = "powershell.exe"
+        $shortcut.Arguments = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$selfPath`""
+        $shortcut.IconLocation = $iconPath
+        $shortcut.Description = "Correios Tools Launcher"
+        $shortcut.Save()
+    } catch {}
+}
+
 function Initialize-WindowIcon {
     try {
-        if (!(Test-Path $iconPath)) { Invoke-WebRequest -Uri $iconUrl -OutFile $iconPath -UseBasicParsing }
+        if (!(Test-Path $iconPath)) {
+            Invoke-WebRequest -Uri $iconUrl -OutFile $iconPath -UseBasicParsing
+        }
         if (Test-Path $iconPath) {
+            $uri = New-Object System.Uri($iconPath)
             $iconBitmap = New-Object System.Windows.Media.Imaging.BitmapImage
             $iconBitmap.BeginInit()
-            $iconBitmap.UriSource = New-Object Uri($iconPath)
-            $iconBitmap.CacheOption = "OnLoad"
+            $iconBitmap.UriSource = $uri
+            $iconBitmap.CacheOption = [System.Windows.Media.Imaging.BitmapCacheOption]::OnLoad
+            $iconBitmap.CreateOptions = [System.Windows.Media.Imaging.BitmapCreateOptions]::IgnoreImageCache
             $iconBitmap.EndInit()
+            $iconBitmap.Freeze()
             $window.Icon = $iconBitmap
         }
     } catch {}
@@ -199,16 +247,18 @@ function Initialize-BrowserIcons {
             $edgeBitmap = New-Object System.Windows.Media.Imaging.BitmapImage
             $edgeBitmap.BeginInit()
             $edgeBitmap.UriSource = New-Object Uri($edgeIconPath)
-            $edgeBitmap.CacheOption = "OnLoad"
+            $edgeBitmap.CacheOption = [System.Windows.Media.Imaging.BitmapCacheOption]::OnLoad
             $edgeBitmap.EndInit()
+            $edgeBitmap.Freeze()
             $ImgEdge.Source = $edgeBitmap
         }
         if (Test-Path $chromeIconPath) {
             $chromeBitmap = New-Object System.Windows.Media.Imaging.BitmapImage
             $chromeBitmap.BeginInit()
             $chromeBitmap.UriSource = New-Object Uri($chromeIconPath)
-            $chromeBitmap.CacheOption = "OnLoad"
+            $chromeBitmap.CacheOption = [System.Windows.Media.Imaging.BitmapCacheOption]::OnLoad
             $chromeBitmap.EndInit()
+            $chromeBitmap.Freeze()
             $ImgChrome.Source = $chromeBitmap
         }
     } catch {}
@@ -218,19 +268,26 @@ function Invoke-SelfUpdate {
     param([bool]$silent = $false)
     if (!$silent) { Update-Status "Verificando atualizacoes do aplicativo..." $true }
     try {
-        $tempPath = "$dataDir\launcher_new.tmp"
-        Invoke-WebRequest -Uri $selfUpdateUrl -OutFile $tempPath -UseBasicParsing
-        $newContent = Get-Content $tempPath -Raw
-        $oldContent = Get-Content $selfPath -Raw
-        if ($newContent.Length -ne $oldContent.Length) {
-            Update-Status "Atualizacao encontrada! Reiniciando..." $true
+        $remoteHash = Get-FileHashFromUrl $selfUpdateUrl
+        $localHash = Get-LocalFileHash $selfPath
+        if ($remoteHash -eq $null) {
+            if (!$silent) { Update-Status "Sem conexao. Modo offline ativado." $false }
+            return $false
+        }
+        if ($remoteHash -ne $localHash) {
+            Update-Status "Atualizacao encontrada! Baixando..." $true
+            $tempPath = "$dataDir\launcher_new.tmp"
+            Invoke-WebRequest -Uri $selfUpdateUrl -OutFile $tempPath -UseBasicParsing
+            Update-Status "Aplicando atualizacao..." $true
             Copy-Item $tempPath $selfPath -Force
-            Remove-Item $tempPath -Force
-            Start-Process powershell.exe -ArgumentList "-ExecutionPolicy Bypass -WindowStyle Hidden -File `"$selfPath`""
+            Remove-Item $tempPath -Force -ErrorAction SilentlyContinue
+            Update-Status "Reiniciando aplicativo..." $true
+            $restartArgs = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$selfPath`""
+            Start-Process -FilePath "powershell.exe" -ArgumentList $restartArgs
+            Start-Sleep -Milliseconds 500
             $window.Close()
             Exit
         }
-        Remove-Item $tempPath -Force
         if (!$silent) { Update-Status "Aplicativo atualizado! Nenhuma nova versao disponivel." $false }
         return $true
     } catch {
@@ -246,9 +303,11 @@ function Invoke-ForceReinstall {
         Invoke-WebRequest -Uri $selfUpdateUrl -OutFile $tempPath -UseBasicParsing
         Update-Status "Download concluido. Aplicando atualizacao..." $true
         Copy-Item $tempPath $selfPath -Force
-        Remove-Item $tempPath -Force
+        Remove-Item $tempPath -Force -ErrorAction SilentlyContinue
         Update-Status "Reinstalacao concluida! Reiniciando..." $true
-        Start-Process powershell.exe -ArgumentList "-ExecutionPolicy Bypass -WindowStyle Hidden -File `"$selfPath`""
+        $restartArgs = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$selfPath`""
+        Start-Process -FilePath "powershell.exe" -ArgumentList $restartArgs
+        Start-Sleep -Milliseconds 500
         $window.Close()
         Exit
     } catch {
@@ -260,9 +319,7 @@ function Invoke-SyncExtensions {
     Update-Status "Sincronizando extensoes... Aguarde." $true
     if (Test-Path $extensionsDir) { Remove-Item $extensionsDir -Recurse -Force }
     New-Item -ItemType Directory -Path $extensionsDir -Force | Out-Null
-
     try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 } catch {}
-
     $count = 0
     $total = $extensionUrls.Count
     foreach ($url in $extensionUrls) {
@@ -273,13 +330,9 @@ function Invoke-SyncExtensions {
             if ([string]::IsNullOrWhiteSpace($fileName)) { $fileName = "Ext_$count" }
             $zipPath = "$dataDir\$fileName.zip"
             $destFolder = "$extensionsDir\$fileName"
-
             New-Item -ItemType Directory -Path $destFolder -Force | Out-Null
-
             Start-Sleep -Milliseconds 500
-
             Invoke-WebRequest -Uri $url -OutFile $zipPath -UseBasicParsing -TimeoutSec 30
-
             Expand-Archive -Path $zipPath -DestinationPath $destFolder -Force
             Remove-Item $zipPath -Force
         } catch {
@@ -432,16 +485,16 @@ function Invoke-StartupSequence {
     Initialize-WindowIcon
     Update-Status "Carregando icones..." $true
     Initialize-BrowserIcons
+    Update-Status "Criando atalho na area de trabalho..." $true
+    New-DesktopShortcut
     Update-Status "Verificando atualizacoes..." $true
-    $hasUpdate = Invoke-SelfUpdate -silent $false
-
+    Invoke-SelfUpdate -silent $false
     $ext = Get-ExtensionPaths
     $installedCount = if ([string]::IsNullOrWhiteSpace($ext)) { 0 } else { ($ext -split ",").Count }
     if ($installedCount -lt $extensionUrls.Count) {
         Update-Status "Detectado novas extensoes. Baixando..." $true
         Invoke-SyncExtensions
     }
-
     Update-Status "Pronto! Selecione o navegador." $false
     $script:isProcessing = $false
     Set-ButtonsEnabled $true
@@ -471,7 +524,6 @@ $BtnEdge.Add_Click({
     Invoke-SafeAction {
         $ext = Get-ExtensionPaths
         $installedCount = if ([string]::IsNullOrWhiteSpace($ext)) { 0 } else { ($ext -split ",").Count }
-
         if ($installedCount -lt $extensionUrls.Count) {
             Invoke-SyncExtensions
             $ext = Get-ExtensionPaths
@@ -484,7 +536,6 @@ $BtnChrome.Add_Click({
     Invoke-SafeAction {
         $ext = Get-ExtensionPaths
         $installedCount = if ([string]::IsNullOrWhiteSpace($ext)) { 0 } else { ($ext -split ",").Count }
-
         if ($installedCount -lt $extensionUrls.Count) {
             Invoke-SyncExtensions
             $ext = Get-ExtensionPaths
