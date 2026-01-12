@@ -11,7 +11,6 @@
   "content_scripts": [
     {
       "matches": [
-        "https://sroweb.correios.com.br/app/entregaexternaautomatica/lancamento/*",
         "https://sroweb.correios.com.br/app/entregaexternaautomatica/lancamentoautomatico/*"
       ],
       "js": ["content.js"],
