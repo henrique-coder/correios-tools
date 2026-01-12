@@ -25,10 +25,10 @@ $iconUrl = "https://raw.githubusercontent.com/henrique-coder/correios-tools/refs
 $iconPath = "$dataDir\icon.ico"
 $edgeIconUrl = "https://raw.githubusercontent.com/henrique-coder/correios-tools/refs/heads/dev/assets/logos/edge.png"
 $chromeIconUrl = "https://raw.githubusercontent.com/henrique-coder/correios-tools/refs/heads/dev/assets/logos/chrome.png"
-$selfUpdateUrl = "https://github.com/henrique-coder/correios-tools/releases/download/minified-scripts/launcher.dev.min.ps1"
-$extensionUrls = @("https://github.com/henrique-coder/correios-tools/releases/download/browser-extensions/sroweb_inducao.zip")
+$selfUpdateUrl = "https://github.com/henrique-coder/correios-tools/releases/download/minified-scripts/launcher.min.ps1"
+$extensionUrls = @("https://github.com/henrique-coder/correios-tools/releases/download/browser-extensions/sroweb_inducao.zip", "https://github.com/henrique-coder/correios-tools/releases/download/browser-extensions/sroweb_loecview_hud.zip")
 $scriptUrls = @()
-$startUrl = "https://sroweb.correios.com.br/app/entregaexternaautomatica/lancamento/index.php"
+$startUrl = "https://sroweb.correios.com.br/app/index.php"
 
 if (!(Test-Path $dataDir)) { New-Item -ItemType Directory -Path $dataDir -Force | Out-Null }
 if (!(Test-Path $assetsDir)) { New-Item -ItemType Directory -Path $assetsDir -Force | Out-Null }
@@ -256,6 +256,9 @@ function Invoke-SyncExtensions {
     Update-Status "Sincronizando extensoes... Aguarde." $true
     if (Test-Path $extensionsDir) { Remove-Item $extensionsDir -Recurse -Force }
     New-Item -ItemType Directory -Path $extensionsDir -Force | Out-Null
+    
+    try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 } catch {}
+
     $count = 0
     $total = $extensionUrls.Count
     foreach ($url in $extensionUrls) {
@@ -266,11 +269,19 @@ function Invoke-SyncExtensions {
             if ([string]::IsNullOrWhiteSpace($fileName)) { $fileName = "Ext_$count" }
             $zipPath = "$dataDir\$fileName.zip"
             $destFolder = "$extensionsDir\$fileName"
+            
             New-Item -ItemType Directory -Path $destFolder -Force | Out-Null
-            Invoke-WebRequest -Uri $url -OutFile $zipPath -UseBasicParsing
+            
+            Start-Sleep -Milliseconds 500
+            
+            Invoke-WebRequest -Uri $url -OutFile $zipPath -UseBasicParsing -TimeoutSec 30
+            
             Expand-Archive -Path $zipPath -DestinationPath $destFolder -Force
             Remove-Item $zipPath -Force
-        } catch {}
+        } catch {
+            Update-Status "Falha ao baixar extensao $count. Verifique a internet." $false
+            Start-Sleep -Seconds 2
+        }
     }
 }
 
@@ -419,8 +430,14 @@ function Invoke-StartupSequence {
     Initialize-BrowserIcons
     Update-Status "Verificando atualizacoes..." $true
     $hasUpdate = Invoke-SelfUpdate -silent $false
-    Update-Status "Atualizando recursos..." $true
-    Invoke-RecreateCache
+    
+    $ext = Get-ExtensionPaths
+    $installedCount = if ([string]::IsNullOrWhiteSpace($ext)) { 0 } else { ($ext -split ",").Count }
+    if ($installedCount -lt $extensionUrls.Count) {
+        Update-Status "Detectado novas extensoes. Baixando..." $true
+        Invoke-SyncExtensions
+    }
+
     Update-Status "Pronto! Selecione o navegador." $false
     $script:isProcessing = $false
     Set-ButtonsEnabled $true
@@ -449,7 +466,9 @@ $BtnScripts.Add_Click({
 $BtnEdge.Add_Click({
     Invoke-SafeAction {
         $ext = Get-ExtensionPaths
-        if ([string]::IsNullOrWhiteSpace($ext)) {
+        $installedCount = if ([string]::IsNullOrWhiteSpace($ext)) { 0 } else { ($ext -split ",").Count }
+        
+        if ($installedCount -lt $extensionUrls.Count) {
             Invoke-SyncExtensions
             $ext = Get-ExtensionPaths
         }
@@ -460,7 +479,9 @@ $BtnEdge.Add_Click({
 $BtnChrome.Add_Click({
     Invoke-SafeAction {
         $ext = Get-ExtensionPaths
-        if ([string]::IsNullOrWhiteSpace($ext)) {
+        $installedCount = if ([string]::IsNullOrWhiteSpace($ext)) { 0 } else { ($ext -split ",").Count }
+
+        if ($installedCount -lt $extensionUrls.Count) {
             Invoke-SyncExtensions
             $ext = Get-ExtensionPaths
         }
