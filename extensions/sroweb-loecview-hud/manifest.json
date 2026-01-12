@@ -1,0 +1,35 @@
+{
+  "manifest_version": 3,
+  "name": "SRO Web - LOEC HUD (Analítico)",
+  "version": "1.0",
+  "description": "Dashboard tático com estatísticas avançadas para LOEC Suspensa.",
+  "author": "Henrique Moreira",
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {},
+  "content_scripts": [
+    {
+      "matches": [
+        "https://sroweb.correios.com.br/app/entregaexternaautomatica/loecsuspensa/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_start"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "injected.js"
+      ],
+      "matches": [
+        "https://sroweb.correios.com.br/*"
+      ]
+    }
+  ],
+  "host_permissions": [
+    "https://sroweb.correios.com.br/*"
+  ]
+}

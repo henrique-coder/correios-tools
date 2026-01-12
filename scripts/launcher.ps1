@@ -26,7 +26,11 @@ $iconPath = "$dataDir\icon.ico"
 $edgeIconUrl = "https://raw.githubusercontent.com/henrique-coder/correios-tools/refs/heads/dev/assets/logos/edge.png"
 $chromeIconUrl = "https://raw.githubusercontent.com/henrique-coder/correios-tools/refs/heads/dev/assets/logos/chrome.png"
 $selfUpdateUrl = "https://github.com/henrique-coder/correios-tools/releases/download/minified-scripts/launcher.min.ps1"
-$extensionUrls = @("https://github.com/henrique-coder/correios-tools/releases/download/browser-extensions/sroweb_inducao.zip", "https://github.com/henrique-coder/correios-tools/releases/download/browser-extensions/sroweb_loecview_hud.zip")
+$extensionUrls = @(
+    "https://github.com/henrique-coder/correios-tools/releases/download/browser-extensions/sroweb-induction.zip",
+    "https://github.com/henrique-coder/correios-tools/releases/download/browser-extensions/sroweb-loecview-hud.zip",
+    "https://github.com/henrique-coder/correios-tools/releases/download/browser-extensions/tactical-checklist.zip"
+)
 $scriptUrls = @()
 $startUrl = "https://sroweb.correios.com.br/app/index.php"
 
@@ -256,7 +260,7 @@ function Invoke-SyncExtensions {
     Update-Status "Sincronizando extensoes... Aguarde." $true
     if (Test-Path $extensionsDir) { Remove-Item $extensionsDir -Recurse -Force }
     New-Item -ItemType Directory -Path $extensionsDir -Force | Out-Null
-    
+
     try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 } catch {}
 
     $count = 0
@@ -269,13 +273,13 @@ function Invoke-SyncExtensions {
             if ([string]::IsNullOrWhiteSpace($fileName)) { $fileName = "Ext_$count" }
             $zipPath = "$dataDir\$fileName.zip"
             $destFolder = "$extensionsDir\$fileName"
-            
+
             New-Item -ItemType Directory -Path $destFolder -Force | Out-Null
-            
+
             Start-Sleep -Milliseconds 500
-            
+
             Invoke-WebRequest -Uri $url -OutFile $zipPath -UseBasicParsing -TimeoutSec 30
-            
+
             Expand-Archive -Path $zipPath -DestinationPath $destFolder -Force
             Remove-Item $zipPath -Force
         } catch {
@@ -430,7 +434,7 @@ function Invoke-StartupSequence {
     Initialize-BrowserIcons
     Update-Status "Verificando atualizacoes..." $true
     $hasUpdate = Invoke-SelfUpdate -silent $false
-    
+
     $ext = Get-ExtensionPaths
     $installedCount = if ([string]::IsNullOrWhiteSpace($ext)) { 0 } else { ($ext -split ",").Count }
     if ($installedCount -lt $extensionUrls.Count) {
@@ -467,7 +471,7 @@ $BtnEdge.Add_Click({
     Invoke-SafeAction {
         $ext = Get-ExtensionPaths
         $installedCount = if ([string]::IsNullOrWhiteSpace($ext)) { 0 } else { ($ext -split ",").Count }
-        
+
         if ($installedCount -lt $extensionUrls.Count) {
             Invoke-SyncExtensions
             $ext = Get-ExtensionPaths

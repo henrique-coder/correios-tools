@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "Checklist Tático",
+  "version": "1.0",
+  "description": "Validador de carga com foco automático em itens encontrados.",
+  "author": "Henrique Moreira",
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {},
+  "permissions": ["tabs"]
+}

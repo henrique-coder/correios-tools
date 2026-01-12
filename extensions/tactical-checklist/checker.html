@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>SRO Tático - Validação</title>
+    <style>
+        :root {
+            --bg: #f3f4f6;
+            --card: #ffffff;
+            --primary: #00416B;
+            --pending: #ef4444;
+            --found: #10b981;
+            --text: #1f2937;
+        }
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: system-ui, -apple-system, sans-serif;
+            background: var(--bg);
+            height: 100vh;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .top-bar {
+            background: var(--card);
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 4px solid var(--primary);
+        }
+        h1 { margin: 0; color: var(--primary); font-size: 1.4rem; text-transform: uppercase; }
+        .stats { font-weight: bold; font-family: monospace; font-size: 1.1rem; }
+        .grid {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 20px;
+            flex: 1;
+            min-height: 0;
+        }
+        .box {
+            background: var(--card);
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid #e5e7eb;
+            overflow: hidden;
+        }
+        .box-header {
+            padding: 12px;
+            background: #f9fafb;
+            border-bottom: 1px solid #e5e7eb;
+            font-weight: 700;
+            color: #6b7280;
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        textarea {
+            flex: 1;
+            padding: 15px;
+            border: none;
+            resize: none;
+            font-family: 'Consolas', monospace;
+            font-size: 14px;
+            outline: none;
+        }
+        textarea:disabled { background: #f9fafb; color: #9ca3af; }
+        .list-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+            scroll-behavior: smooth;
+        }
+        .item {
+            padding: 12px;
+            margin-bottom: 8px;
+            border-radius: 6px;
+            background: #fee2e2;
+            border-left: 5px solid var(--pending);
+            color: #991b1b;
+            font-family: 'Consolas', monospace;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.3s ease;
+        }
+        .item.found {
+            background: #d1fae5;
+            border-left-color: var(--found);
+            color: #065f46;
+            order: -1;
+        }
+        .item.focus-pop {
+            animation: popScale 0.5s ease-out;
+            box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.4);
+            z-index: 10;
+        }
+        @keyframes popScale {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        .btn {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            font-weight: bold;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { opacity: 0.9; }
+        .scanner-area {
+            font-size: 1.5rem;
+            background: #fff;
+        }
+        .scanner-area.flash-green { animation: flashG 0.3s; }
+        @keyframes flashG { 0%, 100% { background: white; } 50% { background: #d1fae5; } }
+    </style>
+</head>
+<body>
+    <div class="top-bar">
+        <div>
+            <h1>Validador Tático</h1>
+            <small style="color:#666">Correios CDD</small>
+        </div>
+        <div class="stats">
+            PENDENTES: <span id="lblPending" style="color:var(--pending)">0</span> |
+            ACHADOS: <span id="lblFound" style="color:var(--found)">0</span>
+        </div>
+    </div>
+
+    <div class="grid">
+        <div class="box">
+            <div class="box-header">
+                <span>Lista Alvo (Inputs)</span>
+                <button id="btnReset" style="border:none; background:none; color:blue; cursor:pointer; font-size:0.7rem; display:none;">NOVA LISTA</button>
+            </div>
+            <textarea id="inputList" placeholder="1. Cole a lista aqui&#10;2. Clique em Confirmar&#10;3. O scanner será ativado"></textarea>
+            <div id="visualList" class="list-container" style="display:none;"></div>
+            <button id="btnConfirm" class="btn btn-primary">CONFIRMAR LISTA & INICIAR</button>
+        </div>
+
+        <div class="box">
+            <div class="box-header">
+                <span>Scanner (Bipe Aqui)</span>
+                <span id="scanStatus">AGUARDANDO INPUT</span>
+            </div>
+            <textarea id="inputScan" class="scanner-area" placeholder="Aguardando confirmação da lista..." disabled></textarea>
+        </div>
+    </div>
+
+    <script src="checker.js"></script>
+</body>
+</html>
