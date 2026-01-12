@@ -26,9 +26,12 @@ $iconPath = "$dataDir\icon.ico"
 $edgeIconUrl = "https://raw.githubusercontent.com/henrique-coder/correios-tools/refs/heads/dev/assets/logos/edge.png"
 $chromeIconUrl = "https://raw.githubusercontent.com/henrique-coder/correios-tools/refs/heads/dev/assets/logos/chrome.png"
 $selfUpdateUrl = "https://github.com/henrique-coder/correios-tools/releases/download/minified-scripts/launcher.dev.min.ps1"
-$extensionUrls = @("https://github.com/henrique-coder/correios-tools/releases/download/browser-extensions/sroweb_inducao.zip")
+$extensionUrls = @(
+        "https://github.com/henrique-coder/correios-tools/releases/download/browser-extensions/sroweb_inducao.zip",
+        "https://github.com/henrique-coder/correios-tools/releases/download/browser-extensions/sroweb_loecview_hud.zip"
+)
 $scriptUrls = @()
-$startUrl = "https://sroweb.correios.com.br/app/entregaexternaautomatica/lancamento/index.php"
+$startUrl = "https://sroweb.correios.com.br/app/index.php"
 
 if (!(Test-Path $dataDir)) { New-Item -ItemType Directory -Path $dataDir -Force | Out-Null }
 if (!(Test-Path $assetsDir)) { New-Item -ItemType Directory -Path $assetsDir -Force | Out-Null }
