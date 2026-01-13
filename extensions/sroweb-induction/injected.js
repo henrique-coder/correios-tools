@@ -1,478 +1,194 @@
-(function () {
-  "use strict";
+!function(){"use strict";const e="AGUARDANDO...",t="LENDO...",o="PRONTO P/ INDUZIR",r="NÃO INDUZIDO",s="JÁ INDUZIDO",n="OBJETO INDUZIDO",i="EXCLUÍDO",a="DISTRITO",c="PREVISÃO",u="Clique duas vezes para resetar a posição",p="Processando...",m="Validado",f="Objeto inválido",g="Objeto já consta na lista.",v="Inclusão confirmada.",h="Objeto removido da lista.",y="--/--/----",x="--",O="sro_position";
+let L={code:x,status:e,mode:"loading",district:x,initialDist:null,date:y,exc:x,val:x,lastEvt:x,addr:{log:x,num:x,comp:x,bair:x,mun:x,uf:x,cep:x},serv:{ar:"N",mp:"N",dd:"N"},contact:{tel:x,email:x},op:{list:x,user:x,st:x,ts:x,ord:x,side:x}},D=!1,k={active:!1,cX:0,cY:0,iX:0,iY:0,xOff:0,yOff:0};
 
-  const UI_TEXT = {
-    waiting: "AGUARDANDO...",
-    reading: "LENDO...",
-    readyToInduct: "PRONTO P/ INDUZIR",
-    notInducted: "NÃO INDUZIDO",
-    alreadyInducted: "JÁ INDUZIDO",
-    objectInducted: "OBJETO INDUZIDO",
-    deleted: "EXCLUÍDO",
-    district: "DISTRITO",
-    deliveryForecast: "PREVISÃO DE ENTREGA",
-    moreInfo: "▼ MAIS INFORMAÇÕES",
-    lessInfo: "▲ MENOS INFORMAÇÕES",
-    resetPositionHint: "Clique duas vezes para resetar a posição",
-    processing: "Processando...",
-    validated: "Validado",
-    invalidObject: "Objeto inválido",
-    objectInList: "Objeto já consta na lista.",
-    inclusionConfirmed: "Inclusão confirmada.",
-    objectRemoved: "Objeto removido da lista.",
-    defaultDate: "--/--/----",
-    defaultDistrict: "--",
-    labelObject: "Objeto:",
-    labelSystem: "Sistema:",
-    labelPostman: "Carteiro:",
-    labelServices: "Serviços:",
-  };
+function _ok(){let e=0;const t=setInterval(()=>{const o=document.querySelector("#alerta.aberto .act a");o&&"OK"===o.innerText&&(o.click(),clearInterval(t)),++e>=100&&clearInterval(t)},50)}
+function _(){let e=0;const t=setInterval(()=>{const o=document.getElementById("btnImprimirEtiquetaNao");o&&(o.click(),clearInterval(t),_ok()),++e>=100&&clearInterval(t)},50)}
+function MonInp(){setInterval(()=>{const e=document.querySelectorAll(".mensagem"),t=document.getElementById("txtObjeto");if(t)for(let o of e)if(o.innerText.includes("Formato de objeto postal inválido")){t.click(),t.focus();break}},300)}
+function fmtTime(e){if(!e||e.length<18)return x;const t=e.substring(8,10)+"/"+e.substring(10,12)+"/"+e.substring(12,16),o=e.substring(16,18)+":"+e.substring(18,20);return`${t} às ${o}`}
 
-  const STORAGE_KEY_POSITION = "sro_position";
+function setDist(newDist){
+    if(newDist!==x) newDist=newDist.trim();
+    if(L.initialDist && L.initialDist !== x && L.initialDist !== newDist && newDist !== x) {
+        L.district = `<span class="sro-old">${L.initialDist}</span> <span class="sro-arrow">➜</span> <span class="sro-new">${newDist}</span>`;
+    } else {
+        L.district = newDist;
+    }
+}
 
-  let state = {
-    trackingCode: null,
-    launchId: null,
-    status: UI_TEXT.waiting,
-    mode: "loading",
-    district: UI_TEXT.defaultDistrict,
-    deliveryDate: UI_TEXT.defaultDate,
-    details: {},
-  };
-
-  let uiInitialized = false;
-  let isDetailsOpen = false;
-  let dragConfig = {
-    active: false,
-    currentX: 0,
-    currentY: 0,
-    initialX: 0,
-    initialY: 0,
-    xOffset: 0,
-    yOffset: 0,
-  };
-
-  function buildStyles() {
-    return `
-      #sro-container { position: fixed; top: 15px; right: 15px; z-index: 999999; display: flex; flex-direction: column; }
-      .sro-card { width: 280px; background: #fff; border-radius: 6px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); font-family: 'Segoe UI', Arial, sans-serif; overflow: hidden; opacity: 0; transform: translateY(-10px); transition: opacity 0.2s, transform 0.2s; border-left: 10px solid #999; display: none; }
+function T(){
+    if(document.getElementById("sro-styles"))return;
+    const t=document.createElement("style");
+    t.id="sro-styles",t.innerHTML=`
+      #sro-container { position: fixed; top: 15px; right: 15px; z-index: 999999; display: flex; flex-direction: column; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3)); }
+      .sro-card { width: 345px; background: #fff; border-radius: 6px; font-family: 'Segoe UI', Arial, sans-serif; overflow: hidden; opacity: 0; transform: translateY(-10px); transition: opacity 0.2s, transform 0.2s; border-left: 8px solid #999; display: none; }
       .sro-card.visible { display: block; opacity: 1; transform: translateY(0); }
-      .sro-header { padding: 10px 12px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f0f0f0; background: #fff; cursor: grab; user-select: none; }
-      .sro-header:active { cursor: grabbing; }
-      .sro-status-text { font-size: 1rem; font-weight: 800; text-transform: uppercase; color: #444; letter-spacing: 0.5px; }
-      .sro-icon { font-size: 1.3rem; }
-      .sro-body { padding: 8px 12px; text-align: center; background: #fafafa; }
-      .sro-label { font-size: 0.65rem; font-weight: 700; color: #999; text-transform: uppercase; margin-bottom: 0px; letter-spacing: 1px; }
-      .sro-distrito { font-size: 3rem; font-weight: 900; line-height: 1; color: #333; letter-spacing: -1px; margin: 2px 0 8px 0; pointer-events: none; }
-      .sro-previsao-box { background: #eee; border-radius: 4px; padding: 4px; display: inline-block; min-width: 100%; }
-      .sro-previsao-val { font-size: 0.9rem; font-weight: 700; color: #555; }
-      .sro-details { background: #fff; border-top: 1px solid #eee; max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out; }
-      .sro-details.open { max-height: 400px; overflow-y: auto; }
-      .sro-detail-content { padding: 8px 12px; font-size: 0.75rem; color: #666; }
-      .sro-row { display: flex; justify-content: space-between; margin-bottom: 4px; border-bottom: 1px dashed #eee; padding-bottom: 2px; }
-      .sro-key { font-weight: bold; color: #444; }
-      .sro-val { text-align: right; max-width: 70%; word-wrap: break-word; }
-      .sro-footer { background: #f4f4f4; padding: 5px; text-align: center; font-size: 0.65rem; font-weight: 700; color: #888; cursor: pointer; user-select: none; text-transform: uppercase; }
-      .sro-footer:hover { background: #e9e9e9; color: #333; }
-      .mode-loading { border-left-color: #95a5a6; }
-      .mode-success { border-left-color: #2e7d32; }
-      .mode-success .sro-header { background: #e8f5e9; }
-      .mode-success .sro-status-text { color: #1b5e20; }
-      .mode-success .sro-distrito { color: #1b5e20; }
-      .mode-error { border-left-color: #c62828; }
-      .mode-error .sro-header { background: #ffebee; }
-      .mode-error .sro-status-text { color: #b71c1c; }
-      .mode-info { border-left-color: #1565c0; }
-      .mode-info .sro-header { background: #e3f2fd; }
-      .mode-info .sro-status-text { color: #0d47a1; }
-    `;
-  }
+      .sro-header { padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; background: #fdfdfd; border-bottom: 1px solid #eee; cursor: grab; user-select: none; }
+      .sro-status-text { font-size: 0.95rem; font-weight: 800; text-transform: uppercase; color: #444; }
+      .sro-body { padding: 10px; text-align: center; background: #fff; }
+      .sro-distrito { font-size: 2.8rem; font-weight: 900; line-height: 1; color: #00416B; margin: 6px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .sro-old { font-size: 1.4rem; opacity: 0.5; font-weight: 600; color: #555; vertical-align: middle; }
+      .sro-arrow { font-size: 1.5rem; margin: 0 5px; color: #F9A825; vertical-align: middle; }
+      .sro-new { color: #00416B; }
+      
+      .mode-loading { border-left-color: #7f8c8d; } 
+      .mode-success { border-left-color: #009688; } .mode-success .sro-header { background: #e0f2f1; } .mode-success .sro-status-text { color: #00695c; }
+      .mode-error { border-left-color: #d32f2f; } .mode-error .sro-header { background: #ffebee; } .mode-error .sro-status-text { color: #c62828; }
+      .mode-info { border-left-color: #1976d2; } .mode-info .sro-header { background: #e3f2fd; } .mode-info .sro-status-text { color: #0d47a1; }
 
-  function buildCardHtml() {
-    return `
+      #sro-table-wrapper { margin-top: 25px; font-family: 'Segoe UI', Tahoma, sans-serif; border: 1px solid #ccc; background: #fff; width: 100%; box-sizing: border-box; clear: both; }
+      .sro-table-header { background: #00416B; color: #ffffff !important; padding: 8px 12px; font-weight: 700; font-size: 13px; text-transform: uppercase; display: flex; justify-content: space-between; border-bottom: 3px solid #FFE600; }
+      
+      .sro-full-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+      .sro-full-table th { background: #f0f0f0; color: #333; text-align: left; padding: 5px 8px; border: 1px solid #ddd; font-weight: 700; white-space: nowrap; width: 1%; }
+      .sro-full-table td { padding: 5px 8px; border: 1px solid #ddd; color: #000; word-break: break-word; }
+      
+      .hl-val { color: #2e7d32; font-weight: 800; background: #e8f5e9; padding: 1px 4px; border-radius: 3px; }
+      .hl-err { color: #c62828; font-weight: 800; background: #ffebee; padding: 1px 4px; border-radius: 3px; }
+      .hl-dist { font-size: 15px; font-weight: 800; color: #00416B; }
+      .hl-serv { background: #fff8e1; color: #ff8f00; padding: 0 3px; border-radius: 2px; font-weight: bold; border: 1px solid #ffecb3; margin-right: 3px; }
+      .hl-serv-off { opacity: 0.2; margin-right: 3px; }
+    `,document.head.appendChild(t);
+    
+    const o=document.createElement("div");o.id="sro-container",o.innerHTML=`
       <div id="sro-card" class="sro-card mode-loading">
-        <div id="sro-header" class="sro-header" title="${UI_TEXT.resetPositionHint}">
-          <span id="sro-status" class="sro-status-text">${UI_TEXT.waiting}</span>
+        <div id="sro-header" class="sro-header" title="${u}">
+          <span id="sro-status" class="sro-status-text">${e}</span>
           <span id="sro-icon" class="sro-icon">⏳</span>
         </div>
         <div class="sro-body">
-          <div class="sro-label">${UI_TEXT.district}</div>
-          <div id="sro-distrito" class="sro-distrito">${UI_TEXT.defaultDistrict}</div>
-          <div class="sro-previsao-box">
-            <div class="sro-label">${UI_TEXT.deliveryForecast}</div>
-            <div id="sro-previsao" class="sro-previsao-val">${UI_TEXT.defaultDate}</div>
-          </div>
+          <div id="sro-distrito" class="sro-distrito">${x}</div>
+          <div style="font-size:12px;color:#666;margin-top:4px">${c}: <strong id="sro-previsao" style="color:#333">${y}</strong></div>
         </div>
-        <div id="sro-details" class="sro-details">
-          <div id="sro-details-content" class="sro-detail-content"></div>
-        </div>
-        <div id="sro-footer" class="sro-footer">
-          <span id="sro-footer-text">${UI_TEXT.moreInfo}</span>
-        </div>
-      </div>
+      </div>`,document.body.appendChild(o);
+
+    const r=document.getElementById("sro-header");r.addEventListener("mousedown",S,!1),r.addEventListener("dblclick",$,!1),document.addEventListener("mouseup",B,!1),document.addEventListener("mousemove",N,!1),
+    function(){try{const e=JSON.parse(localStorage.getItem(O));e&&"number"==typeof e.x&&"number"==typeof e.y&&(k.cX=e.x,k.cY=e.y,k.xOff=e.x,k.yOff=e.y,M())}catch(e){}}(),D=!0,InjT(),MonInp()
+}
+
+function InjT(){
+    if(document.getElementById("sro-table-wrapper")) return;
+    const b = document.querySelector(".botoes");
+    if(!b) { setTimeout(InjT, 500); return; }
+    const w = document.createElement("div"); w.id="sro-table-wrapper";
+    w.innerHTML = `
+        <div class="sro-table-header"><span style="color:#ffffff !important">DADOS OPERACIONAIS</span><span style="opacity:0.7;color:#fff">SRO EXT</span></div>
+        <table class="sro-full-table">
+            <tr>
+                <th>OBJETO</th><td id="td-cod" style="font-weight:bold;font-size:12px">${x}</td>
+                <th>STATUS</th><td id="td-stt">${x}</td>
+                <th>VALIDAÇÃO</th><td id="td-val">${x}</td>
+                <th>DATA PREV.</th><td id="td-dat-prev">${x}</td>
+            </tr>
+            <tr id="row-exc" style="display:none">
+                <th style="color:#c62828">EXCEÇÃO</th><td colspan="7" id="td-exc" style="color:#c62828;font-weight:bold">${x}</td>
+            </tr>
+            <tr>
+                <th>ENDEREÇO</th><td colspan="5" id="td-end-full">${x}</td>
+                <th>CEP</th><td id="td-cep" style="font-weight:bold">${x}</td>
+            </tr>
+            <tr>
+                 <th>CONTATO</th><td colspan="7" id="td-con">${x}</td>
+            </tr>
+            <tr>
+                <th>DISTRITO</th><td id="td-dis" class="hl-dist">${x}</td>
+                <th>ORDEM</th><td id="td-ord">${x}</td>
+                <th>LADO</th><td id="td-lad">${x}</td>
+                <th>SERVIÇOS</th><td colspan="3" id="td-srv">${x}</td>
+            </tr>
+            <tr>
+                <th>INDUÇÃO</th><td colspan="7">
+                    <span style="color:#777">L:</span> <b id="td-lis">${x}</b> &nbsp;|&nbsp; 
+                    <span style="color:#777">E:</span> <b id="td-est">${x}</b> &nbsp;|&nbsp; 
+                    <span style="color:#777">U:</span> <b id="td-usu">${x}</b> &nbsp;|&nbsp; 
+                    <span style="color:#777">DATA:</span> <b id="td-dat">${x}</b>
+                </td>
+            </tr>
+        </table>
     `;
-  }
+    b.insertAdjacentElement('afterend', w);
+}
 
-  function initUI() {
-    if (document.getElementById("sro-styles")) return;
+function Y(){localStorage.setItem(O,JSON.stringify({x:k.cX,y:k.cY}))}
+function $(){k.xOff=0,k.yOff=0,k.cX=0,k.cY=0;const e=document.getElementById("sro-container");e&&C(0,0,e),Y()}
+function S(e){k.iX=e.clientX-k.xOff,k.iY=e.clientY-k.yOff,k.active=!0}
+function B(){k.iX=k.cX,k.iY=k.cY,k.active=!1,M(),Y()}
+function N(e){k.active&&(e.preventDefault(),k.cX=e.clientX-k.iX,k.cY=e.clientY-k.iY,k.xOff=k.cX,k.yOff=k.cY,C(k.cX,k.cY,document.getElementById("sro-container")))}
+function C(e,t,o){o.style.transform=`translate3d(${e}px, ${t}px, 0)`}
+function M(){const e=document.getElementById("sro-container");if(!e)return;const t=e.getBoundingClientRect(),o=window.innerWidth,r=window.innerHeight;let s=!1;t.right>o&&(k.cX-=t.right-o+10,s=!0),t.left<0&&(k.cX+=Math.abs(t.left)+10,s=!0),t.bottom>r&&(k.cY-=t.bottom-r+10,s=!0),t.top<0&&(k.cY+=Math.abs(t.top)+10,s=!0),s&&(k.xOff=k.cX,k.yOff=k.cY,k.iX=k.cX,k.iY=k.cY,C(k.cX,k.cY,e))}
 
-    const style = document.createElement("style");
-    style.id = "sro-styles";
-    style.innerHTML = buildStyles();
-    document.head.appendChild(style);
-
-    const container = document.createElement("div");
-    container.id = "sro-container";
-    container.innerHTML = buildCardHtml();
-    document.body.appendChild(container);
-
-    document
-      .getElementById("sro-footer")
-      .addEventListener("click", toggleDetails);
-    const header = document.getElementById("sro-header");
-
-    header.addEventListener("mousedown", dragStart, false);
-    header.addEventListener("dblclick", resetPosition, false);
-    document.addEventListener("mouseup", dragEnd, false);
-    document.addEventListener("mousemove", drag, false);
-
-    applyDetailsState();
-    restorePosition();
-    uiInitialized = true;
-  }
-
-  function savePosition() {
-    localStorage.setItem(
-      STORAGE_KEY_POSITION,
-      JSON.stringify({ x: dragConfig.currentX, y: dragConfig.currentY }),
-    );
-  }
-
-  function restorePosition() {
-    try {
-      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY_POSITION));
-      if (saved && typeof saved.x === "number" && typeof saved.y === "number") {
-        dragConfig.currentX = saved.x;
-        dragConfig.currentY = saved.y;
-        dragConfig.xOffset = saved.x;
-        dragConfig.yOffset = saved.y;
-        const container = document.getElementById("sro-container");
-        if (container) setTranslate(saved.x, saved.y, container);
-      }
-    } catch (e) {}
-  }
-
-  function resetPosition() {
-    dragConfig.xOffset = 0;
-    dragConfig.yOffset = 0;
-    dragConfig.currentX = 0;
-    dragConfig.currentY = 0;
-    const container = document.getElementById("sro-container");
-    if (container) setTranslate(0, 0, container);
-    savePosition();
-  }
-
-  function dragStart(e) {
-    if (e.target.closest("#sro-footer")) return;
-    dragConfig.initialX = e.clientX - dragConfig.xOffset;
-    dragConfig.initialY = e.clientY - dragConfig.yOffset;
-    if (
-      e.target === document.getElementById("sro-header") ||
-      e.target.parentNode === document.getElementById("sro-header")
-    ) {
-      dragConfig.active = true;
-    }
-  }
-
-  function dragEnd() {
-    dragConfig.initialX = dragConfig.currentX;
-    dragConfig.initialY = dragConfig.currentY;
-    dragConfig.active = false;
-    adjustPositionInBounds();
-    savePosition();
-  }
-
-  function drag(e) {
-    if (dragConfig.active) {
-      e.preventDefault();
-      dragConfig.currentX = e.clientX - dragConfig.initialX;
-      dragConfig.currentY = e.clientY - dragConfig.initialY;
-      dragConfig.xOffset = dragConfig.currentX;
-      dragConfig.yOffset = dragConfig.currentY;
-      setTranslate(
-        dragConfig.currentX,
-        dragConfig.currentY,
-        document.getElementById("sro-container"),
-      );
-    }
-  }
-
-  function setTranslate(xPos, yPos, el) {
-    el.style.transform = `translate3d(${xPos}px, ${yPos}px, 0)`;
-  }
-
-  function adjustPositionInBounds() {
-    const container = document.getElementById("sro-container");
-    if (!container) return;
-
-    const rect = container.getBoundingClientRect();
-    const winW = window.innerWidth;
-    const winH = window.innerHeight;
-    let corrected = false;
-
-    if (rect.right > winW) {
-      dragConfig.currentX -= rect.right - winW + 10;
-      corrected = true;
-    }
-    if (rect.left < 0) {
-      dragConfig.currentX += Math.abs(rect.left) + 10;
-      corrected = true;
-    }
-    if (rect.bottom > winH) {
-      dragConfig.currentY -= rect.bottom - winH + 10;
-      corrected = true;
-    }
-    if (rect.top < 0) {
-      dragConfig.currentY += Math.abs(rect.top) + 10;
-      corrected = true;
-    }
-
-    if (corrected) {
-      dragConfig.xOffset = dragConfig.currentX;
-      dragConfig.yOffset = dragConfig.currentY;
-      dragConfig.initialX = dragConfig.currentX;
-      dragConfig.initialY = dragConfig.currentY;
-      setTranslate(dragConfig.currentX, dragConfig.currentY, container);
-    }
-  }
-
-  function applyDetailsState() {
-    const detailsEl = document.getElementById("sro-details");
-    const footerTxt = document.getElementById("sro-footer-text");
-    if (isDetailsOpen) {
-      detailsEl.classList.add("open");
-      footerTxt.innerText = UI_TEXT.lessInfo;
-    } else {
-      detailsEl.classList.remove("open");
-      footerTxt.innerText = UI_TEXT.moreInfo;
-    }
-    setTimeout(adjustPositionInBounds, 310);
-  }
-
-  function toggleDetails() {
-    isDetailsOpen = !isDetailsOpen;
-    applyDetailsState();
-  }
-
-  function render() {
-    if (!uiInitialized) initUI();
-
-    const card = document.getElementById("sro-card");
-    const elStatus = document.getElementById("sro-status");
-    const elIcon = document.getElementById("sro-icon");
-    const elDistrito = document.getElementById("sro-distrito");
-    const elPrevisao = document.getElementById("sro-previsao");
-    const elContent = document.getElementById("sro-details-content");
-
-    let icon = "⏳";
-    if (state.mode === "success") icon = "✅";
-    if (state.mode === "error") icon = "⛔";
-    if (state.mode === "info") icon = "⚠️";
-
-    card.className = `sro-card visible mode-${state.mode}`;
-    elStatus.innerText = state.status;
-    elIcon.innerText = icon;
-    elDistrito.innerText = state.district;
-    elPrevisao.innerText = state.deliveryDate || UI_TEXT.defaultDate;
-
-    let html = "";
-    html += `<div class="sro-row"><span class="sro-key">${
-      UI_TEXT.labelObject
-    }</span> <span class="sro-val">${
-      state.trackingCode || UI_TEXT.defaultDistrict
-    }</span></div>`;
-    if (state.details.message)
-      html += `<div class="sro-row"><span class="sro-key">${UI_TEXT.labelSystem}</span> <span class="sro-val">${state.details.message}</span></div>`;
-    if (state.details.postman)
-      html += `<div class="sro-row"><span class="sro-key">${UI_TEXT.labelPostman}</span> <span class="sro-val">${state.details.postman}</span></div>`;
-    if (state.details.services)
-      html += `<div class="sro-row"><span class="sro-key">${UI_TEXT.labelServices}</span> <span class="sro-val">${state.details.services}</span></div>`;
-
-    elContent.innerHTML = html;
-    setTimeout(adjustPositionInBounds, 100);
-  }
-
-  function resetState(newCode) {
-    state = {
-      trackingCode: newCode,
-      launchId: null,
-      status: UI_TEXT.reading,
-      mode: "loading",
-      district: UI_TEXT.defaultDistrict,
-      deliveryDate: UI_TEXT.defaultDate,
-      details: { message: UI_TEXT.processing },
-    };
-    render();
-  }
-
-  function processData(url, json) {
-    const urlLower = url.toLowerCase();
-
-    let codeFromUrl = null;
-    try {
-      const u = new URL(url, window.location.origin);
-      codeFromUrl =
-        u.searchParams.get("codigo") ||
-        u.searchParams.get("id") ||
-        u.searchParams.get("objeto");
-    } catch (e) {}
-
-    if (
-      urlLower.includes("objetocontroller.php?acao=validar") &&
-      codeFromUrl &&
-      codeFromUrl !== state.trackingCode
-    ) {
-      resetState(codeFromUrl);
-    }
-
-    if (urlLower.includes("objetocontroller.php?acao=validar")) {
-      if (json.validacao) {
-        if (state.mode !== "success" && state.mode !== "error") {
-          state.mode = "info";
-          state.status = UI_TEXT.readyToInduct;
+function U(){D||T();
+    const e=document.getElementById("sro-card"),t=document.getElementById("sro-status"),o=document.getElementById("sro-icon"),r=document.getElementById("sro-distrito"),s=document.getElementById("sro-previsao");
+    let i="⏳";"success"===L.mode&&(i="✅"),"error"===L.mode&&(i="⛔"),"info"===L.mode&&(i="⚠️");
+    e.className=`sro-card visible mode-${L.mode}`,t.innerText=L.status,o.innerText=i,r.innerHTML=L.district,s.innerText=L.date||y;
+    
+    const el=i=>document.getElementById(i);
+    if(el("td-cod")){
+        el("td-cod").innerText=L.code; 
+        const v = L.val; el("td-val").innerHTML = v ? `<span class="${v.includes('V')?'hl-val':'hl-err'}">${v}</span>` : x;
+        el("td-stt").innerText=L.lastEvt; 
+        el("td-dat-prev").innerText=L.date;
+        const exc = L.exc; 
+        if(exc && exc !== x) {
+            el("td-exc").innerText = exc;
+            document.getElementById("row-exc").style.display = "table-row";
+        } else {
+            document.getElementById("row-exc").style.display = "none";
         }
-        state.deliveryDate = json.previsaoEntrega?.data || UI_TEXT.defaultDate;
-        state.details.message = json.ultimoEventoDescricao || UI_TEXT.validated;
-      } else {
-        state.mode = "error";
-        state.status = UI_TEXT.notInducted;
-        state.details.message = json.excecao || UI_TEXT.invalidObject;
-        state.deliveryDate = UI_TEXT.defaultDate;
-      }
-    } else if (urlLower.includes("enderecocontroller.php")) {
-      if (json.servico) {
-        let s = [];
-        if (json.servico.ar === "S") s.push("AR");
-        if (json.servico.mp === "S") s.push("MP");
-        if (json.servico.dd === "S") s.push("DD");
-        state.details.services = s.join(" + ");
-      }
-    } else if (urlLower.includes("distritamentotrechocontroller.php")) {
-      if (Array.isArray(json) && json.length > 0 && json[0].rotulo) {
-        const parts = json[0].rotulo.split(" ");
-        state.district =
-          parts.length >= 2 ? `${parts[0]} ${parts[1]}` : json[0].rotulo;
-      }
-    } else if (
-      urlLower.includes("lancamentocontroller.php?acao=pesquisarloecobjeto")
-    ) {
-      if (json.id) {
-        state.mode = "success";
-        state.status = UI_TEXT.alreadyInducted;
-        state.launchId = json.idLancamento;
-        state.district = `${json.numeroDistrito} ${json.distritoComplemento}`;
-        if (json.carteiro?.nome) state.details.postman = json.carteiro.nome;
-        state.details.message = UI_TEXT.objectInList;
-      }
-    } else if (urlLower.includes("lancamentocontroller.php?acao=salvar")) {
-      if (json.idLancamento) {
-        state.launchId = json.idLancamento;
-        state.mode = "success";
-        state.status = UI_TEXT.objectInducted;
-        state.details.message = UI_TEXT.inclusionConfirmed;
-        if (json.dataPrevista) state.deliveryDate = json.dataPrevista;
-      }
-    } else if (urlLower.includes("lancamentocontroller.php?acao=listar")) {
-      if (Array.isArray(json) && state.launchId) {
-        const item = json.find((i) => i.idLancamento === state.launchId);
-        if (item) {
-          state.district = item.numeroDistrito;
-          if (item.nomeCarteiro) state.details.postman = item.nomeCarteiro;
-          render();
-        }
-      }
-    } else if (urlLower.includes("objetocontroller.php?acao=excluir")) {
-      state.mode = "error";
-      state.status = UI_TEXT.deleted;
-      state.district = UI_TEXT.defaultDistrict;
-      state.details.message = UI_TEXT.objectRemoved;
-      state.deliveryDate = UI_TEXT.defaultDate;
+        el("td-end-full").innerText = `${L.addr.log}, ${L.addr.num} ${L.addr.comp?'- '+L.addr.comp:''} - ${L.addr.bair}, ${L.addr.mun}/${L.addr.uf}`;
+        el("td-cep").innerText=L.addr.cep;
+        el("td-con").innerHTML=`TEL: <b>${L.contact.tel}</b> ${L.contact.email!==x?' | EMAIL: '+L.contact.email:''}`;
+        el("td-dis").innerHTML=L.district;
+        el("td-ord").innerText=L.op.ord; el("td-lad").innerText=L.op.side;
+        const srv = (k, l) => `<span class="${L.serv[k]==='S'?'hl-serv':'hl-serv-off'}">${l}</span>`;
+        el("td-srv").innerHTML= srv('ar','AR') + srv('mp','MP') + srv('dd','DD');
+        el("td-lis").innerText=L.op.list; el("td-est").innerText=L.op.st; el("td-usu").innerText=L.op.user; el("td-dat").innerText=fmtTime(L.op.ts);
     }
-    render();
-  }
+}
 
-  const nativeFetch = window.fetch;
-  window.fetch = async function (...args) {
-    const url = args[0] ? args[0].toString() : "";
-    const urlLower = url.toLowerCase();
-    const init = args[1];
-    if (
-      urlLower.includes("lancamentocontroller.php?acao=salvar") &&
-      init &&
-      init.body
-    ) {
-      try {
-        const payload = JSON.parse(init.body);
-        if (payload.distrito) {
-          state.district = payload.distrito;
-          render();
-        }
-      } catch (e) {}
+function A(e,a){
+    const c=e.toLowerCase();let d=null;try{const t=new URL(e,window.location.origin);d=t.searchParams.get("codigo")||t.searchParams.get("id")||t.searchParams.get("objeto")}catch(e){}
+    if(d && d!==L.code && (c.includes("acao=validar") || c.includes("acao=pesquisar"))) {
+        L={code:d,status:t,mode:"loading",district:x,initialDist:null,date:y,exc:x,val:x,lastEvt:x,addr:{log:x,num:x,comp:x,bair:x,mun:x,uf:x,cep:x},serv:{ar:"N",mp:"N",dd:"N"},contact:{tel:x,email:x},op:{list:x,user:x,st:x,ts:x,ord:x,side:x}}; U();
     }
-    const response = await nativeFetch.apply(this, args);
-    try {
-      if (urlLower.includes("controller.php")) {
-        const clone = response.clone();
-        clone
-          .json()
-          .then((data) => processData(url, data))
-          .catch(() => {});
-      }
-    } catch (e) {}
-    return response;
-  };
 
-  const nativeOpen = XMLHttpRequest.prototype.open;
-  const nativeSend = XMLHttpRequest.prototype.send;
-  XMLHttpRequest.prototype.open = function (method, url) {
-    this._sroTargetUrl = url;
-    return nativeOpen.apply(this, arguments);
-  };
-  XMLHttpRequest.prototype.send = function (body) {
-    const targetLower = this._sroTargetUrl
-      ? this._sroTargetUrl.toLowerCase()
-      : "";
-
-    if (
-      targetLower &&
-      targetLower.includes("lancamentocontroller.php?acao=salvar") &&
-      body
-    ) {
-      try {
-        const payload = JSON.parse(body);
-        if (payload.distrito) {
-          state.district = payload.distrito;
-          render();
+    if(c.includes("acao=validar")){
+        L.val=a.validacao||x; L.exc=a.excecao||x; L.lastEvt=a.ultimoEventoDescricao||x;
+        a.validacao?("success"!==L.mode&&"error"!==L.mode&&(L.mode="info",L.status=o),L.date=a.previsaoEntrega?.data||y):(L.mode="error",L.status=r,L.date=y);
+    }else if(c.includes("enderecocontroller.php")){
+        if(a.endereco){L.addr.log=a.endereco.logradouro;L.addr.num=a.endereco.numeroLogradouro;L.addr.comp=a.endereco.complementoLogradouro;L.addr.bair=a.endereco.bairro;L.addr.mun=a.endereco.municipio;L.addr.uf=a.endereco.uf;L.addr.cep=a.endereco.cep;}
+        if(a.servico){L.serv.ar=a.servico.ar;L.serv.mp=a.servico.mp;L.serv.dd=a.servico.dd;}
+        if(a.telefone){L.contact.tel=`(${a.telefone.ddd}) ${a.telefone.numero}`;} L.contact.email=a.email||x;
+    }else if(c.includes("distritamentotrechocontroller.php")){
+        if(Array.isArray(a)&&a.length>0){
+            const d=a[0]; 
+            const fullDist = `${d.rotuloDistrito} ${d.areaDistrito||''}`.trim();
+            setDist(fullDist); 
+            L.op.ord=d.ordemPercorrida; L.op.side=d.lado;
         }
-      } catch (e) {}
-    }
-    this.addEventListener("load", function () {
-      const urlCheck = this._sroTargetUrl
-        ? this._sroTargetUrl.toLowerCase()
-        : "";
-      if (urlCheck && urlCheck.includes("controller.php")) {
-        try {
-          const data = JSON.parse(this.responseText);
-          processData(this._sroTargetUrl, data);
-        } catch (e) {}
-      }
-    });
-    return nativeSend.apply(this, arguments);
-  };
+    }else if(c.includes("acao=pesquisarloecobjeto")){
+        if(a.id){
+            L.mode="success";L.status=s;
+            const dist = `${a.numeroDistrito} ${a.distritoComplemento||''}`.trim();
+            L.initialDist = dist; setDist(dist);
+            L.op.list=a.idLancamento;L.op.st=x;L.op.user=a.carteiro?.nome||x;
+        }
+    }else if(c.includes("acao=salvar")){
+        a.idLancamento&&(L.mode="success",L.status=n,L.op.list=a.numeroLista,L.op.user=a.usuario,L.op.st=a.estacao,L.op.ts=a.carimbo,a.dataPrevista&&(L.date=a.dataPrevista));
+    }else if(c.includes("acao=excluir")){L.mode="error",L.status=i,setDist(x),L.date=y;L.initialDist=null;}
+    U();
+}
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", initUI);
-  } else {
-    initUI();
-  }
-})();
+const P=window.fetch;window.fetch=async function(...e){const t=e[0]?e[0].toString():"",o=t.toLowerCase(),r=e[1];
+    if(o.includes("acao=salvar")&&r&&r.body)try{const e=JSON.parse(r.body);e.distrito&&setDist(e.distrito)}catch(e){}
+    if(o.includes("listar-impressoras-disponiveis"))_();
+    const s=await P.apply(this,e);
+    try{if(o.includes("controller.php")){s.clone().json().then(e=>A(t,e)).catch(()=>{})}}catch(e){}return s
+};
+const z=XMLHttpRequest.prototype.open,H=XMLHttpRequest.prototype.send;
+XMLHttpRequest.prototype.open=function(e,t){return this._url=t,t&&t.toLowerCase().includes("listar-impressoras-disponiveis")&&_(),z.apply(this,arguments)};
+XMLHttpRequest.prototype.send=function(e){
+    const t=this._url?this._url.toLowerCase():"";
+    if(t&&t.includes("acao=salvar")&&e)try{const t=JSON.parse(e);t.distrito&&setDist(t.distrito)}catch(e){}
+    return this.addEventListener("load",function(){const e=this._url?this._url.toLowerCase():"";if(e&&e.includes("controller.php"))try{const e=JSON.parse(this.responseText);A(this._url,e)}catch(e){}}),H.apply(this,arguments)
+},
+"loading"===document.readyState?document.addEventListener("DOMContentLoaded",T):T()}();
