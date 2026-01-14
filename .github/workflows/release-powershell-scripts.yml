@@ -50,81 +50,50 @@ jobs:
           $scriptNames = @()
 
           foreach ($script in $allScripts) {
-            Write-Host "Processing: $($script.Name)" -ForegroundColor Cyan
+            Write-Host "Processing: $($script.Name)"
 
             $content = Get-Content $script.FullName -Raw
-            $originalSize = $content.Length
-
             $minifiedBlock = Compress-ScriptBlock -ScriptBlock ([ScriptBlock]::Create($content))
             $minifiedContent = $minifiedBlock.ToString()
-            $minifiedSize = $minifiedContent.Length
-
-            $ratio = [math]::Round((1 - ($minifiedSize / $originalSize)) * 100, 2)
-            Write-Host "  $originalSize -> $minifiedSize bytes ($ratio% saved)" -ForegroundColor Green
 
             $fileName = $script.Name.Replace(".ps1", ".min.ps1")
-
             if ($script.DirectoryName.Replace("\", "/") -match "/extras$") {
               $fileName = "extra-$fileName"
             }
 
             $outputPath = Join-Path "release_assets" $fileName
             [System.IO.File]::WriteAllText($outputPath, $minifiedContent, [System.Text.UTF8Encoding]::new($false))
-
             $scriptNames += $fileName
           }
 
           "list=$($scriptNames -join ' ')" >> $env:GITHUB_OUTPUT
 
-      - name: Ensure release exists and sync assets
+      - name: Delete existing release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          TAG_NAME="minified-scripts"
-          RELEASE_NAME="PowerShell Scripts"
-          RELEASE_BODY="## PowerShell Scripts (Minified)
+          gh release delete minified-scripts --cleanup-tag -y 2>/dev/null || true
 
-          Minified \`.ps1\` scripts, synced with the repository.
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: minified-scripts
+          name: PowerShell Scripts
+          body: |
+            ## PowerShell Scripts (Minified)
 
-          **Scripts:** ${{ steps.build.outputs.list }}
+            Minified `.ps1` scripts.
 
-          **Updated:** $(date -u +"%Y-%m-%dT%H:%M:%SZ")
-          **Commit:** [\`${{ github.sha }}\`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})"
-
-          if ! gh release view "$TAG_NAME" > /dev/null 2>&1; then
-            echo "Release does not exist. Creating..."
-            gh release create "$TAG_NAME" \
-              --title "$RELEASE_NAME" \
-              --notes "$RELEASE_BODY" \
-              --target "${{ github.ref_name }}" \
-              --latest
-          else
-            echo "Release exists. Updating notes..."
-            gh release edit "$TAG_NAME" --notes "$RELEASE_BODY" --latest
-          fi
-
-          echo "Getting current release assets..."
-          CURRENT_ASSETS=$(gh release view "$TAG_NAME" --json assets -q '.assets[].name' 2>/dev/null || echo "")
-
-          echo "Uploading new assets (clobber mode)..."
-          for file in release_assets/*.ps1; do
-            if [ -f "$file" ]; then
-              echo "Uploading: $(basename "$file")"
-              gh release upload "$TAG_NAME" "$file" --clobber
-            fi
-          done
-
-          echo "Checking for orphaned assets to remove..."
-          for asset in $CURRENT_ASSETS; do
-            LOCAL_FILE="release_assets/$asset"
-            if [ ! -f "$LOCAL_FILE" ]; then
-              echo "Removing orphaned asset: $asset"
-              gh release delete-asset "$TAG_NAME" "$asset" -y || true
-            fi
-          done
+            **Scripts:** ${{ steps.build.outputs.list }}
+            **Commit:** [`${{ github.sha }}`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})
+          files: release_assets/*.ps1
+          draft: false
+          prerelease: false
+          make_latest: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Summary
         run: |
           echo "### ✅ PowerShell Scripts Released" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Scripts:** ${{ steps.build.outputs.list }}" >> $GITHUB_STEP_SUMMARY

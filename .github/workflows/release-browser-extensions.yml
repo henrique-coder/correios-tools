@@ -48,32 +48,18 @@ jobs:
               cp -r "$dir"* "$temp_dir/"
 
               find "$temp_dir" -name "*.html" -type f | while read file; do
-                echo "  Minifying HTML: $(basename "$file")"
-                html-minifier-terser \
-                  --collapse-whitespace \
-                  --remove-comments \
-                  --remove-redundant-attributes \
-                  --remove-empty-attributes \
-                  --minify-css true \
-                  --minify-js true \
-                  -o "$file" "$file" 2>/dev/null || true
+                html-minifier-terser --collapse-whitespace --remove-comments --remove-redundant-attributes --remove-empty-attributes --minify-css true --minify-js true -o "$file" "$file" 2>/dev/null || true
               done
 
               find "$temp_dir" -name "*.js" -type f | while read file; do
-                echo "  Minifying JS: $(basename "$file")"
-                terser "$file" \
-                  --compress \
-                  --mangle \
-                  --output "$file" 2>/dev/null || true
+                terser "$file" --compress --mangle --output "$file" 2>/dev/null || true
               done
 
               find "$temp_dir" -name "*.css" -type f | while read file; do
-                echo "  Minifying CSS: $(basename "$file")"
                 csso "$file" --output "$file" 2>/dev/null || true
               done
 
               find "$temp_dir" -name "*.json" -type f | while read file; do
-                echo "  Minifying JSON: $(basename "$file")"
                 jq -c '.' "$file" > "$file.tmp" && mv "$file.tmp" "$file" 2>/dev/null || true
               done
 
@@ -83,75 +69,44 @@ jobs:
 
               rm -rf "$temp_dir"
               extensions="$extensions $ext"
-              echo "✓ ${ext}.zip (minified)"
             fi
           done
 
           extensions=$(echo "$extensions" | xargs)
-
           if [ -z "$extensions" ]; then
             echo "No extensions found!"
             exit 1
           fi
 
           echo "list=$extensions" >> $GITHUB_OUTPUT
-          echo ""
-          echo "=== Assets ==="
           ls -lh release_assets/
 
-      - name: Ensure release exists and sync assets
+      - name: Delete existing release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          TAG_NAME="browser-extensions"
-          RELEASE_NAME="Browser Extensions"
-          RELEASE_BODY="## Browser Extensions
+          gh release delete browser-extensions --cleanup-tag -y 2>/dev/null || true
 
-          Minified and zipped browser extensions, synced with the repository.
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: browser-extensions
+          name: Browser Extensions
+          body: |
+            ## Browser Extensions
 
-          **Extensions:** ${{ steps.build.outputs.list }}
+            Minified browser extensions.
 
-          **Updated:** $(date -u +"%Y-%m-%dT%H:%M:%SZ")
-          **Commit:** [\`${{ github.sha }}\`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})"
-
-          if ! gh release view "$TAG_NAME" > /dev/null 2>&1; then
-            echo "Release does not exist. Creating..."
-            gh release create "$TAG_NAME" \
-              --title "$RELEASE_NAME" \
-              --notes "$RELEASE_BODY" \
-              --target "${{ github.ref_name }}" \
-              --latest
-          else
-            echo "Release exists. Updating notes..."
-            gh release edit "$TAG_NAME" --notes "$RELEASE_BODY" --latest
-          fi
-
-          echo "Getting current release assets..."
-          CURRENT_ASSETS=$(gh release view "$TAG_NAME" --json assets -q '.assets[].name' 2>/dev/null || echo "")
-
-          echo "Uploading new assets (clobber mode)..."
-          for file in release_assets/*.zip; do
-            if [ -f "$file" ]; then
-              echo "Uploading: $(basename "$file")"
-              gh release upload "$TAG_NAME" "$file" --clobber
-            fi
-          done
-
-          echo "Checking for orphaned assets to remove..."
-          for asset in $CURRENT_ASSETS; do
-            LOCAL_FILE="release_assets/$asset"
-            if [ ! -f "$LOCAL_FILE" ]; then
-              echo "Removing orphaned asset: $asset"
-              gh release delete-asset "$TAG_NAME" "$asset" -y || true
-            fi
-          done
+            **Extensions:** ${{ steps.build.outputs.list }}
+            **Commit:** [`${{ github.sha }}`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})
+          files: release_assets/*.zip
+          draft: false
+          prerelease: false
+          make_latest: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Summary
         run: |
-          echo "### ✅ Release Synced (Minified)" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Extensions:**" >> $GITHUB_STEP_SUMMARY
-          for ext in ${{ steps.build.outputs.list }}; do
-            size=$(du -h "release_assets/${ext}.zip" | cut -f1)
-            echo "- \`${ext}.zip\` (${size})" >> $GITHUB_STEP_SUMMARY
-          done
+          echo "### ✅ Browser Extensions Released" >> $GITHUB_STEP_SUMMARY
+          echo "**Extensions:** ${{ steps.build.outputs.list }}" >> $GITHUB_STEP_SUMMARY
