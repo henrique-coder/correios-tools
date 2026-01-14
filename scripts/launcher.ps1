@@ -2,13 +2,22 @@ $mutexName = "Global\CorreiosToolsLauncherUI"
 $mutex = New-Object System.Threading.Mutex($false, $mutexName)
 if (-not $mutex.WaitOne(0, $false)) { Exit }
 
-Add-Type -MemberDefinition @"
-[DllImport("user32.dll")]
-public static extern bool ShowWindowAsync(IntPtr hWnd, int nCmdShow);
-"@ -Name Win32 -Namespace Native -PassThru | Out-Null
-
-$windowHandle = (Get-Process -Id $PID).MainWindowHandle
-if ($windowHandle -ne [IntPtr]::Zero) { [Native.Win32]::ShowWindowAsync($windowHandle, 0) | Out-Null }
+$showWindowCode = @"
+using System;
+using System.Runtime.InteropServices;
+public class WindowHelper {
+    [DllImport("kernel32.dll")]
+    public static extern IntPtr GetConsoleWindow();
+    [DllImport("user32.dll")]
+    public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+    public static void HideConsole() {
+        IntPtr handle = GetConsoleWindow();
+        if (handle != IntPtr.Zero) { ShowWindow(handle, 0); }
+    }
+}
+"@
+Add-Type -TypeDefinition $showWindowCode -Language CSharp -ErrorAction SilentlyContinue
+try { [WindowHelper]::HideConsole() } catch {}
 
 Add-Type -AssemblyName PresentationFramework
 Add-Type -AssemblyName System.Windows.Forms
@@ -565,7 +574,7 @@ $window.Add_MouseLeftButtonDown({ $window.DragMove() })
 
 $window.Add_Closed({
     if ($script:needsRestart) {
-        Start-Process powershell.exe -ArgumentList "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$selfPath`""
+        Start-Process -FilePath "powershell.exe" -ArgumentList "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$selfPath`"" -WindowStyle Hidden
     }
 })
 
