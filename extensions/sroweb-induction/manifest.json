@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "SRO Web - Operacional (Indução)",
-  "version": "3.1.1",
+  "version": "3.1.2",
   "description": "Ferramenta operacional para melhorar a experiência de indução no SRO Web.",
   "author": "Henrique Moreira",
   "background": {
