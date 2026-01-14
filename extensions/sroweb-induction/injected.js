@@ -44,22 +44,19 @@
     let e = 0;
     const t = setInterval(() => {
       const o = document.querySelector("#alerta.aberto .act a");
-      (o && "OK" === o.innerText && (o.click(), clearInterval(t)),
-        ++e >= 100 && clearInterval(t));
+      (o && "OK" === o.innerText && (o.click(), clearInterval(t)), ++e >= 100 && clearInterval(t));
     }, 50);
   }
   function _() {
     let e = 0;
     const t = setInterval(() => {
       const o = document.getElementById("btnImprimirEtiquetaNao");
-      (o && (o.click(), clearInterval(t), _ok()),
-        ++e >= 100 && clearInterval(t));
+      (o && (o.click(), clearInterval(t), _ok()), ++e >= 100 && clearInterval(t));
     }, 50);
   }
 
   function ActErr(t) {
-    if (document.activeElement === document.getElementById("selDistrito"))
-      return;
+    if (document.activeElement === document.getElementById("selDistrito")) return;
     (t.click(), t.focus(), (lastErrVal = t.value));
   }
 
@@ -74,8 +71,7 @@
           const o = c.querySelector(".mensagem");
           if (o) {
             const r = o.innerText || "";
-            (r.includes("Formato de objeto postal") ||
-              r.includes("Preencha este campo")) &&
+            (r.includes("Formato de objeto postal") || r.includes("Preencha este campo")) &&
               ActErr(t);
           }
         }, 300);
@@ -84,10 +80,7 @@
       const o = c.querySelector(".mensagem");
       if (o) {
         const r = o.innerText || "";
-        if (
-          r.includes("Formato de objeto postal") ||
-          r.includes("Preencha este campo")
-        ) {
+        if (r.includes("Formato de objeto postal") || r.includes("Preencha este campo")) {
           t.value !== lastErrVal && ActErr(t);
         }
       }
@@ -106,12 +99,7 @@
 
   function fmtTime(e) {
     if (!e || e.length < 18) return x;
-    const t =
-        e.substring(8, 10) +
-        "/" +
-        e.substring(10, 12) +
-        "/" +
-        e.substring(12, 16),
+    const t = e.substring(8, 10) + "/" + e.substring(10, 12) + "/" + e.substring(12, 16),
       o = e.substring(16, 18) + ":" + e.substring(18, 20);
     return `${t} às ${o}`;
   }
@@ -157,13 +145,13 @@
       .sro-arrow { font-size: 2rem; margin: 0 10px; color: #444; font-weight: 400; }
       .sro-new { color: #00416B; font-size: 3rem; font-weight: 900; }
 
-      #sro-panel-view { 
-          background: #fff; 
-          padding: 15px; 
-          text-align: center; 
-          border-radius: 4px; 
-          width: 100%; 
-          height: 100%; 
+      #sro-panel-view {
+          background: #fff;
+          padding: 15px;
+          text-align: center;
+          border-radius: 4px;
+          width: 100%;
+          height: 100%;
           min-height: 450px;
           box-sizing: border-box;
           display: flex;
@@ -177,34 +165,34 @@
       .sro-arrow-p { font-size: 2.5rem; margin: 0 20px; color: #444; font-weight: 400; }
       .sro-new-p { color: #00416B; font-size: 5rem; font-weight: 900; line-height: 1; }
       .sro-status-p { font-size: 1.4rem; font-weight: 800; text-transform: uppercase; color: #444; letter-spacing: 1px; text-align: left; }
-      
-      .sro-restore-btn { 
-          font-size: 11px; 
-          text-decoration: none; 
-          color: #333; 
-          background: #f9f9f9; 
-          padding: 6px 12px; 
-          border-radius: 4px; 
-          cursor: pointer; 
-          border: 1px solid #ccc; 
-          font-weight: 700; 
-          text-transform: uppercase; 
-          display: inline-flex; 
-          align-items: center; 
+
+      .sro-restore-btn {
+          font-size: 11px;
+          text-decoration: none;
+          color: #333;
+          background: #f9f9f9;
+          padding: 6px 12px;
+          border-radius: 4px;
+          cursor: pointer;
+          border: 1px solid #ccc;
+          font-weight: 700;
+          text-transform: uppercase;
+          display: inline-flex;
+          align-items: center;
           justify-content: center;
           min-width: 110px;
           height: 32px;
-          transition: all 0.2s; 
+          transition: all 0.2s;
           white-space: nowrap;
           line-height: 1;
       }
       .sro-restore-btn:hover { background: #e0e0e0; color: #000; border-color: #999; }
 
-      .mode-loading { border-left-color: #7f8c8d; } 
+      .mode-loading { border-left-color: #7f8c8d; }
       .mode-success { border-left-color: #009688; } .mode-success .sro-header { background: #e0f2f1; } .mode-success .sro-status-text { color: #00695c; }
       .mode-error { border-left-color: #d32f2f; } .mode-error .sro-header { background: #ffebee; } .mode-error .sro-status-text { color: #c62828; }
       .mode-info { border-left-color: #1976d2; } .mode-info .sro-header { background: #e3f2fd; } .mode-info .sro-status-text { color: #0d47a1; }
-      
+
       #sro-table-wrapper { margin-top: 25px; font-family: 'Segoe UI', Tahoma, sans-serif; border: 1px solid #ccc; background: #fff; width: 100%; box-sizing: border-box; clear: both; pointer-events: auto; }
       .sro-table-header { background: #00416B; color: #ffffff !important; padding: 8px 12px; font-weight: 700; font-size: 13px; text-transform: uppercase; display: flex; justify-content: space-between; border-bottom: 3px solid #FFE600; }
       .sro-full-table { width: 100%; border-collapse: collapse; font-size: 11px; }
@@ -236,9 +224,7 @@
       </div>`),
       document.body.appendChild(o));
 
-    document
-      .getElementById("btn-panel-toggle")
-      .addEventListener("click", TogglePanel);
+    document.getElementById("btn-panel-toggle").addEventListener("click", TogglePanel);
 
     try {
       const e = JSON.parse(localStorage.getItem(O));
@@ -298,15 +284,15 @@
             <tr>
                 <th rowspan="2">INDUÇÃO</th>
                 <td colspan="7">
-                    <span style="color:#777">L:</span> <b id="td-lis">${x}</b> &nbsp;|&nbsp; 
-                    <span style="color:#777">E:</span> <b id="td-est">${x}</b> &nbsp;|&nbsp; 
-                    <span style="color:#777">U:</span> <b id="td-usu">${x}</b> &nbsp;|&nbsp; 
+                    <span style="color:#777">L:</span> <b id="td-lis">${x}</b> &nbsp;|&nbsp;
+                    <span style="color:#777">E:</span> <b id="td-est">${x}</b> &nbsp;|&nbsp;
+                    <span style="color:#777">U:</span> <b id="td-usu">${x}</b> &nbsp;|&nbsp;
                     <span style="color:#777">DATA:</span> <b id="td-dat">${x}</b>
                 </td>
             </tr>
             <tr>
                 <td colspan="7" style="background:#fffde7;border-left:3px solid #fbc02d">
-                    <span style="color:#f57f17;font-weight:bold;text-transform:uppercase">CARTEIRO:</span> 
+                    <span style="color:#f57f17;font-weight:bold;text-transform:uppercase">CARTEIRO:</span>
                     <b id="td-postman" style="font-size:12px;color:#333;margin-left:5px">${x}</b>
                 </td>
             </tr>
@@ -400,12 +386,12 @@
                 </div>
                 <div class="sro-panel-content">
                     <div class="sro-distrito-p">${getVisualDist(true)}</div>
-                    <div style="font-size:16px;color:#666;margin-top:20px">${c}: <strong>${L.date || y}</strong></div>
+                    <div style="font-size:16px;color:#666;margin-top:20px">${c}: <strong>${
+                      L.date || y
+                    }</strong></div>
                 </div>
             `;
-        document
-          .getElementById("btn-panel-restore")
-          .addEventListener("click", TogglePanel);
+        document.getElementById("btn-panel-restore").addEventListener("click", TogglePanel);
       }
     }
 
@@ -416,18 +402,19 @@
       l("td-val").innerHTML = e
         ? `<span class="${e.includes("V") ? "hl-val" : "hl-err"}">${e}</span>`
         : x;
-      ((l("td-stt").innerText = L.lastEvt),
-        (l("td-dat-prev").innerText = L.date));
+      ((l("td-stt").innerText = L.lastEvt), (l("td-dat-prev").innerText = L.date));
       const t = L.exc;
       t && t !== x
         ? ((l("td-exc").innerText = t),
           (document.getElementById("row-exc").style.display = "table-row"))
         : (document.getElementById("row-exc").style.display = "none");
-      ((l("td-end-full").innerText =
-        `${L.addr.log}, ${L.addr.num} ${L.addr.comp ? "- " + L.addr.comp : ""} - ${L.addr.bair}, ${L.addr.mun}/${L.addr.uf}`),
+      ((l("td-end-full").innerText = `${L.addr.log}, ${L.addr.num} ${
+        L.addr.comp ? "- " + L.addr.comp : ""
+      } - ${L.addr.bair}, ${L.addr.mun}/${L.addr.uf}`),
         (l("td-cep").innerText = L.addr.cep));
-      l("td-con").innerHTML =
-        `TEL: <b>${L.contact.tel}</b> ${L.contact.email !== x ? " | EMAIL: " + L.contact.email : ""}`;
+      l("td-con").innerHTML = `TEL: <b>${L.contact.tel}</b> ${
+        L.contact.email !== x ? " | EMAIL: " + L.contact.email : ""
+      }`;
       ((l("td-dis").innerHTML = getVisualDist(false)),
         (l("td-ord").innerText = L.op.ord),
         (l("td-lad").innerText = L.op.side));
@@ -447,16 +434,9 @@
     let r = null;
     try {
       const t = new URL(e, window.location.origin);
-      r =
-        t.searchParams.get("codigo") ||
-        t.searchParams.get("id") ||
-        t.searchParams.get("objeto");
+      r = t.searchParams.get("codigo") || t.searchParams.get("id") || t.searchParams.get("objeto");
     } catch (e) {}
-    if (
-      r &&
-      r !== L.code &&
-      (o.includes("acao=validar") || o.includes("acao=pesquisar"))
-    ) {
+    if (r && r !== L.code && (o.includes("acao=validar") || o.includes("acao=pesquisar"))) {
       const savedPm = JSON.parse(localStorage.getItem(P_MODE) || "false");
       L = {
         code: r,
@@ -482,12 +462,9 @@
         (L.exc = t.excecao || x),
         (L.lastEvt = t.ultimoEventoDescricao || x),
         t.validacao
-          ? ((L.mode =
-              "success" !== L.mode && "error" !== L.mode ? "info" : L.mode),
+          ? ((L.mode = "success" !== L.mode && "error" !== L.mode ? "info" : L.mode),
             (L.status =
-              "success" !== L.status && "error" !== L.status
-                ? "PRONTO P/ INDUZIR"
-                : L.status),
+              "success" !== L.status && "error" !== L.status ? "PRONTO P/ INDUZIR" : L.status),
             (L.date = t.previsaoEntrega?.data || y))
           : ((L.mode = "error"), (L.status = "NÃO INDUZIDO"), (L.date = y)))
       : o.includes("enderecocontroller.php")
@@ -500,25 +477,20 @@
             (L.addr.uf = t.endereco.uf),
             (L.addr.cep = t.endereco.cep)),
           t.servico &&
-            ((L.serv.ar = t.servico.ar),
-            (L.serv.mp = t.servico.mp),
-            (L.serv.dd = t.servico.dd)),
-          t.telefone &&
-            (L.contact.tel = `(${t.telefone.ddd}) ${t.telefone.numero}`),
+            ((L.serv.ar = t.servico.ar), (L.serv.mp = t.servico.mp), (L.serv.dd = t.servico.dd)),
+          t.telefone && (L.contact.tel = `(${t.telefone.ddd}) ${t.telefone.numero}`),
           (L.contact.email = t.email || x))
         : o.includes("distritamentotrechocontroller.php")
           ? Array.isArray(t) &&
             t.length > 0 &&
-            ((L.district =
-              `${t[0].rotuloDistrito} ${t[0].areaDistrito || ""}`.trim()),
+            ((L.district = `${t[0].rotuloDistrito} ${t[0].areaDistrito || ""}`.trim()),
             (L.op.ord = t[0].ordemPercorrida),
             (L.op.side = t[0].lado))
           : o.includes("acao=pesquisarloecobjeto")
             ? t.id &&
               ((L.mode = "success"),
               (L.status = "JÁ INDUZIDO"),
-              (L.initialDist =
-                `${t.numeroDistrito} ${t.distritoComplemento || ""}`.trim()),
+              (L.initialDist = `${t.numeroDistrito} ${t.distritoComplemento || ""}`.trim()),
               (L.district = L.initialDist),
               (L.domDist = L.initialDist),
               (L.op.list = t.idLancamento),
@@ -528,9 +500,7 @@
               ? Array.isArray(t) &&
                 L.op.list &&
                 t.find((e) => e.idLancamento === L.op.list)?.nomeCarteiro &&
-                (L.op.postman = t.find(
-                  (e) => e.idLancamento === L.op.list,
-                ).nomeCarteiro)
+                (L.op.postman = t.find((e) => e.idLancamento === L.op.list).nomeCarteiro)
               : o.includes("acao=salvar")
                 ? (t.idLancamento &&
                     ((L.mode = "success"),
@@ -540,8 +510,7 @@
                     (L.op.st = t.estacao),
                     (L.op.ts = t.carimbo),
                     t.dataPrevista && (L.date = t.dataPrevista)),
-                  t.distrito &&
-                    ((L.initialDist = t.distrito), (L.domDist = t.distrito)))
+                  t.distrito && ((L.initialDist = t.distrito), (L.domDist = t.distrito)))
                 : o.includes("acao=excluir") &&
                   ((L.mode = "error"),
                   (L.status = "EXCLUÍDO"),
@@ -601,7 +570,5 @@
         H.apply(this, arguments)
       );
     }));
-  "loading" === document.readyState
-    ? document.addEventListener("DOMContentLoaded", T)
-    : T();
+  "loading" === document.readyState ? document.addEventListener("DOMContentLoaded", T) : T();
 })();

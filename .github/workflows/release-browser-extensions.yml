@@ -47,7 +47,6 @@ jobs:
               temp_dir=$(mktemp -d)
               cp -r "$dir"* "$temp_dir/"
 
-              # Minify HTML files
               find "$temp_dir" -name "*.html" -type f | while read file; do
                 echo "  Minifying HTML: $(basename "$file")"
                 html-minifier-terser \
@@ -60,7 +59,6 @@ jobs:
                   -o "$file" "$file" 2>/dev/null || true
               done
 
-              # Minify JS files
               find "$temp_dir" -name "*.js" -type f | while read file; do
                 echo "  Minifying JS: $(basename "$file")"
                 terser "$file" \
@@ -69,19 +67,16 @@ jobs:
                   --output "$file" 2>/dev/null || true
               done
 
-              # Minify CSS files
               find "$temp_dir" -name "*.css" -type f | while read file; do
                 echo "  Minifying CSS: $(basename "$file")"
                 csso "$file" --output "$file" 2>/dev/null || true
               done
 
-              # Minify JSON files (remove whitespace)
               find "$temp_dir" -name "*.json" -type f | while read file; do
                 echo "  Minifying JSON: $(basename "$file")"
                 jq -c '.' "$file" > "$file.tmp" && mv "$file.tmp" "$file" 2>/dev/null || true
               done
 
-              # Create ZIP with maximum compression
               cd "$temp_dir"
               zip -9 -r "$GITHUB_WORKSPACE/release_assets/${ext}.zip" .
               cd "$GITHUB_WORKSPACE"
@@ -104,33 +99,51 @@ jobs:
           echo "=== Assets ==="
           ls -lh release_assets/
 
-      - name: Delete existing release
+      - name: Ensure release exists and sync assets
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release delete browser-extensions --cleanup-tag -y 2>/dev/null || true
+          TAG_NAME="browser-extensions"
+          RELEASE_NAME="Browser Extensions"
+          RELEASE_BODY="## Browser Extensions
 
-      - name: Create release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: browser-extensions
-          name: Browser Extensions
-          body: |
-            ## Browser Extensions
+          Minified and zipped browser extensions, synced with the repository.
 
-            Minified and zipped browser extensions, synced with the repository.
+          **Extensions:** ${{ steps.build.outputs.list }}
 
-            **Extensions:** ${{ steps.build.outputs.list }}
+          **Updated:** $(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          **Commit:** [\`${{ github.sha }}\`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})"
 
-            **Updated:** ${{ github.event.head_commit.timestamp || 'manual' }}
-            **Commit:** [`${{ github.sha }}`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})
-          files: release_assets/*.zip
-          draft: false
-          prerelease: false
-          make_latest: true
-          fail_on_unmatched_files: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          if ! gh release view "$TAG_NAME" > /dev/null 2>&1; then
+            echo "Release does not exist. Creating..."
+            gh release create "$TAG_NAME" \
+              --title "$RELEASE_NAME" \
+              --notes "$RELEASE_BODY" \
+              --target "${{ github.ref_name }}"
+          else
+            echo "Release exists. Updating notes..."
+            gh release edit "$TAG_NAME" --notes "$RELEASE_BODY"
+          fi
+
+          echo "Getting current release assets..."
+          CURRENT_ASSETS=$(gh release view "$TAG_NAME" --json assets -q '.assets[].name' 2>/dev/null || echo "")
+
+          echo "Uploading new assets (clobber mode)..."
+          for file in release_assets/*.zip; do
+            if [ -f "$file" ]; then
+              echo "Uploading: $(basename "$file")"
+              gh release upload "$TAG_NAME" "$file" --clobber
+            fi
+          done
+
+          echo "Checking for orphaned assets to remove..."
+          for asset in $CURRENT_ASSETS; do
+            LOCAL_FILE="release_assets/$asset"
+            if [ ! -f "$LOCAL_FILE" ]; then
+              echo "Removing orphaned asset: $asset"
+              gh release delete-asset "$TAG_NAME" "$asset" -y || true
+            fi
+          done
 
       - name: Summary
         run: |

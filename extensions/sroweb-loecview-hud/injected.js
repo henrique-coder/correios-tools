@@ -104,16 +104,11 @@
       totalAR += extractInt(d.qtdeAR);
     });
 
-    const deliveryDensity =
-      totalObjects > 0 ? (totalObjects / totalPoints).toFixed(2) : 0;
-    const chaosIndex =
-      totalObjects > 0 ? ((totalExpired / totalObjects) * 100).toFixed(1) : 0;
+    const deliveryDensity = totalObjects > 0 ? (totalObjects / totalPoints).toFixed(2) : 0;
+    const chaosIndex = totalObjects > 0 ? ((totalExpired / totalObjects) * 100).toFixed(1) : 0;
     const operationalPressure =
-      totalObjects > 0
-        ? (((totalToday + totalToExpire) / totalObjects) * 100).toFixed(1)
-        : 0;
-    const arFactor =
-      totalObjects > 0 ? ((totalAR / totalObjects) * 100).toFixed(1) : 0;
+      totalObjects > 0 ? (((totalToday + totalToExpire) / totalObjects) * 100).toFixed(1) : 0;
+    const arFactor = totalObjects > 0 ? ((totalAR / totalObjects) * 100).toFixed(1) : 0;
 
     return {
       raw: {
@@ -241,10 +236,7 @@
 
   XHR.send = function (postData) {
     this.addEventListener("load", function () {
-      if (
-        this._sroUrl &&
-        this._sroUrl.includes("lancamentoController.php?acao=listar")
-      ) {
+      if (this._sroUrl && this._sroUrl.includes("lancamentoController.php?acao=listar")) {
         try {
           const data = JSON.parse(this.responseText);
           processResponse(this._sroUrl, data);

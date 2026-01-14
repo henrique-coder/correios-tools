@@ -1,18 +1,28 @@
 {
   "manifest_version": 3,
-  "name": "SRO Web - LOEC HUD",
-  "version": "1.1",
-  "description": "Dashboard com estatísticas avançadas para LOEC Suspensa.",
+  "name": "SRO Web - LOEC Suspensa",
+  "version": "1.1.0",
+  "description": "Dashboard com estatísticas detalhadas da LOEC Suspensa.",
   "author": "Henrique Moreira",
+  "icons": {
+    "16": "icon16.png",
+    "32": "icon32.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  },
   "background": {
     "service_worker": "background.js"
   },
-  "action": {},
+  "action": {
+    "default_icon": {
+      "16": "icon16.png",
+      "32": "icon32.png",
+      "48": "icon48.png"
+    }
+  },
   "content_scripts": [
     {
-      "matches": [
-        "https://sroweb.correios.com.br/app/entregaexternaautomatica/loecsuspensa/*"
-      ],
+      "matches": ["https://sroweb.correios.com.br/app/entregaexternaautomatica/loecsuspensa/*"],
       "js": ["content.js"],
       "run_at": "document_start"
     }
