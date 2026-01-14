@@ -2,6 +2,10 @@ $mutexName = "Global\CorreiosToolsLauncherUI"
 $mutex = New-Object System.Threading.Mutex($false, $mutexName)
 if (-not $mutex.WaitOne(0, $false)) { Exit }
 
+Write-Host "`n  [Correios Tools] " -NoNewline -ForegroundColor Cyan
+Write-Host "Nao feche esta janela manualmente, ela sera fechada juntamente com o aplicativo!" -ForegroundColor Yellow
+Write-Host ""
+
 $windowHelperCode = @"
 using System;
 using System.Runtime.InteropServices;
