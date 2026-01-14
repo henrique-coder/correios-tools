@@ -119,10 +119,11 @@ jobs:
             gh release create "$TAG_NAME" \
               --title "$RELEASE_NAME" \
               --notes "$RELEASE_BODY" \
-              --target "${{ github.ref_name }}"
+              --target "${{ github.ref_name }}" \
+              --latest
           else
             echo "Release exists. Updating notes..."
-            gh release edit "$TAG_NAME" --notes "$RELEASE_BODY"
+            gh release edit "$TAG_NAME" --notes "$RELEASE_BODY" --latest
           fi
 
           echo "Getting current release assets..."

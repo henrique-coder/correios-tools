@@ -20,7 +20,6 @@ $script:updateCheckTimer = $null
 $baseDir = "C:\Users\Public\correios-tools"
 $dataDir = "$baseDir\data"
 $extensionsDir = "$dataDir\extensions"
-$scriptsDir = "$dataDir\scripts"
 $assetsDir = "$dataDir\assets"
 $hashesFile = "$dataDir\hashes.json"
 $selfPath = $MyInvocation.MyCommand.Path
@@ -45,19 +44,24 @@ $chromeIconPath = "$assetsDir\chrome.png"
 try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 } catch {}
 
 function Get-StoredHashes {
-    if (Test-Path $hashesFile) {
-        try {
-            return (Get-Content $hashesFile -Raw | ConvertFrom-Json)
-        } catch {
-            return @{ scripts = @{}; extensions = @{} }
+    try {
+        if (Test-Path $hashesFile) {
+            $content = Get-Content $hashesFile -Raw -ErrorAction Stop
+            if ($content -and $content.Trim().Length -gt 0) {
+                $parsed = $content | ConvertFrom-Json -ErrorAction Stop
+                if ($parsed -ne $null) { return $parsed }
+            }
         }
-    }
-    return @{ scripts = @{}; extensions = @{} }
+    } catch {}
+    return [PSCustomObject]@{ launcher = $null; extensions = [PSCustomObject]@{} }
 }
 
 function Save-StoredHashes {
     param($hashes)
-    $hashes | ConvertTo-Json -Depth 10 | Set-Content $hashesFile -Encoding UTF8
+    try {
+        $json = $hashes | ConvertTo-Json -Depth 5
+        [System.IO.File]::WriteAllText($hashesFile, $json, [System.Text.UTF8Encoding]::new($false))
+    } catch {}
 }
 
 function Get-ReleaseInfo {
@@ -71,7 +75,7 @@ function Get-ReleaseInfo {
     }
 }
 
-function Get-AssetHash {
+function Get-AssetDigest {
     param($releaseInfo, [string]$assetName)
     if ($releaseInfo -eq $null -or $releaseInfo.assets -eq $null) { return $null }
     foreach ($asset in $releaseInfo.assets) {
@@ -91,19 +95,6 @@ function Get-AssetDownloadUrl {
         }
     }
     return $null
-}
-
-function Get-LocalFileHashSha256 {
-    param([string]$filePath)
-    try {
-        if (Test-Path $filePath) {
-            $hash = (Get-FileHash -Path $filePath -Algorithm SHA256).Hash.ToLower()
-            return "sha256:$hash"
-        }
-        return $null
-    } catch {
-        return $null
-    }
 }
 
 function New-DesktopShortcut {
@@ -205,12 +196,9 @@ function New-DesktopShortcut {
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="10"/>
                     <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="10"/>
-                    <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
-                <Button Name="BtnUpdate" Grid.Column="0" Content="Reinstalar App" Height="35" FontSize="11"/>
-                <Button Name="BtnReset" Grid.Column="2" Content="Recriar Cache" Height="35" FontSize="11"/>
-                <Button Name="BtnScripts" Grid.Column="4" Content="Executar Extras" Height="35" FontSize="11"/>
+                <Button Name="BtnCheckUpdate" Grid.Column="0" Content="Verificar Atualizacoes" Height="35" FontSize="11"/>
+                <Button Name="BtnScripts" Grid.Column="2" Content="Scripts Extras" Height="35" FontSize="11"/>
             </Grid>
         </Grid>
     </Border>
@@ -222,15 +210,14 @@ $window = [Windows.Markup.XamlReader]::Load((New-Object System.Xml.XmlNodeReader
 $BtnClose = $window.FindName("BtnClose")
 $BtnEdge = $window.FindName("BtnEdge")
 $BtnChrome = $window.FindName("BtnChrome")
-$BtnUpdate = $window.FindName("BtnUpdate")
-$BtnReset = $window.FindName("BtnReset")
+$BtnCheckUpdate = $window.FindName("BtnCheckUpdate")
 $BtnScripts = $window.FindName("BtnScripts")
 $TxtStatus = $window.FindName("TxtStatus")
 $ImgEdge = $window.FindName("ImgEdge")
 $ImgChrome = $window.FindName("ImgChrome")
 $PbMain = $window.FindName("PbMain")
 
-$allButtons = @($BtnEdge, $BtnChrome, $BtnUpdate, $BtnReset, $BtnScripts)
+$allButtons = @($BtnEdge, $BtnChrome, $BtnCheckUpdate, $BtnScripts)
 
 function Set-ButtonsEnabled {
     param([bool]$enabled)
@@ -301,186 +288,150 @@ function Initialize-BrowserIcons {
     } catch {}
 }
 
-function Invoke-CheckLauncherUpdate {
-    param([bool]$showCountdown = $true)
-    Update-Status "Verificando atualizacoes..." $true
+function Invoke-CheckAndUpdateLauncher {
+    param([bool]$showCountdown = $true, [bool]$silent = $false)
+
+    if (-not $silent) { Update-Status "Verificando atualizacoes do launcher..." $true }
+
     try {
         $releaseInfo = Get-ReleaseInfo $scriptsApiUrl
         if ($releaseInfo -eq $null) {
-            Update-Status "Sem conexao. Modo offline ativado." $false
+            if (-not $silent) { Update-Status "Sem conexao. Modo offline." $false }
             return $false
         }
 
-        $remoteHash = Get-AssetHash $releaseInfo "launcher.min.ps1"
-        if ($remoteHash -eq $null) {
-            Update-Status "Erro ao obter hash remoto." $false
+        $remoteDigest = Get-AssetDigest $releaseInfo "launcher.min.ps1"
+        if ($remoteDigest -eq $null) {
+            if (-not $silent) { Update-Status "Hash remoto indisponivel." $false }
             return $false
         }
 
         $storedHashes = Get-StoredHashes
-        $localHash = $null
-        if ($storedHashes.scripts -and $storedHashes.scripts."launcher.min.ps1") {
-            $localHash = $storedHashes.scripts."launcher.min.ps1"
-        }
+        $localDigest = $storedHashes.launcher
 
-        if ($localHash -eq $null -or $remoteHash -ne $localHash) {
+        if ($localDigest -eq $null -or $remoteDigest -ne $localDigest) {
             if ($showCountdown) {
-                Update-Status "Atualizacao encontrada! Reiniciando em 5 segundos..." $false
                 for ($i = 5; $i -gt 0; $i--) {
-                    Update-Status "Atualizacao encontrada! Reiniciando em $i segundos..." $false
+                    Update-Status "Atualizacao encontrada! Reiniciando em $i..." $false
                     Start-Sleep -Seconds 1
                 }
             }
             Update-Status "Baixando atualizacao..." $true
 
-            $tempPath = "$dataDir\launcher_new.tmp"
+            $tempPath = "$dataDir\launcher_update.tmp"
             Invoke-WebRequest -Uri $selfDownloadUrl -OutFile $tempPath -UseBasicParsing
 
-            $newFileHash = Get-LocalFileHashSha256 $tempPath
-            if ($storedHashes.scripts -eq $null) { $storedHashes | Add-Member -NotePropertyName "scripts" -NotePropertyValue @{} -Force }
-            $storedHashes.scripts."launcher.min.ps1" = $newFileHash
+            $storedHashes.launcher = $remoteDigest
             Save-StoredHashes $storedHashes
 
             Copy-Item $tempPath $selfPath -Force
             Remove-Item $tempPath -Force -ErrorAction SilentlyContinue
 
-            Update-Status "Reiniciando aplicativo..." $true
-            $restartArgs = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$selfPath`""
-            Start-Process -FilePath "powershell.exe" -ArgumentList $restartArgs
-            Start-Sleep -Milliseconds 500
+            Update-Status "Reiniciando..." $true
+            Start-Process -FilePath "powershell.exe" -ArgumentList "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$selfPath`""
+            Start-Sleep -Milliseconds 300
             $window.Close()
             Exit
         }
 
+        if (-not $silent) { Update-Status "Launcher atualizado!" $false }
         return $true
     } catch {
-        Update-Status "Erro ao verificar atualizacoes." $false
+        if (-not $silent) { Update-Status "Erro ao verificar launcher." $false }
         return $false
     }
 }
 
-function Invoke-SyncExtensions {
-    param([bool]$forceAll = $false)
-    Update-Status "Sincronizando extensoes..." $true
+function Invoke-CheckAndUpdateExtensions {
+    param([bool]$silent = $false)
 
-    $releaseInfo = Get-ReleaseInfo $extensionsApiUrl
-    if ($releaseInfo -eq $null) {
-        Update-Status "Sem conexao para baixar extensoes." $false
-        return
-    }
+    if (-not $silent) { Update-Status "Verificando extensoes..." $true }
 
-    $storedHashes = Get-StoredHashes
-    if ($storedHashes.extensions -eq $null) {
-        $storedHashes | Add-Member -NotePropertyName "extensions" -NotePropertyValue @{} -Force
-    }
-
-    if (!(Test-Path $extensionsDir)) {
-        New-Item -ItemType Directory -Path $extensionsDir -Force | Out-Null
-    }
-
-    $count = 0
-    $total = $extensionNames.Count
-
-    foreach ($extName in $extensionNames) {
-        $count++
-        $zipName = "$extName.zip"
-        $remoteHash = Get-AssetHash $releaseInfo $zipName
-        $localHash = $null
-        if ($storedHashes.extensions.$zipName) {
-            $localHash = $storedHashes.extensions.$zipName
+    try {
+        $releaseInfo = Get-ReleaseInfo $extensionsApiUrl
+        if ($releaseInfo -eq $null) {
+            if (-not $silent) { Update-Status "Sem conexao para extensoes." $false }
+            return
         }
 
-        $needsDownload = $forceAll -or ($localHash -eq $null) -or ($remoteHash -ne $localHash)
+        $storedHashes = Get-StoredHashes
+        if ($storedHashes.extensions -eq $null) {
+            $storedHashes | Add-Member -NotePropertyName "extensions" -NotePropertyValue ([PSCustomObject]@{}) -Force
+        }
 
-        if ($needsDownload) {
-            Update-Status "Baixando extensao $count de $total ($extName)..." $true
-            try {
+        if (!(Test-Path $extensionsDir)) {
+            New-Item -ItemType Directory -Path $extensionsDir -Force | Out-Null
+        }
+
+        $updated = $false
+        $count = 0
+        $total = $extensionNames.Count
+
+        foreach ($extName in $extensionNames) {
+            $count++
+            $zipName = "$extName.zip"
+            $remoteDigest = Get-AssetDigest $releaseInfo $zipName
+
+            $localDigest = $null
+            if ($storedHashes.extensions.PSObject.Properties[$zipName]) {
+                $localDigest = $storedHashes.extensions.$zipName
+            }
+
+            $extFolder = "$extensionsDir\$extName"
+            $needsDownload = ($localDigest -eq $null) -or ($remoteDigest -ne $localDigest) -or (!(Test-Path "$extFolder\manifest.json"))
+
+            if ($needsDownload -and $remoteDigest) {
+                if (-not $silent) { Update-Status "Atualizando $extName ($count/$total)..." $true }
+                $updated = $true
+
                 $downloadUrl = Get-AssetDownloadUrl $releaseInfo $zipName
                 if ($downloadUrl) {
-                    $zipPath = "$dataDir\$zipName"
-                    $destFolder = "$extensionsDir\$extName"
+                    $tempZip = "$dataDir\temp_$zipName"
+                    if (Test-Path $extFolder) { Remove-Item $extFolder -Recurse -Force -ErrorAction SilentlyContinue }
+                    New-Item -ItemType Directory -Path $extFolder -Force | Out-Null
 
-                    if (Test-Path $destFolder) { Remove-Item $destFolder -Recurse -Force }
-                    New-Item -ItemType Directory -Path $destFolder -Force | Out-Null
+                    Invoke-WebRequest -Uri $downloadUrl -OutFile $tempZip -UseBasicParsing -TimeoutSec 60
+                    Expand-Archive -Path $tempZip -DestinationPath $extFolder -Force
+                    Remove-Item $tempZip -Force -ErrorAction SilentlyContinue
 
-                    Invoke-WebRequest -Uri $downloadUrl -OutFile $zipPath -UseBasicParsing -TimeoutSec 60
-
-                    $newHash = Get-LocalFileHashSha256 $zipPath
-                    $storedHashes.extensions.$zipName = $newHash
-
-                    Expand-Archive -Path $zipPath -DestinationPath $destFolder -Force
-                    Remove-Item $zipPath -Force
+                    if ($storedHashes.extensions.PSObject.Properties[$zipName]) {
+                        $storedHashes.extensions.$zipName = $remoteDigest
+                    } else {
+                        $storedHashes.extensions | Add-Member -NotePropertyName $zipName -NotePropertyValue $remoteDigest -Force
+                    }
                 }
-            } catch {
-                Update-Status "Falha ao baixar $extName." $false
-                Start-Sleep -Seconds 2
             }
         }
-    }
 
-    Save-StoredHashes $storedHashes
-}
-
-function Invoke-ForceReinstall {
-    Update-Status "Reinstalando aplicativo... Aguarde." $true
-    try {
-        if (Test-Path $hashesFile) { Remove-Item $hashesFile -Force }
-
-        $tempPath = "$dataDir\launcher_new.tmp"
-        Invoke-WebRequest -Uri $selfDownloadUrl -OutFile $tempPath -UseBasicParsing
-
-        $newHash = Get-LocalFileHashSha256 $tempPath
-        $storedHashes = @{ scripts = @{ "launcher.min.ps1" = $newHash }; extensions = @{} }
         Save-StoredHashes $storedHashes
 
-        Copy-Item $tempPath $selfPath -Force
-        Remove-Item $tempPath -Force -ErrorAction SilentlyContinue
-
-        Update-Status "Reinstalacao concluida! Reiniciando..." $true
-        $restartArgs = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$selfPath`""
-        Start-Process -FilePath "powershell.exe" -ArgumentList $restartArgs
-        Start-Sleep -Milliseconds 500
-        $window.Close()
-        Exit
+        if ($updated -and -not $silent) {
+            Update-Status "Extensoes atualizadas!" $false
+        } elseif (-not $silent) {
+            Update-Status "Extensoes ok!" $false
+        }
     } catch {
-        Update-Status "Erro ao reinstalar. Verifique sua conexao." $false
+        if (-not $silent) { Update-Status "Erro ao verificar extensoes." $false }
     }
 }
 
-function Invoke-RecreateCache {
-    Update-Status "Recriando cache... Aguarde." $true
-    try {
-        if (Test-Path $extensionsDir) { Remove-Item $extensionsDir -Recurse -Force }
-        if (Test-Path $scriptsDir) { Remove-Item $scriptsDir -Recurse -Force }
-        if (Test-Path $assetsDir) { Remove-Item $assetsDir -Recurse -Force }
-        if (Test-Path $iconPath) { Remove-Item $iconPath -Force }
-        if (Test-Path $hashesFile) { Remove-Item $hashesFile -Force }
+function Invoke-FullUpdateCheck {
+    Update-Status "Verificando atualizacoes..." $true
 
-        New-Item -ItemType Directory -Path $assetsDir -Force | Out-Null
+    $launcherOk = Invoke-CheckAndUpdateLauncher -showCountdown $true -silent $false
+    Invoke-CheckAndUpdateExtensions -silent $false
 
-        Update-Status "Baixando icone do aplicativo..." $true
-        Initialize-WindowIcon
-
-        Update-Status "Baixando icones dos navegadores..." $true
-        Initialize-BrowserIcons
-
-        Update-Status "Sincronizando extensoes..." $true
-        Invoke-SyncExtensions -forceAll $true
-
-        Update-Status "Cache recriado com sucesso!" $false
-    } catch {
-        Update-Status "Erro ao recriar cache." $false
-    }
+    Update-Status "Verificacao concluida!" $false
 }
 
 function Invoke-RunExtraScripts {
-    Update-Status "Nenhuma ferramenta extra configurada." $false
+    Update-Status "Nenhum script extra configurado." $false
 }
 
 function Get-ExtensionPaths {
     $paths = @()
     if (Test-Path $extensionsDir) {
-        $dirs = Get-ChildItem -Path $extensionsDir -Directory -Recurse
+        $dirs = Get-ChildItem -Path $extensionsDir -Directory
         foreach ($dir in $dirs) {
             if (Test-Path "$($dir.FullName)\manifest.json") { $paths += $dir.FullName }
         }
@@ -490,7 +441,7 @@ function Get-ExtensionPaths {
 
 function Wait-ProcessExit {
     param([string]$processName)
-    $timeout = 30
+    $timeout = 15
     $elapsed = 0
     while ($elapsed -lt $timeout) {
         $proc = Get-Process -Name $processName -ErrorAction SilentlyContinue
@@ -550,53 +501,29 @@ function Set-BrowserPreferences {
 }
 
 function Start-Browser {
-    param([string]$browserName, [string]$processName, [string]$extensionPaths)
+    param([string]$browserName, [string]$processName)
 
-    Update-Status "Verificando atualizacoes das extensoes..." $true
+    Invoke-CheckAndUpdateExtensions -silent $false
 
-    $releaseInfo = Get-ReleaseInfo $extensionsApiUrl
-    if ($releaseInfo -ne $null) {
-        $storedHashes = Get-StoredHashes
-        if ($storedHashes.extensions -eq $null) {
-            $storedHashes | Add-Member -NotePropertyName "extensions" -NotePropertyValue @{} -Force
-        }
-
-        $needsSync = $false
-        foreach ($extName in $extensionNames) {
-            $zipName = "$extName.zip"
-            $remoteHash = Get-AssetHash $releaseInfo $zipName
-            $localHash = $null
-            if ($storedHashes.extensions.$zipName) {
-                $localHash = $storedHashes.extensions.$zipName
-            }
-            if ($localHash -eq $null -or $remoteHash -ne $localHash) {
-                $needsSync = $true
-                break
-            }
-        }
-
-        if ($needsSync) {
-            Invoke-SyncExtensions -forceAll $false
-            $extensionPaths = Get-ExtensionPaths
-        }
-    }
+    $extensionPaths = Get-ExtensionPaths
 
     $existingProcess = Get-Process -Name $processName -ErrorAction SilentlyContinue
     if ($existingProcess) {
-        Update-Status "Fechando $browserName... Aguarde." $true
+        Update-Status "Fechando $browserName..." $true
         Stop-Process -Name $processName -Force -ErrorAction SilentlyContinue
         Wait-ProcessExit $processName
     }
 
-    Update-Status "Aplicando configuracoes do $browserName..." $true
+    Update-Status "Configurando $browserName..." $true
     Set-BrowserPreferences $browserName
 
     Update-Status "Iniciando $browserName..." $true
     $browserArgs = @("--restore-last-session", "--no-first-run", "--no-default-browser-check", $startUrl)
     if (-not [string]::IsNullOrWhiteSpace($extensionPaths)) { $browserArgs += "--load-extension=`"$extensionPaths`"" }
+
     try {
         Start-Process $processName -ArgumentList $browserArgs
-        Update-Status "$browserName iniciado com sucesso!" $false
+        Update-Status "$browserName iniciado!" $false
     } catch {
         Update-Status "Erro ao iniciar $browserName." $false
     }
@@ -607,52 +534,45 @@ function Invoke-ScheduledUpdateCheck {
     $script:isProcessing = $true
     Set-ButtonsEnabled $false
 
-    Update-Status "Verificacao automatica em andamento..." $true
+    Update-Status "Verificacao automatica..." $true
 
     try {
         $releaseInfo = Get-ReleaseInfo $scriptsApiUrl
         if ($releaseInfo -eq $null) {
-            Update-Status "Verificacao concluida. Sem conexao." $false
+            Update-Status "Pronto! Selecione o navegador." $false
             return
         }
 
-        $remoteHash = Get-AssetHash $releaseInfo "launcher.min.ps1"
+        $remoteDigest = Get-AssetDigest $releaseInfo "launcher.min.ps1"
         $storedHashes = Get-StoredHashes
-        $localHash = $null
-        if ($storedHashes.scripts -and $storedHashes.scripts."launcher.min.ps1") {
-            $localHash = $storedHashes.scripts."launcher.min.ps1"
-        }
+        $localDigest = $storedHashes.launcher
 
-        if ($localHash -eq $null -or $remoteHash -ne $localHash) {
-            Update-Status "Atualizacao encontrada! Reiniciando em 5 segundos..." $false
+        if ($localDigest -eq $null -or $remoteDigest -ne $localDigest) {
             for ($i = 5; $i -gt 0; $i--) {
-                Update-Status "Atualizacao encontrada! Reiniciando em $i segundos..." $false
+                Update-Status "Atualizacao encontrada! Reiniciando em $i..." $false
                 Start-Sleep -Seconds 1
             }
 
             Update-Status "Baixando atualizacao..." $true
-            $tempPath = "$dataDir\launcher_new.tmp"
+            $tempPath = "$dataDir\launcher_update.tmp"
             Invoke-WebRequest -Uri $selfDownloadUrl -OutFile $tempPath -UseBasicParsing
 
-            $newFileHash = Get-LocalFileHashSha256 $tempPath
-            if ($storedHashes.scripts -eq $null) { $storedHashes | Add-Member -NotePropertyName "scripts" -NotePropertyValue @{} -Force }
-            $storedHashes.scripts."launcher.min.ps1" = $newFileHash
+            $storedHashes.launcher = $remoteDigest
             Save-StoredHashes $storedHashes
 
             Copy-Item $tempPath $selfPath -Force
             Remove-Item $tempPath -Force -ErrorAction SilentlyContinue
 
-            Update-Status "Reiniciando aplicativo..." $true
-            $restartArgs = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$selfPath`""
-            Start-Process -FilePath "powershell.exe" -ArgumentList $restartArgs
-            Start-Sleep -Milliseconds 500
+            Update-Status "Reiniciando..." $true
+            Start-Process -FilePath "powershell.exe" -ArgumentList "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$selfPath`""
+            Start-Sleep -Milliseconds 300
             $window.Close()
             Exit
         } else {
-            Update-Status "Verificacao concluida. Nenhuma atualizacao." $false
+            Update-Status "Pronto! Selecione o navegador." $false
         }
     } catch {
-        Update-Status "Erro na verificacao automatica." $false
+        Update-Status "Pronto! Selecione o navegador." $false
     } finally {
         $script:isProcessing = $false
         Set-ButtonsEnabled $true
@@ -661,7 +581,7 @@ function Invoke-ScheduledUpdateCheck {
 
 function Initialize-UpdateTimer {
     $script:updateCheckTimer = New-Object System.Windows.Threading.DispatcherTimer
-    $script:updateCheckTimer.Interval = [TimeSpan]::FromHours(8)
+    $script:updateCheckTimer.Interval = [TimeSpan]::FromHours(4)
     $script:updateCheckTimer.Add_Tick({ Invoke-ScheduledUpdateCheck })
     $script:updateCheckTimer.Start()
 }
@@ -670,28 +590,18 @@ function Invoke-StartupSequence {
     Set-ButtonsEnabled $false
     $script:isProcessing = $true
 
-    Update-Status "Carregando interface..." $true
+    Update-Status "Carregando..." $true
     Initialize-WindowIcon
     Initialize-BrowserIcons
-
-    Update-Status "Criando atalho na area de trabalho..." $true
     New-DesktopShortcut
 
-    Update-Status "Verificando atualizacoes do aplicativo..." $true
-    $updateResult = Invoke-CheckLauncherUpdate -showCountdown $true
-    if ($updateResult -eq $false) {
-        $storedHashes = Get-StoredHashes
-        $hasLocalHash = $storedHashes.scripts -and $storedHashes.scripts."launcher.min.ps1"
-        if (-not $hasLocalHash) {
-            Update-Status "Primeira execucao detectada. Configurando..." $true
-        }
-    }
+    Update-Status "Verificando launcher..." $true
+    Invoke-CheckAndUpdateLauncher -showCountdown $true -silent $false
 
     $ext = Get-ExtensionPaths
     $installedCount = if ([string]::IsNullOrWhiteSpace($ext)) { 0 } else { ($ext -split ",").Count }
     if ($installedCount -lt $extensionNames.Count) {
-        Update-Status "Sincronizando extensoes..." $true
-        Invoke-SyncExtensions -forceAll $false
+        Invoke-CheckAndUpdateExtensions -silent $false
     }
 
     Initialize-UpdateTimer
@@ -703,36 +613,20 @@ function Invoke-StartupSequence {
 
 $BtnClose.Add_Click({ $window.Close() })
 
-$BtnUpdate.Add_Click({
-    Invoke-SafeAction {
-        Invoke-ForceReinstall
-    }
-})
-
-$BtnReset.Add_Click({
-    Invoke-SafeAction {
-        Invoke-RecreateCache
-    }
+$BtnCheckUpdate.Add_Click({
+    Invoke-SafeAction { Invoke-FullUpdateCheck }
 })
 
 $BtnScripts.Add_Click({
-    Invoke-SafeAction {
-        Invoke-RunExtraScripts
-    }
+    Invoke-SafeAction { Invoke-RunExtraScripts }
 })
 
 $BtnEdge.Add_Click({
-    Invoke-SafeAction {
-        $ext = Get-ExtensionPaths
-        Start-Browser "Edge" "msedge" $ext
-    }
+    Invoke-SafeAction { Start-Browser "Edge" "msedge" }
 })
 
 $BtnChrome.Add_Click({
-    Invoke-SafeAction {
-        $ext = Get-ExtensionPaths
-        Start-Browser "Chrome" "chrome" $ext
-    }
+    Invoke-SafeAction { Start-Browser "Chrome" "chrome" }
 })
 
 $window.Add_Loaded({ Invoke-StartupSequence })
