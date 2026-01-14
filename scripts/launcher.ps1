@@ -2,7 +2,7 @@ $mutexName = "Global\CorreiosToolsLauncherUI"
 $mutex = New-Object System.Threading.Mutex($false, $mutexName)
 if (-not $mutex.WaitOne(0, $false)) { Exit }
 
-$showWindowCode = @"
+$windowHelperCode = @"
 using System;
 using System.Runtime.InteropServices;
 public class WindowHelper {
@@ -10,13 +10,21 @@ public class WindowHelper {
     public static extern IntPtr GetConsoleWindow();
     [DllImport("user32.dll")]
     public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+    [DllImport("user32.dll")]
+    public static extern bool SetForegroundWindow(IntPtr hWnd);
+    [DllImport("user32.dll")]
+    public static extern IntPtr GetForegroundWindow();
+    private const int SW_HIDE = 0;
     public static void HideConsole() {
         IntPtr handle = GetConsoleWindow();
-        if (handle != IntPtr.Zero) { ShowWindow(handle, 0); }
+        if (handle != IntPtr.Zero) { ShowWindow(handle, SW_HIDE); }
+    }
+    public static void FocusWindow(IntPtr hWnd) {
+        if (hWnd != IntPtr.Zero) { SetForegroundWindow(hWnd); }
     }
 }
 "@
-Add-Type -TypeDefinition $showWindowCode -Language CSharp -ErrorAction SilentlyContinue
+try { Add-Type -TypeDefinition $windowHelperCode -Language CSharp -ErrorAction SilentlyContinue } catch {}
 try { [WindowHelper]::HideConsole() } catch {}
 
 Add-Type -AssemblyName PresentationFramework
@@ -569,7 +577,13 @@ $BtnChrome.Add_Click({
     Invoke-SafeAction { Start-Browser "Chrome" "chrome" }
 })
 
-$window.Add_Loaded({ Invoke-StartupSequence })
+$window.Add_Loaded({
+    $window.Topmost = $true
+    $window.Activate()
+    $window.Focus()
+    $window.Topmost = $false
+    Invoke-StartupSequence
+})
 $window.Add_MouseLeftButtonDown({ $window.DragMove() })
 
 $window.Add_Closed({
