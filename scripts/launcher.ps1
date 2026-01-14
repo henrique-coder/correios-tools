@@ -25,10 +25,10 @@ $assetsDir = "$dataDir\assets"
 $hashesFile = "$dataDir\hashes.json"
 $selfPath = $MyInvocation.MyCommand.Path
 
-$iconUrl = "https://raw.githubusercontent.com/henrique-coder/correios-tools/refs/heads/main/assets/icon.ico"
+$iconUrl = "https://cdn.jsdelivr.net/gh/henrique-coder/correios-tools/assets/icon.ico"
 $iconPath = "$dataDir\icon.ico"
-$edgeIconUrl = "https://raw.githubusercontent.com/henrique-coder/correios-tools/refs/heads/main/assets/logos/edge.png"
-$chromeIconUrl = "https://raw.githubusercontent.com/henrique-coder/correios-tools/refs/heads/main/assets/logos/chrome.png"
+$edgeIconUrl = "https://cdn.jsdelivr.net/gh/henrique-coder/correios-tools/assets/logos/edge.png"
+$chromeIconUrl = "https://cdn.jsdelivr.net/gh/henrique-coder/correios-tools/assets/logos/chrome.png"
 
 $scriptsApiUrl = "https://api.github.com/repos/henrique-coder/correios-tools/releases/tags/minified-scripts"
 $extensionsApiUrl = "https://api.github.com/repos/henrique-coder/correios-tools/releases/tags/browser-extensions"
