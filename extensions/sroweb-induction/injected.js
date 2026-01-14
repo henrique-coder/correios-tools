@@ -1,20 +1,37 @@
 !function(){"use strict";const e="AGUARDANDO...",t="LENDO...",o="PRONTO P/ INDUZIR",r="NÃO INDUZIDO",s="JÁ INDUZIDO",n="OBJETO INDUZIDO",i="EXCLUÍDO",a="DISTRITO",c="PREVISÃO",u="Clique duas vezes para resetar a posição",p="Processando...",m="Validado",f="Objeto inválido",g="Objeto já consta na lista.",v="Inclusão confirmada.",h="Objeto removido da lista.",y="--/--/----",x="--",O="sro_position";
-let L={code:x,status:e,mode:"loading",district:x,domDist:null,initialDist:null,date:y,exc:x,val:x,lastEvt:x,addr:{log:x,num:x,comp:x,bair:x,mun:x,uf:x,cep:x},serv:{ar:"N",mp:"N",dd:"N"},contact:{tel:x,email:x},op:{list:x,user:x,postman:x,st:x,ts:x,ord:x,side:x}},k={active:!1,cX:0,cY:0,iX:0,iY:0,xOff:0,yOff:0},igF=0;
+let L={code:x,status:e,mode:"loading",district:x,domDist:null,initialDist:null,date:y,exc:x,val:x,lastEvt:x,addr:{log:x,num:x,comp:x,bair:x,mun:x,uf:x,cep:x},serv:{ar:"N",mp:"N",dd:"N"},contact:{tel:x,email:x},op:{list:x,user:x,postman:x,st:x,ts:x,ord:x,side:x}},k={active:!1,cX:0,cY:0,iX:0,iY:0,xOff:0,yOff:0},lastErrVal=null;
 
 function _ok(){let e=0;const t=setInterval(()=>{const o=document.querySelector("#alerta.aberto .act a");o&&"OK"===o.innerText&&(o.click(),clearInterval(t)),++e>=100&&clearInterval(t)},50)}
 function _(){let e=0;const t=setInterval(()=>{const o=document.getElementById("btnImprimirEtiquetaNao");o&&(o.click(),clearInterval(t),_ok()),++e>=100&&clearInterval(t)},50)}
+
+function ActErr(t){
+    if(document.activeElement===document.getElementById("selDistrito"))return;
+    t.click(),t.focus(),lastErrVal=t.value
+}
 
 function ObsInp(){
     const t=document.getElementById("txtObjeto");
     if(!t)return setTimeout(ObsInp,1000);
     const c=t.closest(".campo")||t.parentElement;
     if(!c)return;
+    
+    t.addEventListener("keydown",e=>{
+        "Enter"===e.key&&setTimeout(()=>{
+            const o=c.querySelector(".mensagem");
+            if(o){
+                const r=o.innerText||"";
+                (r.includes("Formato de objeto postal")||r.includes("Preencha este campo"))&&ActErr(t)
+            }
+        },300)
+    });
+
     new MutationObserver(()=>{
-        if(Date.now()<igF)return;
         const o=c.querySelector(".mensagem");
         if(o){
-            const r=o.innerText;
-            (r.includes("Formato de objeto postal")||r.includes("Preencha este campo"))&&document.activeElement!==t&&(t.click(),t.focus())
+            const r=o.innerText||"";
+            if(r.includes("Formato de objeto postal")||r.includes("Preencha este campo")){
+                t.value!==lastErrVal&&ActErr(t)
+            }
         }
     }).observe(c,{childList:!0,subtree:!0,characterData:!0})
 }
@@ -22,8 +39,8 @@ function ObsInp(){
 function EvtSel(){
     const t=document.getElementById("selDistrito");
     if(!t)return setTimeout(EvtSel,1000);
-    const n=()=>{igF=Date.now()+1500};
-    t.addEventListener("mousedown",n),t.addEventListener("focus",n),t.addEventListener("change",e=>{L.domDist=e.target.value,U()})
+    const upd=e=>{L.domDist=e.target.value;U()};
+    t.addEventListener("change",upd),t.addEventListener("input",upd)
 }
 
 function fmtTime(e){if(!e||e.length<18)return x;const t=e.substring(8,10)+"/"+e.substring(10,12)+"/"+e.substring(12,16),o=e.substring(16,18)+":"+e.substring(18,20);return`${t} às ${o}`}
