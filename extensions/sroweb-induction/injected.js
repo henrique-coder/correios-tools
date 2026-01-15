@@ -60,9 +60,7 @@
             const n = t.querySelector(".mensagem");
             if (n) {
               const t = n.innerText || "";
-              (t.includes("Formato de objeto postal") ||
-                t.includes("Preencha este campo")) &&
-                p(e);
+              (t.includes("Formato de objeto postal") || t.includes("Preencha este campo")) && p(e);
             }
           }, 300);
       }),
@@ -70,8 +68,7 @@
         const n = t.querySelector(".mensagem");
         if (n) {
           const t = n.innerText || "";
-          (t.includes("Formato de objeto postal") ||
-            t.includes("Preencha este campo")) &&
+          (t.includes("Formato de objeto postal") || t.includes("Preencha este campo")) &&
             e.value !== l &&
             p(e);
         }
@@ -220,10 +217,7 @@
         const e = document.getElementById("painel");
         e && (e.style.display = "none");
         let n = document.getElementById("sro-panel-view");
-        n ||
-          ((n = document.createElement("div")),
-          (n.id = "sro-panel-view"),
-          c.appendChild(n));
+        n || ((n = document.createElement("div")), (n.id = "sro-panel-view"), c.appendChild(n));
         const s =
           "success" === d.mode
             ? "#009688"
@@ -234,9 +228,7 @@
                 : "#999";
         ((n.style.borderLeft = `10px solid ${s}`),
           (n.innerHTML = `\n                <div class="sro-panel-header">\n                    <span class="sro-status-p" style="color:${s}">${d.status}</span>\n                    <button id="btn-panel-restore" class="sro-restore-btn" title="Voltar ao modo Popup">Restaurar <span style="font-size:15px;margin-left:6px;line-height:1">⤡</span></button>\n                </div>\n                <div class="sro-panel-content">\n                    <div class="sro-distrito-p">${f(!0)}</div>\n                    <div style="font-size:16px;color:#666;margin-top:20px">${t}: <strong>${d.date || o}</strong></div>\n                </div>\n            `),
-          document
-            .getElementById("btn-panel-restore")
-            .addEventListener("click", g));
+          document.getElementById("btn-panel-restore").addEventListener("click", g));
       }
     } else if (
       ((e.className = `sro-card visible mode-${d.mode}`),
@@ -292,16 +284,9 @@
     let r = null;
     try {
       const t = new URL(e, window.location.origin);
-      r =
-        t.searchParams.get("codigo") ||
-        t.searchParams.get("id") ||
-        t.searchParams.get("objeto");
+      r = t.searchParams.get("codigo") || t.searchParams.get("id") || t.searchParams.get("objeto");
     } catch (e) {}
-    if (
-      r &&
-      r !== d.code &&
-      (n.includes("acao=validar") || n.includes("acao=pesquisar"))
-    ) {
+    if (r && r !== d.code && (n.includes("acao=validar") || n.includes("acao=pesquisar"))) {
       const e = JSON.parse(localStorage.getItem(i) || "false");
       ((d = {
         code: r,
@@ -328,12 +313,9 @@
         (d.exc = t.excecao || s),
         (d.lastEvt = t.ultimoEventoDescricao || s),
         t.validacao
-          ? ((d.mode =
-              "success" !== d.mode && "error" !== d.mode ? "info" : d.mode),
+          ? ((d.mode = "success" !== d.mode && "error" !== d.mode ? "info" : d.mode),
             (d.status =
-              "success" !== d.status && "error" !== d.status
-                ? "PRONTO P/ INDUZIR"
-                : d.status),
+              "success" !== d.status && "error" !== d.status ? "PRONTO P/ INDUZIR" : d.status),
             (d.date = t.previsaoEntrega?.data || o))
           : ((d.mode = "error"), (d.status = "NÃO INDUZIDO"), (d.date = o)))
       : n.includes("enderecocontroller.php")
@@ -346,25 +328,20 @@
             (d.addr.uf = t.endereco.uf),
             (d.addr.cep = t.endereco.cep)),
           t.servico &&
-            ((d.serv.ar = t.servico.ar),
-            (d.serv.mp = t.servico.mp),
-            (d.serv.dd = t.servico.dd)),
-          t.telefone &&
-            (d.contact.tel = `(${t.telefone.ddd}) ${t.telefone.numero}`),
+            ((d.serv.ar = t.servico.ar), (d.serv.mp = t.servico.mp), (d.serv.dd = t.servico.dd)),
+          t.telefone && (d.contact.tel = `(${t.telefone.ddd}) ${t.telefone.numero}`),
           (d.contact.email = t.email || s))
         : n.includes("distritamentotrechocontroller.php")
           ? Array.isArray(t) &&
             t.length > 0 &&
-            ((d.district =
-              `${t[0].rotuloDistrito} ${t[0].areaDistrito || ""}`.trim()),
+            ((d.district = `${t[0].rotuloDistrito} ${t[0].areaDistrito || ""}`.trim()),
             (d.op.ord = t[0].ordemPercorrida),
             (d.op.side = t[0].lado))
           : n.includes("acao=pesquisarloecobjeto")
             ? t.id &&
               ((d.mode = "success"),
               (d.status = "JÁ INDUZIDO"),
-              (d.initialDist =
-                `${t.numeroDistrito} ${t.distritoComplemento || ""}`.trim()),
+              (d.initialDist = `${t.numeroDistrito} ${t.distritoComplemento || ""}`.trim()),
               (d.district = d.initialDist),
               (d.domDist = d.initialDist),
               (d.op.list = t.idLancamento),
@@ -374,9 +351,7 @@
               ? Array.isArray(t) &&
                 d.op.list &&
                 t.find((e) => e.idLancamento === d.op.list)?.nomeCarteiro &&
-                (d.op.postman = t.find(
-                  (e) => e.idLancamento === d.op.list,
-                ).nomeCarteiro)
+                (d.op.postman = t.find((e) => e.idLancamento === d.op.list).nomeCarteiro)
               : n.includes("acao=salvar")
                 ? (t.idLancamento &&
                     ((d.mode = "success"),
@@ -390,8 +365,7 @@
                     ((d.district = d.pendingDist),
                     (d.initialDist = d.pendingDist),
                     (d.domDist = d.pendingDist)),
-                  t.distrito &&
-                    ((d.initialDist = t.distrito), (d.domDist = t.distrito)))
+                  t.distrito && ((d.initialDist = t.distrito), (d.domDist = t.distrito)))
                 : n.includes("acao=excluir") &&
                   ((d.mode = "error"),
                   (d.status = "EXCLUÍDO"),
@@ -451,7 +425,5 @@
         B.apply(this, arguments)
       );
     }),
-    "loading" === document.readyState
-      ? document.addEventListener("DOMContentLoaded", x)
-      : x());
+    "loading" === document.readyState ? document.addEventListener("DOMContentLoaded", x) : x());
 })();
