@@ -99,7 +99,7 @@ function Update-Status {
     $TxtStatus.Text = $message
     $PbMain.IsIndeterminate = $loading
     $PbMain.Opacity = if ($loading) { 1 } else { 0 }
-    [System.Windows.Threading.Dispatcher]::CurrentDispatcher.Invoke([Action]{}, [System.Windows.Threading.DispatcherPriority]::Background)
+    [System.Windows.Threading.Dispatcher]::CurrentDispatcher.Invoke([Action] {}, [System.Windows.Threading.DispatcherPriority]::Background)
 }
 
 function Initialize-WindowIcon {
@@ -115,7 +115,8 @@ function Initialize-WindowIcon {
             $iconBitmap.Freeze()
             $window.Icon = $iconBitmap
         }
-    } catch {}
+    }
+    catch {}
 }
 
 function Test-BrowsersRunning {
@@ -139,7 +140,8 @@ function New-Shortcut {
         $shortcut.Description = "Correios Tools Launcher"
         $shortcut.Save()
         return $true
-    } catch {
+    }
+    catch {
         return $false
     }
 }
@@ -157,7 +159,8 @@ function Invoke-Installation {
         if ($result -eq "Yes") {
             Update-Status "Fechando navegadores..." $true
             Close-Browsers
-        } else {
+        }
+        else {
             Update-Status "Instalacao cancelada pelo usuario." $false
             $BtnInstall.IsEnabled = $true
             return
@@ -177,7 +180,8 @@ function Invoke-Installation {
         Invoke-WebRequest -Uri $iconUrl -OutFile $iconPath -UseBasicParsing
 
         Initialize-WindowIcon
-    } catch {
+    }
+    catch {
         [System.Windows.Forms.MessageBox]::Show(
             "Falha ao baixar arquivos. Verifique a conexao.",
             "Erro Fatal",
@@ -213,16 +217,17 @@ function Open-InstallFolder {
 $BtnClose.Add_Click({ $window.Close() })
 
 $BtnInstall.Add_Click({
-    if ($BtnInstall.Tag -eq "complete") {
-        Open-InstallFolder
-    } else {
-        Invoke-Installation
-    }
-})
+        if ($BtnInstall.Tag -eq "complete") {
+            Open-InstallFolder
+        }
+        else {
+            Invoke-Installation
+        }
+    })
 
 $window.Add_Loaded({
-    Update-Status "Clique em Instalar para iniciar." $false
-})
+        Update-Status "Clique em Instalar para iniciar." $false
+    })
 
 $window.Add_MouseLeftButtonDown({ $window.DragMove() })
 

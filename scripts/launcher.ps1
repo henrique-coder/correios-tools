@@ -1,6 +1,6 @@
 $mutexName = "Global\CorreiosToolsLauncherUI"
 $mutex = New-Object System.Threading.Mutex($false, $mutexName)
-if (-not $mutex.WaitOne(0, $false)) { Exit }
+if (-not $mutex.WaitOne(0, $false)) { exit }
 
 Write-Host "`n  [Correios Tools] " -NoNewline -ForegroundColor Cyan
 Write-Host "Nao feche esta janela manualmente, ela sera fechada juntamente com o aplicativo!" -ForegroundColor Yellow
@@ -71,7 +71,8 @@ function Get-StoredHash {
             $content = Get-Content $hashFile -Raw -ErrorAction SilentlyContinue
             if ($content) { return $content.Trim() }
         }
-    } catch {}
+    }
+    catch {}
     return ""
 }
 
@@ -85,7 +86,8 @@ function Get-ReleaseInfo {
     try {
         $headers = @{ "User-Agent" = "PowerShell"; "Accept" = "application/vnd.github+json" }
         return Invoke-RestMethod -Uri $apiUrl -Headers $headers -Method Get -TimeoutSec 30
-    } catch { return $null }
+    }
+    catch { return $null }
 }
 
 function Get-AssetDigest {
@@ -96,7 +98,8 @@ function Get-AssetDigest {
                 if ($asset.name -eq $assetName -and $asset.digest) { return $asset.digest }
             }
         }
-    } catch {}
+    }
+    catch {}
     return ""
 }
 
@@ -108,7 +111,8 @@ function Get-AssetDownloadUrl {
                 if ($asset.name -eq $assetName) { return $asset.browser_download_url }
             }
         }
-    } catch {}
+    }
+    catch {}
     return ""
 }
 
@@ -124,7 +128,8 @@ function New-DesktopShortcut {
         $shortcut.IconLocation = $iconPath
         $shortcut.Description = "Correios Tools Launcher"
         $shortcut.Save()
-    } catch {}
+    }
+    catch {}
 }
 
 [xml]$xaml = @"
@@ -244,7 +249,7 @@ function Update-Status {
     $TxtStatus.Text = $message
     $PbMain.IsIndeterminate = $loading
     $PbMain.Opacity = if ($loading) { 1 } else { 0 }
-    [System.Windows.Threading.Dispatcher]::CurrentDispatcher.Invoke([Action]{}, [System.Windows.Threading.DispatcherPriority]::Background)
+    [System.Windows.Threading.Dispatcher]::CurrentDispatcher.Invoke([Action] {}, [System.Windows.Threading.DispatcherPriority]::Background)
 }
 
 function Invoke-SafeAction {
@@ -275,7 +280,8 @@ function Initialize-WindowIcon {
             $iconBitmap.Freeze()
             $window.Icon = $iconBitmap
         }
-    } catch {}
+    }
+    catch {}
 }
 
 function Initialize-BrowserIcons {
@@ -302,7 +308,8 @@ function Initialize-BrowserIcons {
             $chromeBitmap.Freeze()
             $ImgChrome.Source = $chromeBitmap
         }
-    } catch {}
+    }
+    catch {}
 }
 
 function Invoke-TriggerRestart {
@@ -352,7 +359,8 @@ function Invoke-CheckLauncherUpdate {
 
         Update-Status "Reiniciando..." $true
         Invoke-TriggerRestart
-    } catch {
+    }
+    catch {
         Update-Status "Pronto! Selecione o navegador." $false
     }
 }
@@ -394,7 +402,8 @@ function Invoke-DownloadExtensions {
         }
 
         return $true
-    } catch {
+    }
+    catch {
         Update-Status "Erro ao baixar extensoes." $false
         return $false
     }
@@ -424,7 +433,7 @@ function Wait-ProcessExit {
         if ($proc -eq $null) { return $true }
         Start-Sleep -Milliseconds 200
         $elapsed += 0.2
-        [System.Windows.Threading.Dispatcher]::CurrentDispatcher.Invoke([Action]{}, [System.Windows.Threading.DispatcherPriority]::Background)
+        [System.Windows.Threading.Dispatcher]::CurrentDispatcher.Invoke([Action] {}, [System.Windows.Threading.DispatcherPriority]::Background)
     }
     return $false
 }
@@ -444,7 +453,8 @@ function Set-PreferencesFile {
         if ($prefs.extensions.ui.developer_mode -ne $true) { $prefs.extensions.ui.developer_mode = $true; $modified = $true }
 
         if ($modified) { $prefs | ConvertTo-Json -Depth 100 -Compress | Set-Content $prefPath -Encoding UTF8 }
-    } catch {}
+    }
+    catch {}
 }
 
 function Set-BrowserPreferences {
@@ -496,7 +506,8 @@ function Start-Browser {
     try {
         Start-Process $processName -ArgumentList $browserArgs
         Update-Status "$browserName iniciado!" $false
-    } catch {
+    }
+    catch {
         Update-Status "Erro ao iniciar $browserName." $false
     }
 }
@@ -532,7 +543,8 @@ function Invoke-AutoUpdateCheck {
                 return
             }
         }
-    } catch {}
+    }
+    catch {}
 
     $script:isProcessing = $false
     Set-ButtonsEnabled $true
@@ -566,34 +578,34 @@ function Invoke-StartupSequence {
 $BtnClose.Add_Click({ $window.Close() })
 
 $BtnUpdate.Add_Click({
-    Invoke-SafeAction { Invoke-CheckLauncherUpdate -showCountdown $true }
-})
+        Invoke-SafeAction { Invoke-CheckLauncherUpdate -showCountdown $true }
+    })
 
 $BtnScripts.Add_Click({
-    Invoke-SafeAction { Invoke-RunExtraScripts }
-})
+        Invoke-SafeAction { Invoke-RunExtraScripts }
+    })
 
 $BtnEdge.Add_Click({
-    Invoke-SafeAction { Start-Browser "Edge" "msedge" }
-})
+        Invoke-SafeAction { Start-Browser "Edge" "msedge" }
+    })
 
 $BtnChrome.Add_Click({
-    Invoke-SafeAction { Start-Browser "Chrome" "chrome" }
-})
+        Invoke-SafeAction { Start-Browser "Chrome" "chrome" }
+    })
 
 $window.Add_Loaded({
-    $window.Topmost = $true
-    $window.Activate()
-    $window.Focus()
-    $window.Topmost = $false
-    Invoke-StartupSequence
-})
+        $window.Topmost = $true
+        $window.Activate()
+        $window.Focus()
+        $window.Topmost = $false
+        Invoke-StartupSequence
+    })
 $window.Add_MouseLeftButtonDown({ $window.DragMove() })
 
 $window.Add_Closed({
-    if ($script:needsRestart) {
-        Start-Process -FilePath "powershell.exe" -ArgumentList "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$selfPath`"" -WindowStyle Hidden
-    }
-})
+        if ($script:needsRestart) {
+            Start-Process -FilePath "powershell.exe" -ArgumentList "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$selfPath`"" -WindowStyle Hidden
+        }
+    })
 
 [void]$window.ShowDialog()
