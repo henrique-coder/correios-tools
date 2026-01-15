@@ -604,7 +604,14 @@ $window.Add_MouseLeftButtonDown({ $window.DragMove() })
 
 $window.Add_Closed({
         if ($script:needsRestart) {
-            Start-Process -FilePath "powershell.exe" -ArgumentList "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$selfPath`"" -WindowStyle Hidden
+            Start-Sleep -Milliseconds 1000
+            $shortcutPath = "$([Environment]::GetFolderPath('Desktop'))\Correios Tools.lnk"
+            if (Test-Path $shortcutPath) {
+                Start-Process -FilePath $shortcutPath
+            }
+            else {
+                Start-Process -FilePath "powershell.exe" -ArgumentList "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$selfPath`"" -WindowStyle Hidden
+            }
         }
     })
 
