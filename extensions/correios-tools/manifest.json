@@ -1,0 +1,46 @@
+{
+  "manifest_version": 3,
+  "name": "Correios Tools",
+  "version": "1.0.0",
+  "description": "Conjunto de ferramentas internas para otimizar tarefas operacionais nos Correios",
+  "author": "Henrique Moreira",
+  "homepage_url": "https://github.com/henrique-coder/correios-tools",
+  "icons": {
+    "16": "icons/16x16.png",
+    "32": "icons/32x32.png",
+    "48": "icons/48x48.png",
+    "128": "icons/128x128.png"
+  },
+  "permissions": ["storage", "alarms"],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_icon": {
+      "16": "icons/16x16.png",
+      "32": "icons/32x32.png",
+      "48": "icons/48x48.png"
+    },
+    "default_title": "Correios Tools"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://sroweb.correios.com.br/app/entregaexternaautomatica/lancamentoautomatico/*",
+        "https://sroweb.correios.com.br/app/entregaexternaautomatica/loecsuspensa/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_start",
+      "all_frames": false
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["injected.js"],
+      "matches": ["https://sroweb.correios.com.br/*"]
+    }
+  ],
+  "host_permissions": ["https://sroweb.correios.com.br/*"],
+  "minimum_chrome_version": "102"
+}

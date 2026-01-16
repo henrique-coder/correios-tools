@@ -3,7 +3,7 @@ $mutex = New-Object System.Threading.Mutex($false, $mutexName)
 if (-not $mutex.WaitOne(0, $false)) { exit }
 
 Write-Host "`n  [Correios Tools] " -NoNewline -ForegroundColor Cyan
-Write-Host "Nao feche esta janela manualmente, ela sera fechada juntamente com o aplicativo!" -ForegroundColor Yellow
+Write-Host "Nao feche esta janela manualmente, ela sera fechada automaticamente ou junto com o aplicativo!" -ForegroundColor Yellow
 Write-Host ""
 
 $windowHelperCode = @"
@@ -57,7 +57,9 @@ $scriptsApiUrl = "https://api.github.com/repos/henrique-coder/correios-tools/rel
 $extensionsApiUrl = "https://api.github.com/repos/henrique-coder/correios-tools/releases/tags/browser-extensions"
 $launcherDownloadUrl = "https://github.com/henrique-coder/correios-tools/releases/download/minified-scripts/launcher.min.ps1"
 
-$extensionNames = @("sroweb-induction", "sroweb-loecview-hud")
+$extensionNames = @("correios-tools")
+
+$updateIntervalHours = 4
 $startUrl = "https://sroweb.correios.com.br/app/index.php"
 
 if (!(Test-Path $dataDir)) { New-Item -ItemType Directory -Path $dataDir -Force | Out-Null }
@@ -552,7 +554,7 @@ function Invoke-AutoUpdateCheck {
 
 function Initialize-UpdateTimer {
     $script:updateTimer = New-Object System.Windows.Threading.DispatcherTimer
-    $script:updateTimer.Interval = [TimeSpan]::FromHours(4)
+    $script:updateTimer.Interval = [TimeSpan]::FromHours($updateIntervalHours)
     $script:updateTimer.Add_Tick({ Invoke-AutoUpdateCheck })
     $script:updateTimer.Start()
 }
