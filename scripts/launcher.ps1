@@ -37,7 +37,12 @@ Add-Type -AssemblyName System.Drawing
 
 $script:isProcessing = $false
 $script:updateTimer = $null
+$script:countdownTimer = $null
 $script:needsRestart = $false
+$script:appVersion = "1.0.0"
+$script:lastUpdateCheck = $null
+$script:lastUpdated = $null
+$script:nextCheckTime = $null
 
 $baseDir = "C:\Users\Public\correios-tools"
 $dataDir = "$baseDir\data"
@@ -171,59 +176,90 @@ function New-DesktopShortcut {
             </Setter>
         </Style>
     </Window.Resources>
-    <Border BorderBrush="#333337" BorderThickness="1" CornerRadius="0">
-        <Grid Margin="15">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="*"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-            </Grid.RowDefinitions>
-            <Grid Grid.Row="0">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <TextBlock Text="CORREIOS TOOLS" Foreground="White" FontSize="18" FontWeight="Bold" VerticalAlignment="Center"/>
-                <Button Name="BtnClose" Content="X" Grid.Column="1" Background="Transparent" Foreground="#FF5555" FontWeight="Bold" Width="30"/>
-            </Grid>
-            <TextBlock Name="TxtStatus" Grid.Row="1" Text="Iniciando..." Foreground="#AAAAAA" Margin="0,20,0,10" HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center"/>
-            <StackPanel Grid.Row="2" VerticalAlignment="Center" HorizontalAlignment="Center">
-                <Grid>
+    <Grid>
+        <Border BorderBrush="#333337" BorderThickness="1" CornerRadius="0">
+            <Grid Margin="15">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <Grid Grid.Row="0">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="30"/>
+                        <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <Button Name="BtnEdge" Width="130" Height="130" Background="Transparent">
-                        <StackPanel>
-                            <Image Name="ImgEdge" Width="90" Height="90" RenderOptions.BitmapScalingMode="HighQuality"/>
-                            <TextBlock Text="Edge" Foreground="White" HorizontalAlignment="Center" Margin="0,10,0,0"/>
-                        </StackPanel>
-                    </Button>
-                    <Button Name="BtnChrome" Grid.Column="2" Width="130" Height="130" Background="Transparent">
-                        <StackPanel>
-                            <Image Name="ImgChrome" Width="90" Height="90" RenderOptions.BitmapScalingMode="HighQuality"/>
-                            <TextBlock Text="Chrome" Foreground="White" HorizontalAlignment="Center" Margin="0,10,0,0"/>
-                        </StackPanel>
-                    </Button>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="CORREIOS TOOLS" Foreground="White" FontSize="18" FontWeight="Bold"/>
+                        <TextBlock Name="TxtVersion" Text="" Foreground="#666666" FontSize="10" VerticalAlignment="Bottom" Margin="8,0,0,2"/>
+                    </StackPanel>
+                    <Button Name="BtnClose" Content="X" Grid.Column="1" Background="Transparent" Foreground="#FF5555" FontWeight="Bold" Width="30"/>
                 </Grid>
-            </StackPanel>
-            <StackPanel Grid.Row="3" Margin="0,15">
-                <ProgressBar Name="PbMain" Height="3" Background="#2D2D30" Foreground="#007ACC" IsIndeterminate="False" Opacity="0"/>
-            </StackPanel>
-            <Grid Grid.Row="4" Margin="0,5,0,0">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="10"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-                <Button Name="BtnUpdate" Grid.Column="0" Content="Verificar Atualizacoes" Height="35" FontSize="11"/>
-                <Button Name="BtnScripts" Grid.Column="2" Content="Scripts Extras" Height="35" FontSize="11"/>
+                <TextBlock Name="TxtStatus" Grid.Row="1" Text="Iniciando..." Foreground="#AAAAAA" Margin="0,20,0,10" HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center"/>
+                <StackPanel Grid.Row="2" VerticalAlignment="Center" HorizontalAlignment="Center">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="30"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Button Name="BtnEdge" Width="130" Height="130" Background="Transparent">
+                            <StackPanel>
+                                <Image Name="ImgEdge" Width="90" Height="90" RenderOptions.BitmapScalingMode="HighQuality"/>
+                                <TextBlock Text="Edge" Foreground="White" HorizontalAlignment="Center" Margin="0,10,0,0"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Name="BtnChrome" Grid.Column="2" Width="130" Height="130" Background="Transparent">
+                            <StackPanel>
+                                <Image Name="ImgChrome" Width="90" Height="90" RenderOptions.BitmapScalingMode="HighQuality"/>
+                                <TextBlock Text="Chrome" Foreground="White" HorizontalAlignment="Center" Margin="0,10,0,0"/>
+                            </StackPanel>
+                        </Button>
+                    </Grid>
+                </StackPanel>
+                <StackPanel Grid.Row="3" Margin="0,15">
+                    <ProgressBar Name="PbMain" Height="3" Background="#2D2D30" Foreground="#007ACC" IsIndeterminate="False" Opacity="0"/>
+                </StackPanel>
+                <Grid Grid.Row="4" Margin="0,5,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="10"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Button Name="BtnUpdate" Grid.Column="0" Content="Verificar Atualizacoes" Height="35" FontSize="11"/>
+                    <Button Name="BtnScripts" Grid.Column="2" Content="Scripts Extras" Height="35" FontSize="11"/>
+                </Grid>
+                <Border Grid.Row="5" Background="#252526" CornerRadius="3" Margin="0,15,0,0" Padding="10">
+                    <StackPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="Ultima verificacao:" Foreground="#888888" FontSize="9"/>
+                                <TextBlock Name="TxtLastCheck" Text="--" Foreground="#AAAAAA" FontSize="10" FontWeight="Bold"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" HorizontalAlignment="Right">
+                                <TextBlock Text="Ultima atualizacao:" Foreground="#888888" FontSize="9" HorizontalAlignment="Right"/>
+                                <TextBlock Name="TxtLastUpdate" Text="--" Foreground="#AAAAAA" FontSize="10" FontWeight="Bold" HorizontalAlignment="Right"/>
+                            </StackPanel>
+                        </Grid>
+                        <TextBlock Name="TxtCountdown" Text="Proxima verificacao em: --" Foreground="#007ACC" FontSize="10" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,8,0,0"/>
+                    </StackPanel>
+                </Border>
             </Grid>
-        </Grid>
-    </Border>
+        </Border>
+        <Border Name="LoadingOverlay" Background="#EE1E1E1E" Visibility="Collapsed">
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                <TextBlock Name="TxtLoading" Text="Carregando..." Foreground="#007ACC" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center"/>
+                <ProgressBar IsIndeterminate="True" Width="200" Height="4" Margin="0,15,0,0" Background="#2D2D30" Foreground="#007ACC"/>
+            </StackPanel>
+        </Border>
+    </Grid>
 </Window>
 "@
 
@@ -235,6 +271,12 @@ $BtnChrome = $window.FindName("BtnChrome")
 $BtnUpdate = $window.FindName("BtnUpdate")
 $BtnScripts = $window.FindName("BtnScripts")
 $TxtStatus = $window.FindName("TxtStatus")
+$TxtVersion = $window.FindName("TxtVersion")
+$TxtLastCheck = $window.FindName("TxtLastCheck")
+$TxtLastUpdate = $window.FindName("TxtLastUpdate")
+$TxtCountdown = $window.FindName("TxtCountdown")
+$TxtLoading = $window.FindName("TxtLoading")
+$LoadingOverlay = $window.FindName("LoadingOverlay")
 $ImgEdge = $window.FindName("ImgEdge")
 $ImgChrome = $window.FindName("ImgChrome")
 $PbMain = $window.FindName("PbMain")
@@ -252,6 +294,60 @@ function Update-Status {
     $PbMain.IsIndeterminate = $loading
     $PbMain.Opacity = if ($loading) { 1 } else { 0 }
     [System.Windows.Threading.Dispatcher]::CurrentDispatcher.Invoke([Action] {}, [System.Windows.Threading.DispatcherPriority]::Background)
+}
+
+function Show-LoadingOverlay {
+    param([string]$message = "Carregando...")
+    $TxtLoading.Text = $message
+    $LoadingOverlay.Visibility = [System.Windows.Visibility]::Visible
+    [System.Windows.Threading.Dispatcher]::CurrentDispatcher.Invoke([Action] {}, [System.Windows.Threading.DispatcherPriority]::Background)
+}
+
+function Hide-LoadingOverlay {
+    $LoadingOverlay.Visibility = [System.Windows.Visibility]::Collapsed
+    [System.Windows.Threading.Dispatcher]::CurrentDispatcher.Invoke([Action] {}, [System.Windows.Threading.DispatcherPriority]::Background)
+}
+
+function Format-DateTime {
+    param([datetime]$date)
+    return $date.ToString("dd/MM/yyyy HH:mm")
+}
+
+function Update-InfoPanel {
+    $TxtVersion.Text = "v$($script:appVersion)"
+    if ($script:lastUpdateCheck) {
+        $TxtLastCheck.Text = Format-DateTime $script:lastUpdateCheck
+    }
+    if ($script:lastUpdated) {
+        $TxtLastUpdate.Text = Format-DateTime $script:lastUpdated
+    }
+    Update-Countdown
+}
+
+function Update-Countdown {
+    if ($script:nextCheckTime) {
+        $remaining = $script:nextCheckTime - (Get-Date)
+        if ($remaining.TotalSeconds -gt 0) {
+            $hours = [math]::Floor($remaining.TotalHours)
+            $mins = $remaining.Minutes
+            $TxtCountdown.Text = "Proxima verificacao em: ${hours}h ${mins}m"
+        }
+        else {
+            $TxtCountdown.Text = "Verificando em breve..."
+        }
+    }
+    else {
+        $TxtCountdown.Text = "Proxima verificacao em: --"
+    }
+}
+
+function Reset-UpdateTimer {
+    $script:nextCheckTime = (Get-Date).AddHours($updateIntervalHours)
+    if ($script:updateTimer) {
+        $script:updateTimer.Stop()
+        $script:updateTimer.Start()
+    }
+    Update-Countdown
 }
 
 function Invoke-SafeAction {
@@ -553,25 +649,37 @@ function Invoke-AutoUpdateCheck {
 }
 
 function Initialize-UpdateTimer {
+    $script:nextCheckTime = (Get-Date).AddHours($updateIntervalHours)
     $script:updateTimer = New-Object System.Windows.Threading.DispatcherTimer
     $script:updateTimer.Interval = [TimeSpan]::FromHours($updateIntervalHours)
     $script:updateTimer.Add_Tick({ Invoke-AutoUpdateCheck })
     $script:updateTimer.Start()
+
+    $script:countdownTimer = New-Object System.Windows.Threading.DispatcherTimer
+    $script:countdownTimer.Interval = [TimeSpan]::FromMinutes(1)
+    $script:countdownTimer.Add_Tick({ Update-Countdown })
+    $script:countdownTimer.Start()
 }
 
 function Invoke-StartupSequence {
     Set-ButtonsEnabled $false
     $script:isProcessing = $true
+    Show-LoadingOverlay "Iniciando..."
 
-    Update-Status "Carregando..." $true
     Initialize-WindowIcon
     Initialize-BrowserIcons
     New-DesktopShortcut
 
+    Hide-LoadingOverlay
+    Show-LoadingOverlay "Verificando atualizacoes..."
+
     Invoke-CheckLauncherUpdate -showCountdown $true
 
+    $script:lastUpdateCheck = Get-Date
     Initialize-UpdateTimer
+    Update-InfoPanel
 
+    Hide-LoadingOverlay
     Update-Status "Pronto! Selecione o navegador." $false
     $script:isProcessing = $false
     Set-ButtonsEnabled $true
@@ -580,7 +688,14 @@ function Invoke-StartupSequence {
 $BtnClose.Add_Click({ $window.Close() })
 
 $BtnUpdate.Add_Click({
-        Invoke-SafeAction { Invoke-CheckLauncherUpdate -showCountdown $true }
+        Invoke-SafeAction {
+            Show-LoadingOverlay "Verificando atualizacoes..."
+            Invoke-CheckLauncherUpdate -showCountdown $true
+            $script:lastUpdateCheck = Get-Date
+            Reset-UpdateTimer
+            Update-InfoPanel
+            Hide-LoadingOverlay
+        }
     })
 
 $BtnScripts.Add_Click({
