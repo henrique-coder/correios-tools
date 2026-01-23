@@ -39,7 +39,7 @@ $script:isProcessing = $false
 $script:updateTimer = $null
 $script:countdownTimer = $null
 $script:needsRestart = $false
-$script:appVersion = "1.0.2"
+$script:appVersion = "1.0.3"
 $script:lastUpdateCheck = $null
 $script:nextCheckTime = $null
 
@@ -126,9 +126,7 @@ function Create-Shortcuts {
     try {
         $desktopPath = [Environment]::GetFolderPath("Desktop")
         $shortcutPath = "$desktopPath\Correios Tools.lnk"
-        
         $shell = New-Object -ComObject WScript.Shell
-        
         if (!(Test-Path $shortcutPath)) {
             $shortcut = $shell.CreateShortcut($shortcutPath)
             $shortcut.TargetPath = "powershell.exe"
@@ -137,22 +135,6 @@ function Create-Shortcuts {
             $shortcut.Description = "Correios Tools Launcher"
             $shortcut.Save()
         }
-
-        try {
-            $shellApp = New-Object -ComObject Shell.Application
-            $desktopFolder = $shellApp.NameSpace($desktopPath)
-            $desktopItem = $desktopFolder.ParseName("Correios Tools.lnk")
-            
-            if ($desktopItem) {
-                $verbs = $desktopItem.Verbs()
-                foreach ($verb in $verbs) {
-                    if ($verb.Name -like "*bar*") {
-                        $verb.DoIt()
-                        break
-                    }
-                }
-            }
-        } catch {}
     }
     catch {}
 }
@@ -160,7 +142,7 @@ function Create-Shortcuts {
 [xml]$xaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Correios Tools Launcher" Height="500" Width="420"
+        Title="Correios Tools Launcher" Height="530" Width="420"
         WindowStartupLocation="CenterScreen" ResizeMode="CanMinimize"
         Background="#1E1E1E" WindowStyle="None" AllowsTransparency="True">
     <Window.Resources>
@@ -201,6 +183,7 @@ function Create-Shortcuts {
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
@@ -253,6 +236,18 @@ function Create-Shortcuts {
                 <Border Grid.Row="5" Background="#252526" CornerRadius="3" Margin="0,15,0,0" Padding="10">
                     <TextBlock Name="TxtCountdown" Text="Proxima verificacao em: --" Foreground="#007ACC" FontSize="10" FontWeight="Bold" HorizontalAlignment="Center"/>
                 </Border>
+                <TextBlock Name="LinkRepo" Grid.Row="6" Text="GitHub: henrique-coder/correios-tools" Foreground="#555555" FontSize="10" HorizontalAlignment="Center" Margin="0,15,0,0" Cursor="Hand">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Style.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Foreground" Value="#007ACC"/>
+                                    <Setter Property="TextDecorations" Value="Underline"/>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
             </Grid>
         </Border>
         <Border Name="LoadingOverlay" Background="#EE1E1E1E" Visibility="Collapsed">
@@ -280,6 +275,7 @@ $LoadingOverlay = $window.FindName("LoadingOverlay")
 $ImgEdge = $window.FindName("ImgEdge")
 $ImgChrome = $window.FindName("ImgChrome")
 $PbMain = $window.FindName("PbMain")
+$LinkRepo = $window.FindName("LinkRepo")
 
 $allButtons = @($BtnEdge, $BtnChrome, $BtnUpdate, $BtnScripts)
 
@@ -702,6 +698,10 @@ $BtnEdge.Add_Click({
 $BtnChrome.Add_Click({
         Invoke-SafeAction { Start-Browser "Chrome" "chrome" }
     })
+
+$LinkRepo.Add_MouseLeftButtonDown({
+    Start-Process "https://github.com/henrique-coder/correios-tools"
+})
 
 $window.Add_Loaded({
         $window.Topmost = $true
