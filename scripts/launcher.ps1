@@ -3,7 +3,7 @@ $mutex = New-Object System.Threading.Mutex($false, $mutexName)
 if (-not $mutex.WaitOne(0, $false)) { exit }
 
 Write-Host "`n  [Correios Tools] " -NoNewline -ForegroundColor Cyan
-Write-Host "Nao feche esta janela manualmente, ela sera fechada automaticamente ou junto com o aplicativo!" -ForegroundColor Yellow
+Write-Host "Nao feche esta janela, ela sera fechada automaticamente ou junto com o aplicativo!" -ForegroundColor Yellow
 Write-Host ""
 
 $windowHelperCode = @"
@@ -39,9 +39,8 @@ $script:isProcessing = $false
 $script:updateTimer = $null
 $script:countdownTimer = $null
 $script:needsRestart = $false
-$script:appVersion = "1.0.1"
+$script:appVersion = "1.0.2"
 $script:lastUpdateCheck = $null
-$script:lastUpdated = $null
 $script:nextCheckTime = $null
 
 $baseDir = "C:\Users\Public\correios-tools"
@@ -123,18 +122,37 @@ function Get-AssetDownloadUrl {
     return ""
 }
 
-function New-DesktopShortcut {
+function Create-Shortcuts {
     try {
         $desktopPath = [Environment]::GetFolderPath("Desktop")
         $shortcutPath = "$desktopPath\Correios Tools.lnk"
-        if (Test-Path $shortcutPath) { return }
+        
         $shell = New-Object -ComObject WScript.Shell
-        $shortcut = $shell.CreateShortcut($shortcutPath)
-        $shortcut.TargetPath = "powershell.exe"
-        $shortcut.Arguments = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$selfPath`""
-        $shortcut.IconLocation = $iconPath
-        $shortcut.Description = "Correios Tools Launcher"
-        $shortcut.Save()
+        
+        if (!(Test-Path $shortcutPath)) {
+            $shortcut = $shell.CreateShortcut($shortcutPath)
+            $shortcut.TargetPath = "powershell.exe"
+            $shortcut.Arguments = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$selfPath`""
+            $shortcut.IconLocation = $iconPath
+            $shortcut.Description = "Correios Tools Launcher"
+            $shortcut.Save()
+        }
+
+        try {
+            $shellApp = New-Object -ComObject Shell.Application
+            $desktopFolder = $shellApp.NameSpace($desktopPath)
+            $desktopItem = $desktopFolder.ParseName("Correios Tools.lnk")
+            
+            if ($desktopItem) {
+                $verbs = $desktopItem.Verbs()
+                foreach ($verb in $verbs) {
+                    if ($verb.Name -like "*bar*") {
+                        $verb.DoIt()
+                        break
+                    }
+                }
+            }
+        } catch {}
     }
     catch {}
 }
@@ -209,13 +227,13 @@ function New-DesktopShortcut {
                         <Button Name="BtnEdge" Width="130" Height="130" Background="Transparent">
                             <StackPanel>
                                 <Image Name="ImgEdge" Width="90" Height="90" RenderOptions.BitmapScalingMode="HighQuality"/>
-                                <TextBlock Text="Edge" Foreground="White" HorizontalAlignment="Center" Margin="0,10,0,0"/>
+                                <TextBlock Text="Microsoft Edge" Foreground="White" HorizontalAlignment="Center" Margin="0,10,0,0"/>
                             </StackPanel>
                         </Button>
                         <Button Name="BtnChrome" Grid.Column="2" Width="130" Height="130" Background="Transparent">
                             <StackPanel>
                                 <Image Name="ImgChrome" Width="90" Height="90" RenderOptions.BitmapScalingMode="HighQuality"/>
-                                <TextBlock Text="Chrome" Foreground="White" HorizontalAlignment="Center" Margin="0,10,0,0"/>
+                                <TextBlock Text="Google Chrome" Foreground="White" HorizontalAlignment="Center" Margin="0,10,0,0"/>
                             </StackPanel>
                         </Button>
                     </Grid>
@@ -230,26 +248,10 @@ function New-DesktopShortcut {
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
                     <Button Name="BtnUpdate" Grid.Column="0" Content="Verificar Atualizacoes" Height="35" FontSize="11"/>
-                    <Button Name="BtnScripts" Grid.Column="2" Content="Scripts Extras" Height="35" FontSize="11"/>
+                    <Button Name="BtnScripts" Grid.Column="2" Content="Executar Scripts Extras" Height="35" FontSize="11"/>
                 </Grid>
                 <Border Grid.Row="5" Background="#252526" CornerRadius="3" Margin="0,15,0,0" Padding="10">
-                    <StackPanel>
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            <StackPanel Grid.Column="0">
-                                <TextBlock Text="Ultima verificacao:" Foreground="#888888" FontSize="9"/>
-                                <TextBlock Name="TxtLastCheck" Text="--" Foreground="#AAAAAA" FontSize="10" FontWeight="Bold"/>
-                            </StackPanel>
-                            <StackPanel Grid.Column="1" HorizontalAlignment="Right">
-                                <TextBlock Text="Ultima atualizacao:" Foreground="#888888" FontSize="9" HorizontalAlignment="Right"/>
-                                <TextBlock Name="TxtLastUpdate" Text="--" Foreground="#AAAAAA" FontSize="10" FontWeight="Bold" HorizontalAlignment="Right"/>
-                            </StackPanel>
-                        </Grid>
-                        <TextBlock Name="TxtCountdown" Text="Proxima verificacao em: --" Foreground="#007ACC" FontSize="10" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,8,0,0"/>
-                    </StackPanel>
+                    <TextBlock Name="TxtCountdown" Text="Proxima verificacao em: --" Foreground="#007ACC" FontSize="10" FontWeight="Bold" HorizontalAlignment="Center"/>
                 </Border>
             </Grid>
         </Border>
@@ -272,8 +274,6 @@ $BtnUpdate = $window.FindName("BtnUpdate")
 $BtnScripts = $window.FindName("BtnScripts")
 $TxtStatus = $window.FindName("TxtStatus")
 $TxtVersion = $window.FindName("TxtVersion")
-$TxtLastCheck = $window.FindName("TxtLastCheck")
-$TxtLastUpdate = $window.FindName("TxtLastUpdate")
 $TxtCountdown = $window.FindName("TxtCountdown")
 $TxtLoading = $window.FindName("TxtLoading")
 $LoadingOverlay = $window.FindName("LoadingOverlay")
@@ -308,19 +308,8 @@ function Hide-LoadingOverlay {
     [System.Windows.Threading.Dispatcher]::CurrentDispatcher.Invoke([Action] {}, [System.Windows.Threading.DispatcherPriority]::Background)
 }
 
-function Format-DateTime {
-    param([datetime]$date)
-    return $date.ToString("dd/MM/yyyy HH:mm")
-}
-
 function Update-InfoPanel {
     $TxtVersion.Text = "v$($script:appVersion)"
-    if ($script:lastUpdateCheck) {
-        $TxtLastCheck.Text = Format-DateTime $script:lastUpdateCheck
-    }
-    if ($script:lastUpdated) {
-        $TxtLastUpdate.Text = Format-DateTime $script:lastUpdated
-    }
     Update-Countdown
 }
 
@@ -611,7 +600,11 @@ function Start-Browser {
 }
 
 function Invoke-AutoUpdateCheck {
-    if ($script:isProcessing) { return }
+    while ($script:isProcessing) {
+        Start-Sleep -Seconds 1
+        [System.Windows.Threading.Dispatcher]::CurrentDispatcher.Invoke([Action] {}, [System.Windows.Threading.DispatcherPriority]::Background)
+    }
+
     $script:isProcessing = $true
     Set-ButtonsEnabled $false
 
@@ -668,7 +661,7 @@ function Invoke-StartupSequence {
 
     Initialize-WindowIcon
     Initialize-BrowserIcons
-    New-DesktopShortcut
+    Create-Shortcuts
 
     Hide-LoadingOverlay
     Show-LoadingOverlay "Verificando atualizacoes..."
