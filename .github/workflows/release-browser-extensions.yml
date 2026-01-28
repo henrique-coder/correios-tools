@@ -93,8 +93,6 @@ jobs:
           tag_name: browser-extensions
           name: Minified Browser Extensions
           body: |
-            ## Minified Browser Extensions
-
             **Extensions:** ${{ steps.build.outputs.list }}
             **Commit:** [`${{ github.sha }}`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})
           files: release_assets/*.zip
