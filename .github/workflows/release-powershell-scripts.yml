@@ -3,7 +3,7 @@ name: Release PowerShell Scripts
 on:
   push:
     branches:
-      - dev
+      - prod
     paths:
       - ".github/workflows/release-powershell-scripts.yml"
       - "scripts/**"
@@ -78,11 +78,9 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: minified-scripts
-          name: PowerShell Scripts
+          name: Minified PowerShell Scripts
           body: |
-            ## PowerShell Scripts (Minified)
-
-            Minified `.ps1` scripts.
+            ## Minified PowerShell Scripts
 
             **Scripts:** ${{ steps.build.outputs.list }}
             **Commit:** [`${{ github.sha }}`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})

@@ -3,7 +3,7 @@ name: Release Browser Extensions
 on:
   push:
     branches:
-      - dev
+      - prod
     paths:
       - ".github/workflows/release-browser-extensions.yml"
       - "extensions/**"
@@ -91,11 +91,9 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: browser-extensions
-          name: Browser Extensions
+          name: Minified Browser Extensions
           body: |
-            ## Browser Extensions
-
-            Minified browser extensions.
+            ## Minified Browser Extensions
 
             **Extensions:** ${{ steps.build.outputs.list }}
             **Commit:** [`${{ github.sha }}`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})
