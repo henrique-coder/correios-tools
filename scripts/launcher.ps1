@@ -224,15 +224,7 @@ function Create-Shortcuts {
                 <StackPanel Grid.Row="3" Margin="0,15">
                     <ProgressBar Name="PbMain" Height="3" Background="#2D2D30" Foreground="#007ACC" IsIndeterminate="False" Opacity="0"/>
                 </StackPanel>
-                <Grid Grid.Row="4" Margin="0,5,0,0">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="10"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-                    <Button Name="BtnUpdate" Grid.Column="0" Content="Verificar Atualizacoes" Height="35" FontSize="11"/>
-                    <Button Name="BtnScripts" Grid.Column="2" Content="Executar Scripts Extras" Height="35" FontSize="11"/>
-                </Grid>
+                <Button Name="BtnUpdate" Grid.Row="4" Content="Verificar Atualizacoes" Height="35" FontSize="11" Margin="0,5,0,0"/>
                 <Border Grid.Row="5" Background="#252526" CornerRadius="3" Margin="0,15,0,0" Padding="10">
                     <TextBlock Name="TxtCountdown" Text="Proxima verificacao em: --" Foreground="#007ACC" FontSize="10" FontWeight="Bold" HorizontalAlignment="Center"/>
                 </Border>
@@ -266,7 +258,7 @@ $BtnClose = $window.FindName("BtnClose")
 $BtnEdge = $window.FindName("BtnEdge")
 $BtnChrome = $window.FindName("BtnChrome")
 $BtnUpdate = $window.FindName("BtnUpdate")
-$BtnScripts = $window.FindName("BtnScripts")
+
 $TxtStatus = $window.FindName("TxtStatus")
 $TxtVersion = $window.FindName("TxtVersion")
 $TxtCountdown = $window.FindName("TxtCountdown")
@@ -277,7 +269,7 @@ $ImgChrome = $window.FindName("ImgChrome")
 $PbMain = $window.FindName("PbMain")
 $LinkRepo = $window.FindName("LinkRepo")
 
-$allButtons = @($BtnEdge, $BtnChrome, $BtnUpdate, $BtnScripts)
+$allButtons = @($BtnEdge, $BtnChrome, $BtnUpdate)
 
 function Set-ButtonsEnabled {
     param([bool]$enabled)
@@ -492,9 +484,7 @@ function Invoke-DownloadExtensions {
     }
 }
 
-function Invoke-RunExtraScripts {
-    Update-Status "Nenhum script extra configurado." $false
-}
+
 
 function Get-ExtensionPaths {
     $paths = @()
@@ -687,9 +677,7 @@ $BtnUpdate.Add_Click({
         }
     })
 
-$BtnScripts.Add_Click({
-        Invoke-SafeAction { Invoke-RunExtraScripts }
-    })
+
 
 $BtnEdge.Add_Click({
         Invoke-SafeAction { Start-Browser "Edge" "msedge" }
@@ -700,8 +688,8 @@ $BtnChrome.Add_Click({
     })
 
 $LinkRepo.Add_MouseLeftButtonDown({
-    Start-Process "https://github.com/henrique-coder/correios-tools"
-})
+        Start-Process "https://github.com/henrique-coder/correios-tools"
+    })
 
 $window.Add_Loaded({
         $window.Topmost = $true
