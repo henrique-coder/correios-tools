@@ -1,15 +1,19 @@
-# IDE
-# ...
-
-# Cache
-# ...
-
-# Directories
+# ─ ─── Folders ─── ─ #
+.idea/
+.vscode/
+node_modules/
+dist/
+build/
+*.egg-info/
 .debug/
 
-# Files
-# ...
+# ─ ─── Files ─── ─ #
+# ..
 
-# Extensions
+# ─ ─── Extensions ─── ─ #
 *.env
 *.log
+*.tmp
+*.bak
+.DS_Store
+thumbs.db
