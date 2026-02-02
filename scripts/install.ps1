@@ -13,7 +13,7 @@ Add-Type -AssemblyName PresentationFramework, System.Windows.Forms, System.Drawi
 
 
 $LAUNCHER_URL = "https://github.com/henrique-coder/correios-tools/releases/download/powershell-scripts/launcher.min.ps1"
-$ICON_URL = "https://raw.githubusercontent.com/henrique-coder/correios-tools/refs/heads/dev/assets/icon.ico"
+$ICON_URL = "https://cdn.jsdelivr.net/gh/henrique-coder/correios-tools/assets/icon.ico"
 $INSTALL_DIR = "C:\Users\Public\correios-tools"
 $DATA_DIR = "$INSTALL_DIR\data"
 $LAUNCHER_PATH = "$DATA_DIR\launcher.ps1"
