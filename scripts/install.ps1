@@ -3,24 +3,31 @@ Add-Type -MemberDefinition @"
 public static extern bool ShowWindowAsync(IntPtr hWnd, int nCmdShow);
 "@ -Name Win32 -Namespace Native -PassThru | Out-Null
 
-$windowHandle = (Get-Process -Id $PID).MainWindowHandle
-if ($windowHandle -ne [IntPtr]::Zero) { [Native.Win32]::ShowWindowAsync($windowHandle, 0) | Out-Null }
+$currentProcess = Get-Process -Id $PID
+$mainWindowHandle = $currentProcess.MainWindowHandle
+if ($mainWindowHandle -ne [IntPtr]::Zero) {
+    [Native.Win32]::ShowWindowAsync($mainWindowHandle, 0) | Out-Null
+}
 
-Add-Type -AssemblyName PresentationFramework
-Add-Type -AssemblyName System.Windows.Forms
-Add-Type -AssemblyName System.Drawing
+Add-Type -AssemblyName PresentationFramework, System.Windows.Forms, System.Drawing
 
-$launcherUrl = "https://github.com/henrique-coder/correios-tools/releases/download/minified-scripts/launcher.min.ps1"
-$iconUrl = "https://raw.githubusercontent.com/henrique-coder/correios-tools/refs/heads/dev/assets/icon.ico"
+# Configuration Constants
+$LAUNCHER_URL = "https://github.com/henrique-coder/correios-tools/releases/download/minified-scripts/launcher.min.ps1"
+$ICON_URL = "https://raw.githubusercontent.com/henrique-coder/correios-tools/refs/heads/dev/assets/icon.ico"
+$INSTALL_DIR = "C:\Users\Public\correios-tools"
+$DATA_DIR = "$INSTALL_DIR\data"
+$LAUNCHER_PATH = "$DATA_DIR\launcher.ps1"
+$ICON_PATH = "$DATA_DIR\icon.ico"
 
-$baseDir = "C:\Users\Public\correios-tools"
-$dataDir = "$baseDir\data"
-$launcherPath = "$dataDir\launcher.ps1"
-$iconPath = "$dataDir\icon.ico"
+# Enable TLS 1.2
+try {
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+}
+catch {
+    Write-Warning "Failed to set TLS 1.2 protocol."
+}
 
-try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 } catch {}
-
-[xml]$xaml = @"
+[xml]$xamlContent = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Correios Tools - Instalador" Height="300" Width="400"
@@ -71,72 +78,81 @@ try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <TextBlock Text="CORREIOS TOOLS" Foreground="White" FontSize="18" FontWeight="Bold" VerticalAlignment="Center"/>
-                <Button Name="BtnClose" Content="X" Grid.Column="1" Background="Transparent" Foreground="#FF5555" FontWeight="Bold" Width="30"/>
+                <Button Name="CloseButton" Content="X" Grid.Column="1" Background="Transparent" Foreground="#FF5555" FontWeight="Bold" Width="30"/>
             </Grid>
             <StackPanel Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center">
-                <TextBlock Name="TxtTitle" Text="INSTALADOR" Foreground="#007ACC" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center"/>
-                <TextBlock Name="TxtStatus" Text="Aguardando..." Foreground="#AAAAAA" FontSize="12" HorizontalAlignment="Center" Margin="0,15,0,0" TextWrapping="Wrap" TextAlignment="Center"/>
+                <TextBlock Name="TitleText" Text="INSTALADOR" Foreground="#007ACC" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center"/>
+                <TextBlock Name="StatusText" Text="Aguardando..." Foreground="#AAAAAA" FontSize="12" HorizontalAlignment="Center" Margin="0,15,0,0" TextWrapping="Wrap" TextAlignment="Center"/>
             </StackPanel>
             <StackPanel Grid.Row="2" Margin="0,15">
-                <ProgressBar Name="PbMain" Height="4" Background="#2D2D30" Foreground="#007ACC" IsIndeterminate="False" Opacity="0"/>
+                <ProgressBar Name="MainProgressBar" Height="4" Background="#2D2D30" Foreground="#007ACC" IsIndeterminate="False" Opacity="0"/>
             </StackPanel>
-            <Button Name="BtnInstall" Grid.Row="3" Content="Instalar" Height="40" FontSize="14" FontWeight="Bold"/>
+            <Button Name="InstallButton" Grid.Row="3" Content="Instalar" Height="40" FontSize="14" FontWeight="Bold"/>
         </Grid>
     </Border>
 </Window>
 "@
 
-$window = [Windows.Markup.XamlReader]::Load((New-Object System.Xml.XmlNodeReader $xaml))
+$window = [Windows.Markup.XamlReader]::Load((New-Object System.Xml.XmlNodeReader $xamlContent))
 
-$BtnClose = $window.FindName("BtnClose")
-$BtnInstall = $window.FindName("BtnInstall")
-$TxtTitle = $window.FindName("TxtTitle")
-$TxtStatus = $window.FindName("TxtStatus")
-$PbMain = $window.FindName("PbMain")
+# UI Controls mapping
+$closeButton = $window.FindName("CloseButton")
+$installButton = $window.FindName("InstallButton")
+$titleText = $window.FindName("TitleText")
+$statusText = $window.FindName("StatusText")
+$progressBar = $window.FindName("MainProgressBar")
 
-function Update-Status {
-    param([string]$message, [bool]$loading = $false)
-    $TxtStatus.Text = $message
-    $PbMain.IsIndeterminate = $loading
-    $PbMain.Opacity = if ($loading) { 1 } else { 0 }
+function Set-UIStatus {
+    param(
+        [string]$Message,
+        [bool]$IsLoading = $false
+    )
+    $statusText.Text = $Message
+    $progressBar.IsIndeterminate = $IsLoading
+    $progressBar.Opacity = if ($IsLoading) { 1 } else { 0 }
+
+    # Force UI refresh
     [System.Windows.Threading.Dispatcher]::CurrentDispatcher.Invoke([Action] {}, [System.Windows.Threading.DispatcherPriority]::Background)
 }
 
-function Initialize-WindowIcon {
+function Load-WindowIcon {
     try {
-        if (Test-Path $iconPath) {
-            $uri = New-Object System.Uri($iconPath)
-            $iconBitmap = New-Object System.Windows.Media.Imaging.BitmapImage
-            $iconBitmap.BeginInit()
-            $iconBitmap.UriSource = $uri
-            $iconBitmap.CacheOption = [System.Windows.Media.Imaging.BitmapCacheOption]::OnLoad
-            $iconBitmap.CreateOptions = [System.Windows.Media.Imaging.BitmapCreateOptions]::IgnoreImageCache
-            $iconBitmap.EndInit()
-            $iconBitmap.Freeze()
-            $window.Icon = $iconBitmap
+        if (Test-Path $ICON_PATH) {
+            $uri = New-Object System.Uri($ICON_PATH)
+            $bitmap = New-Object System.Windows.Media.Imaging.BitmapImage
+            $bitmap.BeginInit()
+            $bitmap.UriSource = $uri
+            $bitmap.CacheOption = [System.Windows.Media.Imaging.BitmapCacheOption]::OnLoad
+            $bitmap.CreateOptions = [System.Windows.Media.Imaging.BitmapCreateOptions]::IgnoreImageCache
+            $bitmap.EndInit()
+            $bitmap.Freeze()
+            $window.Icon = $bitmap
         }
     }
-    catch {}
+    catch {
+        Write-Warning "Could not load window icon."
+    }
 }
 
-function Test-BrowsersRunning {
-    $browsers = Get-Process -Name "msedge", "chrome" -ErrorAction SilentlyContinue
-    return ($browsers -ne $null)
+function Test-BrowserRunning {
+    $processes = Get-Process -Name "msedge", "chrome" -ErrorAction SilentlyContinue
+    return ($null -ne $processes)
 }
 
-function Close-Browsers {
+function Stop-Browsers {
     Stop-Process -Name "msedge", "chrome" -Force -ErrorAction SilentlyContinue
     Start-Sleep -Milliseconds 500
 }
 
-function New-Shortcut {
-    param([string]$linkPath)
+function Create-Shortcut {
+    param([string]$LinkPath)
+
     try {
-        $shell = New-Object -ComObject WScript.Shell
-        $shortcut = $shell.CreateShortcut($linkPath)
+        $wshShell = New-Object -ComObject WScript.Shell
+        $shortcut = $wshShell.CreateShortcut($LinkPath)
         $shortcut.TargetPath = "powershell.exe"
-        $shortcut.Arguments = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$launcherPath`""
-        $shortcut.IconLocation = $iconPath
+        $shortcut.Arguments = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$LAUNCHER_PATH`""
+        $shortcut.IconLocation = $ICON_PATH
         $shortcut.Description = "Correios Tools Launcher"
         $shortcut.Save()
         return $true
@@ -146,87 +162,87 @@ function New-Shortcut {
     }
 }
 
-function Invoke-Installation {
-    $BtnInstall.IsEnabled = $false
+function Start-Installation {
+    $installButton.IsEnabled = $false
 
-    if (Test-BrowsersRunning) {
-        $result = [System.Windows.Forms.MessageBox]::Show(
+    if (Test-BrowserRunning) {
+        $userResponse = [System.Windows.Forms.MessageBox]::Show(
             "Precisamos fechar o Chrome e o Edge para configurar o ambiente.`n`nPodemos fechar agora?",
-            "Configuracao Correios Tools",
+            "Configuração Correios Tools",
             [System.Windows.Forms.MessageBoxButtons]::YesNo,
             [System.Windows.Forms.MessageBoxIcon]::Question
         )
-        if ($result -eq "Yes") {
-            Update-Status "Fechando navegadores..." $true
-            Close-Browsers
+
+        if ($userResponse -eq "Yes") {
+            Set-UIStatus "Fechando navegadores..." $true
+            Stop-Browsers
         }
         else {
-            Update-Status "Instalacao cancelada pelo usuario." $false
-            $BtnInstall.IsEnabled = $true
+            Set-UIStatus "Instalação cancelada pelo usuário." $false
+            $installButton.IsEnabled = $true
             return
         }
     }
 
-    Update-Status "Criando diretorios..." $true
-    if (!(Test-Path $dataDir)) {
-        New-Item -ItemType Directory -Path $dataDir -Force | Out-Null
+    Set-UIStatus "Criando diretórios..." $true
+    if (-not (Test-Path $DATA_DIR)) {
+        New-Item -ItemType Directory -Path $DATA_DIR -Force | Out-Null
     }
 
     try {
-        Update-Status "Baixando launcher..." $true
-        Invoke-WebRequest -Uri $launcherUrl -OutFile $launcherPath -UseBasicParsing
+        Set-UIStatus "Baixando launcher..." $true
+        Invoke-WebRequest -Uri $LAUNCHER_URL -OutFile $LAUNCHER_PATH -UseBasicParsing
 
-        Update-Status "Baixando icone..." $true
-        Invoke-WebRequest -Uri $iconUrl -OutFile $iconPath -UseBasicParsing
+        Set-UIStatus "Baixando ícone..." $true
+        Invoke-WebRequest -Uri $ICON_URL -OutFile $ICON_PATH -UseBasicParsing
 
-        Initialize-WindowIcon
+        Load-WindowIcon
     }
     catch {
         [System.Windows.Forms.MessageBox]::Show(
-            "Falha ao baixar arquivos. Verifique a conexao.",
+            "Falha ao baixar arquivos. Verifique a conexão.",
             "Erro Fatal",
             [System.Windows.Forms.MessageBoxButtons]::OK,
             [System.Windows.Forms.MessageBoxIcon]::Error
         )
-        $BtnInstall.IsEnabled = $true
-        Update-Status "Erro na instalacao." $false
+        $installButton.IsEnabled = $true
+        Set-UIStatus "Erro na instalação." $false
         return
     }
 
-    Update-Status "Criando atalho na pasta publica..." $true
-    New-Shortcut "$baseDir\Correios Tools.lnk" | Out-Null
+    Set-UIStatus "Criando atalho na pasta pública..." $true
+    Create-Shortcut "$INSTALL_DIR\Correios Tools.lnk" | Out-Null
 
-    Update-Status "Criando atalho na area de trabalho..." $true
-    $desktopPath = [Environment]::GetFolderPath("Desktop")
-    New-Shortcut "$desktopPath\Correios Tools.lnk" | Out-Null
+    Set-UIStatus "Criando atalho na área de trabalho..." $true
+    $desktopDir = [Environment]::GetFolderPath("Desktop")
+    Create-Shortcut "$desktopDir\Correios Tools.lnk" | Out-Null
 
-    Update-Status "Instalacao concluida!" $false
-    $TxtTitle.Text = "CONCLUIDO"
-    $TxtTitle.Foreground = [System.Windows.Media.Brushes]::LimeGreen
-    $BtnInstall.Content = "Abrir Pasta"
-    $BtnInstall.IsEnabled = $true
-
-    $BtnInstall.Tag = "complete"
+    Set-UIStatus "Instalação concluída!" $false
+    $titleText.Text = "CONCLUÍDO"
+    $titleText.Foreground = [System.Windows.Media.Brushes]::LimeGreen
+    $installButton.Content = "Abrir Pasta"
+    $installButton.IsEnabled = $true
+    $installButton.Tag = "COMPLETED"
 }
 
-function Open-InstallFolder {
-    Start-Process "explorer.exe" -ArgumentList $baseDir
+function Open-InstallationFolder {
+    Start-Process "explorer.exe" -ArgumentList $INSTALL_DIR
     $window.Close()
 }
 
-$BtnClose.Add_Click({ $window.Close() })
+$closeButton.Add_Click({ $window.Close() })
 
-$BtnInstall.Add_Click({
-        if ($BtnInstall.Tag -eq "complete") {
-            Open-InstallFolder
+$installButton.Add_Click({
+        if ($installButton.Tag -eq "COMPLETED") {
+            Open-InstallationFolder
         }
         else {
-            Invoke-Installation
+            Start-Installation
         }
     })
 
 $window.Add_Loaded({
-        Update-Status "Clique em Instalar para iniciar." $false
+        Set-UIStatus "Clique em Instalar para iniciar." $false
     })
 
 $window.Add_MouseLeftButtonDown({ $window.DragMove() })

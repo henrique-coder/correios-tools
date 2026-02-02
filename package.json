@@ -1,0 +1,6 @@
+{
+  "devDependencies": {
+    "decomment": "^0.9.5",
+    "prettier": "^3.8.1"
+  }
+}

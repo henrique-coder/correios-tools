@@ -17,38 +17,72 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  sync-release:
+  release:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
+      - name: Checkout Repository
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
           node-version: "24"
 
-      - name: Install minifiers
+      - name: Validate Extensions
         run: |
-          npm install -g html-minifier-terser terser csso-cli
+          echo "🔎 Validating JavaScript and JSON files..."
+          ERROR=0
 
-      - name: Minify and create ZIP archives
-        id: build
+          # Check JS syntax
+          find extensions -name "*.js" -print0 | while IFS= read -r -d '' file; do
+             if ! node --check "$file" >/dev/null 2>&1; then
+               echo "❌ Invalid JavaScript: $file"
+               node --check "$file" || true
+               ERROR=1
+             fi
+          done
+
+          # Check JSON syntax
+          find extensions -name "*.json" -print0 | while IFS= read -r -d '' file; do
+             if ! jq . "$file" >/dev/null 2>&1; then
+               echo "❌ Invalid JSON: $file"
+               ERROR=1
+             fi
+          done
+
+          if [ $ERROR -eq 1 ]; then
+            echo "⛔ Validation failed. Release cancelled."
+            exit 1
+          fi
+
+          echo "✅ All files are valid."
+
+      - name: Install Minification Tools
+        run: npm install -g html-minifier-terser terser csso-cli
+
+      - name: Process Extensions
+        id: process
         run: |
           mkdir -p release_assets
-          extensions=""
+          STATS_FILE=$(mktemp)
+
+          LATEST_MODIFIED="None"
+          LATEST_TIMESTAMP=0
+
+          echo "🔄 Processing extensions..."
 
           for dir in extensions/*/; do
             if [ -d "$dir" ]; then
-              ext=$(basename "$dir")
-              echo "Processing: $ext"
+              ext_name=$(basename "$dir")
+              echo "  - Processing $ext_name..."
 
               temp_dir=$(mktemp -d)
               cp -r "$dir"* "$temp_dir/"
 
               find "$temp_dir" -name "*.html" -type f | while read file; do
-                html-minifier-terser --collapse-whitespace --remove-comments --remove-redundant-attributes --remove-empty-attributes --minify-css true --minify-js true -o "$file" "$file" 2>/dev/null || true
+                html-minifier-terser --collapse-whitespace --remove-comments --minify-css true --minify-js true -o "$file" "$file" 2>/dev/null || true
               done
 
               find "$temp_dir" -name "*.js" -type f | while read file; do
@@ -64,45 +98,51 @@ jobs:
               done
 
               cd "$temp_dir"
-              zip -9 -r "$GITHUB_WORKSPACE/release_assets/${ext}.zip" .
+              zip_name="${ext_name}.zip"
+              zip -9 -r "$GITHUB_WORKSPACE/release_assets/$zip_name" .
               cd "$GITHUB_WORKSPACE"
 
+              file_size=$(du -h "release_assets/$zip_name" | cut -f1)
+
+              last_mod=$(git log -1 --format=%ct -- "$dir")
+              if [ -z "$last_mod" ]; then last_mod=0; fi
+
+              if [ "$last_mod" -gt "$LATEST_TIMESTAMP" ]; then
+                LATEST_TIMESTAMP=$last_mod
+                LATEST_MODIFIED=$ext_name
+              fi
+
+              echo "| \`$zip_name\` | $file_size | ✅ Minified |" >> "$STATS_FILE"
               rm -rf "$temp_dir"
-              extensions="$extensions $ext"
             fi
           done
 
-          extensions=$(echo "$extensions" | xargs)
-          if [ -z "$extensions" ]; then
-            echo "No extensions found!"
-            exit 1
-          fi
+          echo "latest_item=$LATEST_MODIFIED" >> $GITHUB_OUTPUT
 
-          echo "list=$extensions" >> $GITHUB_OUTPUT
-          ls -lh release_assets/
+          echo "body<<EOF" >> $GITHUB_OUTPUT
+          echo "### 🚀 Release Information" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo "**Latest Update:** \`$LATEST_MODIFIED\`" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo "| Extension | Size | Status |" >> $GITHUB_OUTPUT
+          echo "| :--- | :--- | :--- |" >> $GITHUB_OUTPUT
+          cat "$STATS_FILE" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo "**Commit:** [\`${{ github.sha }}\`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
-      - name: Delete existing release
+      - name: Delete Existing Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release delete browser-extensions --cleanup-tag -y 2>/dev/null || true
+        run: gh release delete browser-extensions --cleanup-tag -y 2>/dev/null || true
 
-      - name: Create release
+      - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: browser-extensions
-          name: Minified Browser Extensions
-          body: |
-            **Extensions:** ${{ steps.build.outputs.list }}
-            **Commit:** [`${{ github.sha }}`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})
+          name: "Extension Update: ${{ steps.process.outputs.latest_item }}"
+          body: ${{ steps.process.outputs.body }}
           files: release_assets/*.zip
           draft: false
           prerelease: false
           make_latest: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Summary
-        run: |
-          echo "### ✅ Browser Extensions Released" >> $GITHUB_STEP_SUMMARY
-          echo "**Extensions:** ${{ steps.build.outputs.list }}" >> $GITHUB_STEP_SUMMARY

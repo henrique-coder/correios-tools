@@ -17,79 +17,116 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  sync-release:
+  release:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
+      - name: Checkout Repository
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Install PSMinifier
         shell: pwsh
-        run: |
-          Install-Module PSMinifier -Force -Scope CurrentUser
+        run: Install-Module PSMinifier -Force -Scope CurrentUser
 
-      - name: Minify all scripts
-        id: build
+      - name: Validate Scripts
+        shell: pwsh
+        run: |
+          Write-Host "🔎 Validating PowerShell scripts..."
+          $errorCount = 0
+
+          # Only check root scripts folder (extras was removed)
+          $scripts = Get-ChildItem -Path scripts -Recurse -Filter "*.ps1"
+
+          foreach ($script in $scripts) {
+             $results = Invoke-ScriptAnalyzer -Path $script.FullName -Severity Error
+             if ($results) {
+               Write-Host "❌ Invalid Script: $($script.Name)"
+               $results | Format-Table
+               $errorCount++
+             }
+          }
+
+          if ($errorCount -gt 0) {
+            Write-Error "⛔ Validation failed. Release cancelled."
+            exit 1
+          }
+
+          Write-Host "✅ All scripts are valid."
+
+      - name: Process Scripts
+        id: process
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path release_assets | Out-Null
 
-          $rootScripts = Get-ChildItem -Path "scripts" -Filter "*.ps1" -File -ErrorAction SilentlyContinue
-          $extraScripts = Get-ChildItem -Path "scripts/extras" -Filter "*.ps1" -File -ErrorAction SilentlyContinue | Where-Object { -not $_.Name.StartsWith(".") }
+          $stats = @()
+          $latestTimestamp = 0
+          $latestModified = "None"
 
-          $allScripts = @()
-          if ($rootScripts) { $allScripts += $rootScripts }
-          if ($extraScripts) { $allScripts += $extraScripts }
+          Write-Host "🔄 Processing scripts..."
 
-          if ($allScripts.Count -eq 0) {
+          $scripts = Get-ChildItem -Path "scripts" -Filter "*.ps1" -File
+
+          if ($scripts.Count -eq 0) {
             Write-Error "No scripts found!"
             exit 1
           }
 
-          $scriptNames = @()
-
-          foreach ($script in $allScripts) {
-            Write-Host "Processing: $($script.Name)"
+          foreach ($script in $scripts) {
+            Write-Host "  - Processing $($script.Name)..."
 
             $content = Get-Content $script.FullName -Raw
             $minifiedBlock = Compress-ScriptBlock -ScriptBlock ([ScriptBlock]::Create($content))
             $minifiedContent = $minifiedBlock.ToString()
 
-            $fileName = $script.Name.Replace(".ps1", ".min.ps1")
-            if ($script.DirectoryName.Replace("\", "/") -match "/extras$") {
-              $fileName = "extra-$fileName"
+            $outName = $script.Name.Replace(".ps1", ".min.ps1")
+            $outPath = Join-Path "release_assets" $outName
+            [System.IO.File]::WriteAllText($outPath, $minifiedContent, [System.Text.UTF8Encoding]::new($false))
+
+            # Simple size calc
+            $sizeBytes = (Get-Item $outPath).Length
+            $sizeStr = "$([math]::Round($sizeBytes / 1KB, 2))KB"
+
+            # Git log for timestamp
+            # We use git log on the ORIGINAL file
+            $ts = git log -1 --format=%ct -- $script.FullName
+            if ($ts -match "^\d+$" -and [int64]$ts -gt $latestTimestamp) {
+              $latestTimestamp = [int64]$ts
+              $latestModified = $script.Name
             }
 
-            $outputPath = Join-Path "release_assets" $fileName
-            [System.IO.File]::WriteAllText($outputPath, $minifiedContent, [System.Text.UTF8Encoding]::new($false))
-            $scriptNames += $fileName
+            $stats += "| ``$outName`` | $sizeStr | ✅ Minified |"
           }
 
-          "list=$($scriptNames -join ' ')" >> $env:GITHUB_OUTPUT
+          # Output outputs
+          "latest_item=$latestModified" >> $env:GITHUB_OUTPUT
 
-      - name: Delete existing release
+          # Prepare Body
+          "body<<EOF" >> $env:GITHUB_OUTPUT
+          "### 🚀 Release Information" >> $env:GITHUB_OUTPUT
+          "" >> $env:GITHUB_OUTPUT
+          "**Latest Update:** ``$latestModified``" >> $env:GITHUB_OUTPUT
+          "" >> $env:GITHUB_OUTPUT
+          "| Script | Size | Status |" >> $env:GITHUB_OUTPUT
+          "| :--- | :--- | :--- |" >> $env:GITHUB_OUTPUT
+          $stats | ForEach-Object { $_ >> $env:GITHUB_OUTPUT }
+          "" >> $env:GITHUB_OUTPUT
+          "**Commit:** [``${{ github.sha }}``](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})" >> $env:GITHUB_OUTPUT
+          "EOF" >> $env:GITHUB_OUTPUT
+
+      - name: Delete Existing Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release delete minified-scripts --cleanup-tag -y 2>/dev/null || true
+        run: gh release delete minified-scripts --cleanup-tag -y 2>/dev/null || true
 
-      - name: Create release
+      - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: minified-scripts
-          name: Minified PowerShell Scripts
-          body: |
-            **Scripts:** ${{ steps.build.outputs.list }}
-            **Commit:** [`${{ github.sha }}`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})
+          name: "Script Update: ${{ steps.process.outputs.latest_item }}"
+          body: ${{ steps.process.outputs.body }}
           files: release_assets/*.ps1
           draft: false
           prerelease: false
           make_latest: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Summary
-        run: |
-          echo "### ✅ PowerShell Scripts Released" >> $GITHUB_STEP_SUMMARY
-          echo "**Scripts:** ${{ steps.build.outputs.list }}" >> $GITHUB_STEP_SUMMARY
