@@ -118,9 +118,11 @@ jobs:
       - name: Delete Existing Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release delete powershell-scripts --cleanup-tag -y 2>/dev/null || true
+        run: |
+          gh release delete powershell-scripts --cleanup-tag -y 2>/dev/null || true
+          gh release delete minified-scripts --cleanup-tag -y 2>/dev/null || true
 
-      - name: Create Release
+      - name: Create Release (New)
         uses: softprops/action-gh-release@v2
         with:
           tag_name: powershell-scripts
@@ -130,3 +132,14 @@ jobs:
           draft: false
           prerelease: false
           make_latest: true
+
+      - name: Create Release (Legacy Migration)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: minified-scripts
+          name: "PowerShell Scripts (Legacy)"
+          body: ${{ steps.process.outputs.body }}
+          files: release_assets/*.ps1
+          draft: false
+          prerelease: false
+          make_latest: false
