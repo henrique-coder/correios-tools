@@ -112,7 +112,7 @@ jobs:
                 LATEST_MODIFIED=$ext_name
               fi
 
-              echo "| \`$zip_name\` | $file_size | ✅ Minified |" >> "$STATS_FILE"
+              echo "| \`$zip_name\` | $file_size |" >> "$STATS_FILE"
               rm -rf "$temp_dir"
             fi
           done
@@ -124,8 +124,8 @@ jobs:
           echo "" >> $GITHUB_OUTPUT
           echo "**Latest Update:** \`$LATEST_MODIFIED\`" >> $GITHUB_OUTPUT
           echo "" >> $GITHUB_OUTPUT
-          echo "| Extension | Size | Status |" >> $GITHUB_OUTPUT
-          echo "| :--- | :--- | :--- |" >> $GITHUB_OUTPUT
+          echo "| Extension | Size |" >> $GITHUB_OUTPUT
+          echo "| :--- | :--- |" >> $GITHUB_OUTPUT
           cat "$STATS_FILE" >> $GITHUB_OUTPUT
           echo "" >> $GITHUB_OUTPUT
           echo "**Commit:** [\`${{ github.sha }}\`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})" >> $GITHUB_OUTPUT
@@ -140,7 +140,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: browser-extensions
-          name: "Extension Update: ${{ steps.process.outputs.latest_item }}"
+          name: "Browser Extensions"
           body: ${{ steps.process.outputs.body }}
           files: release_assets/*.zip
           draft: false

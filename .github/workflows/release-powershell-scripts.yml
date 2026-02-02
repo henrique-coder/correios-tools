@@ -96,7 +96,7 @@ jobs:
               $latestModified = $script.Name
             }
 
-            $stats += "| ``$outName`` | $sizeStr | ✅ Minified |"
+            $stats += "| ``$outName`` | $sizeStr |"
           }
 
           # Output outputs
@@ -108,8 +108,8 @@ jobs:
           "" >> $env:GITHUB_OUTPUT
           "**Latest Update:** ``$latestModified``" >> $env:GITHUB_OUTPUT
           "" >> $env:GITHUB_OUTPUT
-          "| Script | Size | Status |" >> $env:GITHUB_OUTPUT
-          "| :--- | :--- | :--- |" >> $env:GITHUB_OUTPUT
+          "| Script | Size |" >> $env:GITHUB_OUTPUT
+          "| :--- | :--- |" >> $env:GITHUB_OUTPUT
           $stats | ForEach-Object { $_ >> $env:GITHUB_OUTPUT }
           "" >> $env:GITHUB_OUTPUT
           "**Commit:** [``${{ github.sha }}``](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})" >> $env:GITHUB_OUTPUT
@@ -118,13 +118,13 @@ jobs:
       - name: Delete Existing Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release delete minified-scripts --cleanup-tag -y 2>/dev/null || true
+        run: gh release delete powershell-scripts --cleanup-tag -y 2>/dev/null || true
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: minified-scripts
-          name: "Script Update: ${{ steps.process.outputs.latest_item }}"
+          tag_name: powershell-scripts
+          name: "PowerShell Scripts"
           body: ${{ steps.process.outputs.body }}
           files: release_assets/*.ps1
           draft: false

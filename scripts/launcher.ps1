@@ -57,9 +57,9 @@ $CHROME_ICON_URL = "https://cdn.jsdelivr.net/gh/henrique-coder/correios-tools/as
 $EDGE_ICON_PATH = "$ASSETS_DIR\edge.png"
 $CHROME_ICON_PATH = "$ASSETS_DIR\chrome.png"
 
-$SCRIPTS_API_URL = "https://api.github.com/repos/henrique-coder/correios-tools/releases/tags/minified-scripts"
+$SCRIPTS_API_URL = "https://api.github.com/repos/henrique-coder/correios-tools/releases/tags/powershell-scripts"
 $EXTENSIONS_API_URL = "https://api.github.com/repos/henrique-coder/correios-tools/releases/tags/browser-extensions"
-$LAUNCHER_DOWNLOAD_URL = "https://github.com/henrique-coder/correios-tools/releases/download/minified-scripts/launcher.min.ps1"
+$LAUNCHER_DOWNLOAD_URL = "https://github.com/henrique-coder/correios-tools/releases/download/powershell-scripts/launcher.min.ps1"
 
 $EXTENSION_NAMES = @("correios-tools")
 
