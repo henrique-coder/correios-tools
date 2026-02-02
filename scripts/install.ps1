@@ -11,7 +11,7 @@ if ($mainWindowHandle -ne [IntPtr]::Zero) {
 
 Add-Type -AssemblyName PresentationFramework, System.Windows.Forms, System.Drawing
 
-# Configuration Constants
+
 $LAUNCHER_URL = "https://github.com/henrique-coder/correios-tools/releases/download/minified-scripts/launcher.min.ps1"
 $ICON_URL = "https://raw.githubusercontent.com/henrique-coder/correios-tools/refs/heads/dev/assets/icon.ico"
 $INSTALL_DIR = "C:\Users\Public\correios-tools"
@@ -19,7 +19,7 @@ $DATA_DIR = "$INSTALL_DIR\data"
 $LAUNCHER_PATH = "$DATA_DIR\launcher.ps1"
 $ICON_PATH = "$DATA_DIR\icon.ico"
 
-# Enable TLS 1.2
+
 try {
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 }
@@ -95,7 +95,7 @@ catch {
 
 $window = [Windows.Markup.XamlReader]::Load((New-Object System.Xml.XmlNodeReader $xamlContent))
 
-# UI Controls mapping
+
 $closeButton = $window.FindName("CloseButton")
 $installButton = $window.FindName("InstallButton")
 $titleText = $window.FindName("TitleText")
@@ -111,7 +111,7 @@ function Set-UIStatus {
     $progressBar.IsIndeterminate = $IsLoading
     $progressBar.Opacity = if ($IsLoading) { 1 } else { 0 }
 
-    # Force UI refresh
+    
     [System.Windows.Threading.Dispatcher]::CurrentDispatcher.Invoke([Action] {}, [System.Windows.Threading.DispatcherPriority]::Background)
 }
 

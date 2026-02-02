@@ -33,7 +33,7 @@ try { [WindowHelper]::HideConsole() } catch {}
 
 Add-Type -AssemblyName PresentationFramework, System.Windows.Forms, System.Drawing
 
-# Application State
+
 $script:IsProcessing = $false
 $script:UpdateTimer = $null
 $script:CountdownTimer = $null
@@ -42,7 +42,7 @@ $script:AppVersion = "2.0.0"
 $script:LastUpdateCheck = $null
 $script:NextCheckTime = $null
 
-# Paths & URLs
+
 $INSTALL_DIR = "C:\Users\Public\correios-tools"
 $DATA_DIR = "$INSTALL_DIR\data"
 $EXTENSIONS_DIR = "$DATA_DIR\extensions"
@@ -66,7 +66,7 @@ $EXTENSION_NAMES = @("correios-tools")
 $UPDATE_INTERVAL_HOURS = 4
 $START_URL = "https://sroweb.correios.com.br/app/index.php"
 
-# Ensure directories exist
+
 if (-not (Test-Path $DATA_DIR)) { New-Item -ItemType Directory -Path $DATA_DIR -Force | Out-Null }
 if (-not (Test-Path $ASSETS_DIR)) { New-Item -ItemType Directory -Path $ASSETS_DIR -Force | Out-Null }
 
@@ -100,7 +100,7 @@ function Get-ReleaseInfo {
 function Get-ReleaseCommitHash {
     param($ReleaseInfo)
     try {
-        # Try to parse the Commit hash from the body text
+        
         if ($ReleaseInfo.body -match "\*\*Commit:\*\* \[`([a-f0-9]+)`\]") {
             return $matches[1]
         }
@@ -256,7 +256,7 @@ function Create-DesktopShortcuts {
 
 $window = [Windows.Markup.XamlReader]::Load((New-Object System.Xml.XmlNodeReader $xamlContent))
 
-# Map UI Controls
+
 $CloseButton = $window.FindName("CloseButton")
 $EdgeButton = $window.FindName("EdgeButton")
 $ChromeButton = $window.FindName("ChromeButton")
@@ -447,14 +447,14 @@ function Download-Extensions {
     Set-UIStatus "Baixando extensões..." $true
 
     try {
-        # Fetch release info first to check connection
+        
         $releaseInfo = Get-ReleaseInfo $EXTENSIONS_API_URL
         if ($releaseInfo -eq $null) {
             Set-UIStatus "Erro: sem conexão." $false
             return $false
         }
 
-        # Safe to clear old extensions now
+        
         if (Test-Path $EXTENSIONS_DIR) {
             Remove-Item $EXTENSIONS_DIR -Recurse -Force -ErrorAction SilentlyContinue
         }
