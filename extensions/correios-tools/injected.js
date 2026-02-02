@@ -76,7 +76,7 @@
             }
           }
         },
-        !0,
+        !0
       );
     })();
     const K = {
@@ -145,13 +145,7 @@
       const st = ic
         ? "display:flex;align-items:center;justify-content:center"
         : "display:flex;align-items:center;justify-content:center;flex-wrap:wrap;flex:1;";
-      if (
-        S.initialDist &&
-        S.initialDist !== "--" &&
-        c &&
-        c !== "--" &&
-        c !== S.initialDist
-      )
+      if (S.initialDist && S.initialDist !== "--" && c && c !== "--" && c !== S.initialDist)
         return `<div style="${st}"><span class="${ic ? "sro-old" : "sro-old-p"}">${S.initialDist}</span><span class="${ic ? "sro-arrow" : "sro-arrow-p"}">➜</span><span class="${ic ? "sro-new" : "sro-new-p"}">${c}</span></div>`;
       return `<span class="${ic ? "sro-new" : "sro-new-p"}">${c || "--"}</span>`;
     }
@@ -431,9 +425,7 @@
         document.getElementById("btn-toggle-view").onclick = () => {
           localStorage.setItem(
             K.VIEW,
-            (localStorage.getItem(K.VIEW) || "map") === "map"
-              ? "history"
-              : "map",
+            (localStorage.getItem(K.VIEW) || "map") === "map" ? "history" : "map"
           );
           RRP();
         };
@@ -448,8 +440,7 @@
         document.getElementById("sro-status").innerText = S.status;
         document.getElementById("sro-icon").innerText = i;
         document.getElementById("sro-distrito").innerHTML = GDH(!0);
-        document.getElementById("sro-previsao").innerText =
-          S.date || "--/--/----";
+        document.getElementById("sro-previsao").innerText = S.date || "--/--/----";
       }
       UPT();
       RRP();
@@ -461,11 +452,7 @@
       const cd =
         new URL(u, window.location.origin).searchParams.get("codigo") ||
         new URL(u, window.location.origin).searchParams.get("objeto");
-      if (
-        cd &&
-        cd !== S.code &&
-        (lc.includes("acao=validar") || lc.includes("acao=pesquisar"))
-      ) {
+      if (cd && cd !== S.code && (lc.includes("acao=validar") || lc.includes("acao=pesquisar"))) {
         S = {
           code: cd,
           status: "AGUARDANDO...",
@@ -510,8 +497,7 @@
           S.mode = "error";
           S.status = "NÃO INDUZIDO";
         }
-        if (S.code !== "--" && S.mode !== "error")
-          UPH("novo", "Leitura", "Objeto escaneado");
+        if (S.code !== "--" && S.mode !== "error") UPH("novo", "Leitura", "Objeto escaneado");
         up = !0;
       } else if (lc.includes("enderecocontroller.php") && d.endereco) {
         S.addr = {
@@ -523,10 +509,8 @@
           uf: d.endereco.uf || "--",
           cep: d.endereco.cep || "--",
         };
-        if (d.servico)
-          S.serv = { ar: d.servico.ar, mp: d.servico.mp, dd: d.servico.dd };
-        if (d.telefone)
-          S.contact.tel = `(${d.telefone.ddd}) ${d.telefone.numero}`;
+        if (d.servico) S.serv = { ar: d.servico.ar, mp: d.servico.mp, dd: d.servico.dd };
+        if (d.telefone) S.contact.tel = `(${d.telefone.ddd}) ${d.telefone.numero}`;
         S.contact.email = d.email || "--";
         up = !0;
       } else if (
@@ -590,8 +574,7 @@
     const oS = XMLHttpRequest.prototype.send;
     XMLHttpRequest.prototype.open = function (m, u) {
       this._u = u;
-      if (u && u.toLowerCase().includes("listar-impressoras-disponiveis"))
-        ATC();
+      if (u && u.toLowerCase().includes("listar-impressoras-disponiveis")) ATC();
       return oO.apply(this, arguments);
     };
     XMLHttpRequest.prototype.send = function (b) {
@@ -674,8 +657,7 @@
       APL();
       APV();
     }
-    if (document.readyState === "loading")
-      document.addEventListener("DOMContentLoaded", IAP);
+    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", IAP);
     else IAP();
   } else if (PATH.includes("/loecsuspensa/")) {
     function IHS() {
@@ -686,11 +668,7 @@
       document.head.appendChild(s);
     }
     const PN = (v) =>
-      typeof v === "number"
-        ? v
-        : v
-          ? parseInt(v.toString().replace(/<[^>]*>/g, ""), 10) || 0
-          : 0;
+      typeof v === "number" ? v : v ? parseInt(v.toString().replace(/<[^>]*>/g, ""), 10) || 0 : 0;
     function CL(d) {
       if (!Array.isArray(d) || d.length === 0) return null;
       let tD = d.length,
