@@ -1,1 +1,716 @@
-!function(){"use strict";const e=window.location.pathname.toLowerCase();if(e.includes("/lancamentoautomatico/")){const t={"CT-INDUZIROBJETO":()=>{document.activeElement&&document.activeElement.blur();const e=document.getElementById("btnModalA");if(!e)return;e.click();let t=0;const o=setInterval((()=>{const e=document.getElementById("txtNumero");e?(clearInterval(o),setTimeout((()=>{const t=e.value.trim();if(""!==t&&"N/A"!==t){document.activeElement&&document.activeElement.blur();const e=document.getElementById("btnIncluirObjeto");e&&e.click()}}),500)):(t++,t>=30&&clearInterval(o))}),100)},"CT-EXCLUIROBJETO":()=>{document.activeElement&&document.activeElement.blur();const e=document.getElementById("btnModalE");e&&e.click()}};!function(){let e="",o=!1,s=null;window.addEventListener("keydown",(r=>{if("#"!==r.key)o&&(r.preventDefault(),r.stopImmediatePropagation(),1===r.key.length&&(e+=r.key,s&&clearTimeout(s),s=setTimeout((()=>{o=!1,e=""}),1e3)));else if(r.preventDefault(),r.stopImmediatePropagation(),o){if(e.length>0){const o=e.toUpperCase();t[o]&&t[o]()}o=!1,e="",s&&clearTimeout(s)}else o=!0,e="",s=setTimeout((()=>{o=!1,e=""}),1e3)}),!0)}();const o={POS:"correiostools_pos_v2",HIST:"correiostools_hist_v3",VIEW:"correiostools_view_mode",LAYOUT:"correiostools_layout_inv",HIDDEN:"correiostools_panel_hide"};let s={code:"--",status:"AGUARDANDO...",mode:"loading",district:"--",domDist:null,initialDist:null,pendingDist:null,date:"--/--/----",exc:"--",val:"--",lastEvt:"--",addr:{log:"--",num:"--",comp:"--",bair:"--",mun:"--",uf:"--",cep:"--"},serv:{ar:"N",mp:"N",dd:"N"},contact:{tel:"--",email:"--"},op:{list:"--",user:"--",postman:"--",st:"--",ts:"--",ord:"--",side:"--"}},r={active:!1,cX:0,cY:0,iX:0,iY:0,xOff:0,yOff:0},n=null;function i(){localStorage.setItem(o.POS,JSON.stringify({x:r.xOff,y:r.yOff}))}function d(e){try{const t=JSON.parse(localStorage.getItem(o.POS));t&&"number"==typeof t.x&&(r.xOff=t.x,r.yOff=t.y,e.style.transform=`translate3d(${t.x}px, ${t.y}px, 0)`)}catch(e){}}function a(e){let t=s.domDist&&""!==s.domDist?s.domDist:s.district;t=t?t.trim():"";const o=e?"display:flex;align-items:center;justify-content:center":"display:flex;align-items:center;justify-content:center;flex-wrap:wrap;flex:1;";return s.initialDist&&"--"!==s.initialDist&&t&&"--"!==t&&t!==s.initialDist?`<div style="${o}"><span class="${e?"sro-old":"sro-old-p"}">${s.initialDist}</span><span class="${e?"sro-arrow":"sro-arrow-p"}">➜</span><span class="${e?"sro-new":"sro-new-p"}">${t}</span></div>`:`<span class="${e?"sro-new":"sro-new-p"}">${t||"--"}</span>`}function l(){if("true"===localStorage.getItem(o.HIDDEN))return;const e=localStorage.getItem(o.VIEW)||"map",t=document.getElementById("div-map");if(!t)return;let s=document.getElementById("sro-ghost-storage");s||(s=document.createElement("div"),s.id="sro-ghost-storage",s.style.display="none",document.body.appendChild(s));const r=document.getElementById("painel");if("history"===e){r&&t.contains(r)&&s.appendChild(r);let e=document.getElementById("sro-history-ui");e||(e=document.createElement("div"),e.id="sro-history-ui",t.appendChild(e));const n=JSON.parse(localStorage.getItem(o.HIST)||"[]");e.innerHTML=`<div class="sro-hist-container"><div class="sro-hist-top">Histórico Recente</div>${0===n.length?'<div style="padding:20px;text-align:center;color:#999;">Nenhum objeto</div>':""}<ul class="sro-hist-ul">${n.map((e=>{return`<li class="sro-hist-li"><div class="sro-hist-head" onclick="this.parentElement.classList.toggle('expanded')"><div><span class="sro-hist-badge ${"INDUZIDO"===e.status?"badge-ind":"EXCLUÍDO"===e.status?"badge-exc":"badge-lid"}">${e.status}</span><strong style="color:#00416B;margin-left:5px;">${t=e.code,t&&13===t.length?`${t.slice(0,2)} ${t.slice(2,5)} ${t.slice(5,8)} ${t.slice(8,11)} ${t.slice(11)}`:t}</strong></div><div style="font-size:11px;color:#666;">${e.start.split(" ")[1]}</div></div><div class="sro-hist-body"><div class="sro-hist-addr">${e.addr.log}, ${e.addr.num}</div><div class="sro-hist-res">Resultado: <strong>${e.finalDist||"--"}</strong></div><div class="sro-hist-timeline">${e.events.map((e=>`<div class="sro-hist-evt"><span>${e.time.split(" ")[1]}</span> ${e.desc}</div>`)).join("")}</div></div></li>`;var t})).join("")}</ul><div class="sro-hist-end">▼ Fim do histórico (Máx 10)</div></div>`}else{const e=document.getElementById("sro-history-ui");e&&e.remove(),r&&!t.contains(r)&&t.appendChild(r)}}function c(){const e=document.getElementById("div-map");if(!e)return;const t="true"===localStorage.getItem(o.HIDDEN),s=[document.getElementById("btn-layout-toggle"),document.getElementById("btn-toggle-view")],r=document.getElementById("btn-hide-panel");let n=e.nextElementSibling;n&&"sro-ghost-storage"!==n.id||(n=e.previousElementSibling);let i=document.getElementById("sro-ghost-storage");i||(i=document.createElement("div"),i.id="sro-ghost-storage",i.style.display="none",document.body.appendChild(i));const d=document.getElementById("painel");t?(d&&e.contains(d)&&i.appendChild(d),e.style.display="none",r&&(r.innerText="+",r.title="Restaurar Painel"),s.forEach((e=>e&&e.classList.add("sro-btn-disabled"))),n&&(n.dOc||(n.dOc=n.className),n.classList.remove("col-9","col-md-9","col-lg-9"),n.classList.add("col-12"),n.style.maxWidth="100%",n.style.flex="0 0 100%")):(n&&n.dOc&&(n.className=n.dOc,n.style.maxWidth="",n.style.flex=""),e.style.display="",r&&(r.innerText="-",r.title="Ocultar Painel"),s.forEach((e=>e&&e.classList.remove("sro-btn-disabled"))),l())}function p(){const e="true"===localStorage.getItem(o.HIDDEN);localStorage.setItem(o.HIDDEN,!e),c()}function u(){const e=document.getElementById("div-map");if(!e)return;const t=e.parentNode;"true"===localStorage.getItem(o.LAYOUT)?t.prepend(e):t.append(e)}function m(){const e="true"===localStorage.getItem(o.LAYOUT);localStorage.setItem(o.LAYOUT,!e),u()}function f(e,t,r){if(s.code&&"--"!==s.code&&!(s.code.length<13))try{let n=JSON.parse(localStorage.getItem(o.HIST)||"[]");const i=(new Date).toLocaleString("pt-BR"),d=s.domDist||s.district||"--",a={time:i,action:t,desc:r},c=n[0];if(c&&c.code===s.code&&c.sessionActive){const o=c.events[c.events.length-1];o&&o.action===t&&o.desc===r||(c.events.push(a),c.finalDist=d,"--"!==s.addr.log&&(c.addr=s.addr),"induzir"===e?(c.status="INDUZIDO",c.sessionActive=!1,c.end=i):"excluir"===e&&(c.status="EXCLUÍDO",c.sessionActive=!1,c.end=i))}else{let t="LIDO",o=!0,r=null;"induzir"===e?(t="INDUZIDO",o=!1,r=i):"excluir"===e&&(t="EXCLUÍDO",o=!1,r=i),n.unshift({code:s.code,start:i,end:r,status:t,sessionActive:o,events:[a],addr:s.addr,finalDist:d})}localStorage.setItem(o.HIST,JSON.stringify(n.slice(0,10))),"history"===localStorage.getItem(o.VIEW)&&l()}catch(e){}}function g(){if(document.getElementById("sro-table-wrapper"))return;const e=document.querySelector(".botoes");if(!e)return setTimeout(g,500);const t=document.createElement("div");t.id="sro-table-wrapper",t.innerHTML='<div class="sro-table-header"><span style="color:#ffffff !important">DADOS OPERACIONAIS</span></div><table class="sro-full-table"><tr><th>OBJETO</th><td id="td-cod" style="font-weight:bold;font-size:12px">--</td><th>STATUS</th><td id="td-stt">--</td><th>VALIDAÇÃO</th><td id="td-val">--</td><th>DATA PREV.</th><td id="td-dat-prev">--</td></tr><tr id="row-exc" style="display:none"><th style="color:#c62828">EXCEÇÃO</th><td colspan="7" id="td-exc" style="color:#c62828;font-weight:bold">--</td></tr><tr><th>ENDEREÇO</th><td colspan="5" id="td-end-full">--</td><th>CEP</th><td id="td-cep" style="font-weight:bold">--</td></tr><tr><th>CONTATO</th><td colspan="7" id="td-con">--</td></tr><tr><th>DISTRITO</th><td id="td-dis" class="hl-dist">--</td><th>ORDEM</th><td id="td-ord">--</td><th>LADO</th><td id="td-lad">--</td><th>SERVIÇOS</th><td colspan="3" id="td-srv">--</td></tr><tr><th rowspan="2">INDUÇÃO</th><td colspan="7"><span style="color:#777">L:</span> <b id="td-lis">--</b> &nbsp;|&nbsp; <span style="color:#777">E:</span> <b id="td-est">--</b> &nbsp;|&nbsp; <span style="color:#777">U:</span> <b id="td-usu">--</b> &nbsp;|&nbsp; <span style="color:#777">DATA:</span> <b id="td-dat">--</b></td></tr><tr><td colspan="7" style="background:#fffde7;border-left:3px solid #fbc02d"><span style="color:#f57f17;font-weight:bold;text-transform:uppercase">CARTEIRO:</span> <b id="td-postman" style="font-size:12px;color:#333;margin-left:5px">--</b></td></tr></table>',e.insertAdjacentElement("afterend",t)}function h(){const e=e=>document.getElementById(e);if(!e("td-cod"))return;e("td-cod").innerText=s.code;const t=s.val;e("td-val").innerHTML=t?`<span class="${t.includes("V")?"hl-val":"hl-err"}">${t}</span>`:"--",e("td-stt").innerText=s.lastEvt,e("td-dat-prev").innerText=s.date,s.exc&&"--"!==s.exc?(e("td-exc").innerText=s.exc,document.getElementById("row-exc").style.display="table-row"):document.getElementById("row-exc").style.display="none",e("td-end-full").innerText=`${s.addr.log}, ${s.addr.num} ${s.addr.comp?"- "+s.addr.comp:""} - ${s.addr.bair}, ${s.addr.mun}/${s.addr.uf}`,e("td-cep").innerText=s.addr.cep,e("td-con").innerHTML=`TEL: <b>${s.contact.tel}</b> ${"--"!==s.contact.email?" | EMAIL: "+s.contact.email:""}`,e("td-dis").innerHTML=a(!1),e("td-ord").innerText=s.op.ord,e("td-lad").innerText=s.op.side;const o=(e,t)=>`<span class="${"S"===s.serv[e]?"hl-serv":"hl-serv-off"}">${t}</span>`;e("td-srv").innerHTML=o("ar","AR")+o("mp","MP")+o("dd","DD"),e("td-lis").innerText=s.op.list,e("td-est").innerText=s.op.st,e("td-usu").innerText=s.op.user,e("td-postman").innerText=s.op.postman;let r=s.op.ts;e("td-dat").innerText=r&&r.length>=18?`${r.substring(8,10)}/${r.substring(10,12)}/${r.substring(12,16)} às ${r.substring(16,18)}:${r.substring(18,20)}`:"--"}function b(){if(document.getElementById("sro-styles"))return;const e=document.createElement("style");e.id="sro-styles",e.innerHTML="#sro-container { position: fixed; top: 15px; right: 15px; z-index: 999999; display: flex; flex-direction: column; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3)); will-change: transform; font-family: 'Segoe UI', sans-serif; } .sro-card { width: 360px; background: #fff; border-radius: 6px; overflow: hidden; border-left: 8px solid #999; display: block; } .sro-header { padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; background: #fdfdfd; border-bottom: 1px solid #eee; cursor: grab; user-select: none; } .sro-status-block { display: flex; align-items: center; gap: 8px; flex: 1; } .sro-status-text { font-size: 0.95rem; font-weight: 800; text-transform: uppercase; color: #444; } .sro-btn-group { display: flex; align-items: center; gap: 8px; } .sro-btn-panel { cursor: pointer; font-size: 1.2rem; color: #555; transition: all 0.2s; line-height: 1; font-weight:bold; padding: 2px 5px; border-radius: 4px; } .sro-btn-panel:hover { color: #00416B; background: #f0f0f0; } .sro-btn-disabled { opacity: 0.3; pointer-events: none; } .sro-body { padding: 12px; text-align: center; background: #fff; } .sro-distrito { font-size: 3rem; font-weight: 900; line-height: 1; color: #00416B; margin: 6px 0; } .sro-new { color: #00416B; font-size: 3rem; font-weight: 900; } .sro-old { font-size: 2rem; opacity: 0.35; font-weight: 700; color: #000; margin-right: 5px; } .sro-arrow { font-size: 2rem; margin: 0 10px; color: #444; font-weight: 400; } .mode-loading { border-left-color: #7f8c8d; } .mode-success { border-left-color: #009688; } .mode-success .sro-header { background: #e0f2f1; } .mode-success .sro-status-text { color: #00695c; } .mode-error { border-left-color: #d32f2f; } .mode-error .sro-header { background: #ffebee; } .mode-error .sro-status-text { color: #c62828; } .mode-info { border-left-color: #1976d2; } .mode-info .sro-header { background: #e3f2fd; } .mode-info .sro-status-text { color: #0d47a1; } #sro-table-wrapper { margin-top: 25px; font-family: 'Segoe UI', Tahoma, sans-serif; border: 1px solid #ccc; background: #fff; width: 100%; box-sizing: border-box; clear: both; pointer-events: auto; } .sro-table-header { background: #00416B; color: #ffffff !important; padding: 8px 12px; font-weight: 700; font-size: 13px; text-transform: uppercase; display: flex; justify-content: space-between; border-bottom: 3px solid #FFE600; } .sro-full-table { width: 100%; border-collapse: collapse; font-size: 11px; } .sro-full-table th { background: #f0f0f0; color: #333; text-align: left; padding: 5px 8px; border: 1px solid #ddd; font-weight: 700; white-space: nowrap; width: 1%; } .sro-full-table td { padding: 5px 8px; border: 1px solid #ddd; color: #000; word-break: break-word; } .hl-val { color: #2e7d32; font-weight: 800; background: #e8f5e9; padding: 1px 4px; border-radius: 3px; } .hl-err { color: #c62828; font-weight: 800; background: #ffebee; padding: 1px 4px; border-radius: 3px; } .hl-dist { font-size: 15px; font-weight: 800; color: #00416B; } .hl-serv { background: #fff8e1; color: #ff8f00; padding: 0 3px; border-radius: 2px; font-weight: bold; border: 1px solid #ffecb3; margin-right: 3px; } .hl-serv-off { opacity: 0.2; margin-right: 3px; } #sro-history-ui { width: 100%; height: 100%; background: #f9f9f9; display: flex; flex-direction: column; overflow: hidden; border: 1px solid #ddd; border-radius: 4px; animation: fadeIn 0.3s; } .sro-hist-container { flex: 1; display: flex; flex-direction: column; overflow-y: auto; padding: 10px; } .sro-hist-top { font-weight: bold; color: #555; text-transform: uppercase; font-size: 12px; margin-bottom: 10px; padding-bottom: 5px; border-bottom: 2px solid #00416B; } .sro-hist-ul { list-style: none; padding: 0; margin: 0; } .sro-hist-li { background: #fff; border: 1px solid #eee; margin-bottom: 8px; border-radius: 4px; overflow: hidden; box-shadow: 0 1px 2px rgba(0,0,0,0.05); } .sro-hist-head { padding: 8px 10px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; background: #fff; transition: background 0.2s; } .sro-hist-head:hover { background: #f4f8fb; } .sro-hist-body { display: none; padding: 8px 10px; border-top: 1px solid #f0f0f0; background: #fafafa; font-size: 11px; } .sro-hist-li.expanded .sro-hist-body { display: block; } .sro-hist-badge { font-size: 9px; padding: 2px 5px; border-radius: 3px; font-weight: bold; text-transform: uppercase; } .badge-ind { background: #e8f5e9; color: #2e7d32; } .badge-exc { background: #ffebee; color: #c62828; } .badge-lid { background: #e3f2fd; color: #1565c0; } .sro-hist-addr { font-weight: 600; color: #555; margin-bottom: 5px; } .sro-hist-res { display: inline-block; background: #eee; padding: 2px 6px; border-radius: 3px; margin-bottom: 6px; color: #333; font-weight: 600; } .sro-hist-evt { color: #777; margin-bottom: 2px; border-bottom: 1px dashed #eee; padding-bottom: 2px; } .sro-hist-evt span { font-weight: bold; color: #999; margin-right: 5px; font-size: 10px; } .sro-hist-end { text-align: center; color: #aaa; font-size: 10px; padding: 10px 0; border-top: 1px dashed #ddd; margin-top: 10px; text-transform: uppercase; font-weight: bold; } @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }",document.head.appendChild(e)}function x(e,t){e.onmousedown=e=>{e.target.closest(".sro-btn-group")||(r.active=!0,r.iX=e.clientX-r.xOff,r.iY=e.clientY-r.yOff)},e.ondblclick=e=>{e.target.closest(".sro-btn-group")||(r.xOff=0,r.yOff=0,t.classList.add("sro-snap"),t.style.transform="translate3d(0,0,0)",setTimeout((()=>t.classList.remove("sro-snap")),300),i())},document.onmouseup=()=>{r.active&&(r.active=!1,i(),v(t))},document.onmousemove=e=>{r.active&&(e.preventDefault(),r.cX=e.clientX-r.iX,r.cY=e.clientY-r.iY,r.xOff=r.cX,r.yOff=r.cY,t.style.transform=`translate3d(${r.cX}px, ${r.cY}px, 0)`)}}function v(e){if(!e)return;const t=e.getBoundingClientRect(),o=window.innerWidth,s=window.innerHeight;let n=!1;t.left<0&&(r.xOff-=t.left,n=!0),t.top<0&&(r.yOff-=t.top,n=!0),t.right>o&&(r.xOff-=t.right-o,n=!0),t.bottom>s&&(r.yOff-=t.bottom-s,n=!0),n&&(e.classList.add("sro-snap"),e.style.transform=`translate3d(${r.xOff}px, ${r.yOff}px, 0)`,setTimeout((()=>e.classList.remove("sro-snap")),300),i())}function y(){b();let e=document.getElementById("sro-container");e||(e=document.createElement("div"),e.id="sro-container",e.innerHTML='<div id="sro-card" class="sro-card mode-loading"><div id="sro-header" class="sro-header" title="Segure para mover"><div class="sro-status-block"><span id="sro-icon" class="sro-icon">⏳</span><span id="sro-status" class="sro-status-text">AGUARDANDO...</span></div><div class="sro-btn-group"><span id="btn-toggle-view" class="sro-btn-panel" title="Alternar Mapa/Histórico">🕒</span><span id="btn-layout-toggle" class="sro-btn-panel" title="Inverter Layout">⇄</span><span id="btn-hide-panel" class="sro-btn-panel" title="Ocultar Painel" style="font-size:1.6rem;margin-top:-3px;">-</span></div></div><div class="sro-body"><div id="sro-distrito" class="sro-distrito">--</div><div style="font-size:12px;color:#666;margin-top:4px">PREVISÃO: <strong id="sro-previsao" style="color:#333">--/--/----</strong></div></div></div>',document.body.appendChild(e),d(e),x(document.getElementById("sro-header"),e),document.getElementById("btn-layout-toggle").onclick=m,document.getElementById("btn-hide-panel").onclick=p,document.getElementById("btn-toggle-view").onclick=()=>{localStorage.setItem(o.VIEW,"map"===(localStorage.getItem(o.VIEW)||"map")?"history":"map"),l()});const t=document.getElementById("sro-card");if(t){let e="⏳";"success"===s.mode&&(e="✅"),"error"===s.mode&&(e="⛔"),"info"===s.mode&&(e="⚠️"),t.className=`sro-card visible mode-${s.mode}`,document.getElementById("sro-status").innerText=s.status,document.getElementById("sro-icon").innerText=e,document.getElementById("sro-distrito").innerHTML=a(!0),document.getElementById("sro-previsao").innerText=s.date||"--/--/----"}h(),l(),c()}function w(e,t){const o=e.toLowerCase();let r=!1;const n=new URL(e,window.location.origin).searchParams.get("codigo")||new URL(e,window.location.origin).searchParams.get("objeto");n&&n!==s.code&&(o.includes("acao=validar")||o.includes("acao=pesquisar"))&&(s={code:n,status:"AGUARDANDO...",mode:"loading",district:"--",date:"--/--/----",exc:"--",val:"--",lastEvt:"--",addr:{log:"--",num:"--",comp:"--",bair:"--",mun:"--",uf:"--",cep:"--"},serv:{ar:"N",mp:"N",dd:"N"},contact:{tel:"--",email:"--"},op:{list:"--",user:"--",postman:"--",st:"--",ts:"--",ord:"--",side:"--"}},r=!0),o.includes("acao=validar")?(s.val=t.validacao||"--",s.exc=t.excecao||"--",s.lastEvt=t.ultimoEventoDescricao||"--",t.validacao?(s.mode="info",s.status="PRONTO P/ INDUZIR",s.date=t.previsaoEntrega?.data||"--/--/----"):(s.mode="error",s.status="NÃO INDUZIDO"),"--"!==s.code&&"error"!==s.mode&&f("novo","Leitura","Objeto escaneado"),r=!0):o.includes("enderecocontroller.php")&&t.endereco?(s.addr={log:t.endereco.logradouro||"--",num:t.endereco.numeroLogradouro||"--",comp:t.endereco.complementoLogradouro||"--",bair:t.endereco.bairro||"--",mun:t.endereco.municipio||"--",uf:t.endereco.uf||"--",cep:t.endereco.cep||"--"},t.servico&&(s.serv={ar:t.servico.ar,mp:t.servico.mp,dd:t.servico.dd}),t.telefone&&(s.contact.tel=`(${t.telefone.ddd}) ${t.telefone.numero}`),s.contact.email=t.email||"--",r=!0):o.includes("distritamentotrechocontroller.php")&&Array.isArray(t)&&t.length>0?(s.district=`${t[0].rotuloDistrito} ${t[0].areaDistrito||""}`.trim(),s.op.ord=t[0].ordemPercorrida,s.op.side=t[0].lado,r=!0):o.includes("acao=salvar")&&t.idLancamento?(s.mode="success",s.status="OBJETO INDUZIDO",s.op.list=t.numeroLista,s.op.user=t.usuario,s.op.st=t.estacao,s.op.ts=t.carimbo,t.dataPrevista&&(s.date=t.dataPrevista),s.pendingDist&&(s.district=s.pendingDist,s.initialDist=s.pendingDist,s.domDist=s.pendingDist),t.distrito&&(s.initialDist=t.distrito,s.domDist=t.distrito),f("induzir","Indução","Objeto induzido"),r=!0):o.includes("acao=excluir")&&(s.mode="error",s.status="EXCLUÍDO",f("excluir","Exclusão","Objeto excluído"),r=!0),r&&y()}const I=window.fetch;window.fetch=async function(...e){const t=e[0]?e[0].toString():"",o=t.toLowerCase();if(o.includes("acao=salvar")&&e[1]&&e[1].body)try{const t=JSON.parse(e[1].body);t.distrito&&(s.pendingDist=t.distrito)}catch(e){}o.includes("listar-impressoras-disponiveis")&&D();const r=await I.apply(this,e);try{o.includes("controller.php")&&r.clone().json().then((e=>w(t,e))).catch((()=>{}))}catch(e){}return r};const E=XMLHttpRequest.prototype.open,O=XMLHttpRequest.prototype.send;function D(){let e=0;const t=setInterval((()=>{const o=document.getElementById("btnImprimirEtiquetaNao");if(o){o.click(),clearInterval(t);let e=0;const s=setInterval((()=>{const t=document.querySelector("#alerta.aberto .act a");t&&"OK"===t.innerText&&(t.click(),clearInterval(s)),++e>=50&&clearInterval(s)}),100)}++e>=50&&clearInterval(t)}),100)}function T(){const e=document.getElementById("txtObjeto");if(!e)return setTimeout(T,1e3);const t=e.closest(".campo")||e.parentElement;t&&(e.addEventListener("keydown",(o=>{"Enter"===o.key&&setTimeout((()=>{const o=t.querySelector(".mensagem");o&&o.innerText.trim().length>0&&L(e)}),300)})),new MutationObserver((()=>{const o=t.querySelector(".mensagem");o&&o.innerText.trim().length>0&&e.value!==n&&L(e)})).observe(t,{childList:!0,subtree:!0,characterData:!0}))}function L(e){document.activeElement!==document.getElementById("selDistrito")&&(e.click(),e.focus(),n=e.value)}function S(){const e=document.getElementById("selDistrito");if(!e)return setTimeout(S,1e3);const t=e=>{s.domDist=e.target.value,y()};e.addEventListener("change",t),e.addEventListener("input",t)}function $(){g(),T(),S(),D(),y(),u(),c()}XMLHttpRequest.prototype.open=function(e,t){return this._u=t,t&&t.toLowerCase().includes("listar-impressoras-disponiveis")&&D(),E.apply(this,arguments)},XMLHttpRequest.prototype.send=function(e){if(this._u&&this._u.toLowerCase().includes("acao=salvar")&&e)try{const t=JSON.parse(e);t.distrito&&(s.pendingDist=t.distrito)}catch(e){}return this.addEventListener("load",(function(){if(this._u&&this._u.toLowerCase().includes("controller.php"))try{w(this._u,JSON.parse(this.responseText))}catch(e){}})),O.apply(this,arguments)},"loading"===document.readyState?document.addEventListener("DOMContentLoaded",$):$()}else if(e.includes("/loecsuspensa/")){function B(){if(document.getElementById("sro-hud-styles"))return;const e=document.createElement("style");e.id="sro-hud-styles",e.innerHTML="#sro-hud-dashboard { box-sizing: border-box; width: 100%; max-width: 100%; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border: 1px solid #dee2e6; border-radius: 8px; margin: 0 auto 20px auto; padding: 15px; font-family: 'Segoe UI', system-ui, sans-serif; box-shadow: 0 4px 6px rgba(0,0,0,0.05); display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; animation: slideDown 0.4s ease-out; position: relative; } #sro-hud-dashboard * { box-sizing: border-box; } @keyframes pulse-green { 0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); } 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); } } .hud-updated { animation: pulse-green 1s; } .hud-card { background: white; padding: 12px; border-radius: 6px; border-left: 4px solid #00416B; box-shadow: 0 2px 4px rgba(0,0,0,0.05); transition: transform 0.2s; min-width: 0; } .hud-card:hover { transform: translateY(-2px); } .hud-title { font-size: 0.75rem; text-transform: uppercase; color: #6b7280; font-weight: 700; letter-spacing: 0.5px; margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .hud-value { font-size: 1.5rem; font-weight: 800; color: #111827; } .hud-sub { font-size: 0.7rem; color: #9ca3af; margin-top: 2px; display: flex; align-items: center; gap: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .border-danger { border-left-color: #dc2626; } .border-warning { border-left-color: #f59e0b; } .border-success { border-left-color: #10b981; } .border-info { border-left-color: #3b82f6; } .text-danger { color: #dc2626; } .hud-full { grid-column: span 4; display: flex; justify-content: space-between; background: #fff; padding: 10px; border-radius: 4px; border: 1px dashed #ccc; align-items: center; flex-wrap: wrap; } .metric-box { text-align: center; flex: 1; border-right: 1px solid #eee; min-width: 80px; } .metric-box:last-child { border-right: none; } .metric-lbl { font-size: 0.65rem; color: #555; text-transform: uppercase; letter-spacing: 0.5px; } .metric-val { font-weight: bold; font-size: 0.9rem; color: #333; } .hud-footer-time { position: absolute; bottom: 2px; right: 5px; font-size: 0.6rem; color: #aaa; font-style: italic; } @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }",document.head.appendChild(e)}const k=e=>"number"==typeof e?e:e&&parseInt(e.toString().replace(/<[^>]*>/g,""),10)||0;function A(e){if(!Array.isArray(e)||0===e.length)return null;let t=e.length,o=0,s=0,r=0,n=0,i=0,d=0;return e.forEach((e=>{o+=k(e.qtde),s+=k(e.qtdePontos),r+=k(e.qtdeVencido),n+=k(e.qtdeHoje),i+=k(e.qtdeAVencer),d+=k(e.qtdeAR)})),{r:{tD:t,tO:o,tP:s,tE:r,tT:n,tF:i,tA:d},c:{dd:o>0?(o/s).toFixed(2):0,ci:o>0?(r/o*100).toFixed(1):0,op:o>0?((n+i)/o*100).toFixed(1):0,af:o>0?(d/o*100).toFixed(1):0,ad:(o/t).toFixed(1)}}}function N(e){const t="sro-hud-dashboard",o=document.getElementById(t);if(o&&o.remove(),!e)return;const s=document.querySelector(".botoes");if(!s)return;const r=e.r,n=e.c;let i="border-success",d="CONTROLADO";n.ci>20&&(i="border-warning",d="ATENÇÃO"),n.ci>50&&(i="border-danger",d="CRÍTICO");const a=document.createElement("div");a.id=t,a.classList.add("hud-updated"),a.innerHTML=`<div class="hud-card border-info"><div class="hud-title">Carga Total Suspensa</div><div class="hud-value">${r.tO} <span style="font-size:0.8rem; color:#888;">objs</span></div><div class="hud-sub">📦 ${r.tD} distritos afetados</div></div><div class="hud-card ${i}"><div class="hud-title">Backlog (Vencidos)</div><div class="hud-value text-danger">${r.tE}</div><div class="hud-sub">🔥 ${n.ci}% da carga total</div></div><div class="hud-card border-warning"><div class="hud-title">Urgência (Hoje+Breve)</div><div class="hud-value">${r.tT+r.tF}</div><div class="hud-sub">⚠️ Pressão Operacional: ${n.op}%</div></div><div class="hud-card border-info"><div class="hud-title">Complexidade (ARs)</div><div class="hud-value">${r.tA}</div><div class="hud-sub">📝 Fator de Retenção: ${n.af}%</div></div><div class="hud-full"><div class="metric-box"><div class="metric-lbl">DENSIDADE DO CLUSTER</div><div class="metric-val">${n.dd} objs/ponto</div></div><div class="metric-box"><div class="metric-lbl">TOTAL PONTOS FÍSICOS</div><div class="metric-val">📍 ${r.tP}</div></div><div class="metric-box"><div class="metric-lbl">STATUS TÁTICO</div><div class="metric-val" style="font-weight:900;">${d}</div></div><div class="metric-box"><div class="metric-lbl">MÉDIA OBJS/DISTRITO</div><div class="metric-val">📊 ${n.ad}</div></div></div><div class="hud-footer-time">Atualizado às: ${(new Date).toLocaleTimeString("pt-BR")}</div>`,s.parentNode.insertBefore(a,s)}function C(e,t){if(e&&e.includes("lancamentoController.php?acao=listar"))try{const e="string"==typeof t?JSON.parse(t):t;if(Array.isArray(e)){B();const t=A(e);setTimeout((()=>N(t)),300)}}catch(e){}}const R=window.fetch;window.fetch=async function(...e){const t=await R.apply(this,e);try{const o=e[0]?e[0].toString():"";o.includes("lancamentoController.php?acao=listar")&&t.clone().json().then((e=>C(o,e))).catch((()=>{}))}catch(e){}return t};const z=XMLHttpRequest.prototype.open,H=XMLHttpRequest.prototype.send;XMLHttpRequest.prototype.open=function(e,t){return this._u=t,z.apply(this,arguments)},XMLHttpRequest.prototype.send=function(e){return this.addEventListener("load",(function(){if(this._u&&this._u.includes("lancamentoController.php?acao=listar"))try{C(this._u,JSON.parse(this.responseText))}catch(e){}})),H.apply(this,arguments)}}e.includes("/lancamentoautomatico/")}();
+$mutexName = "Global\CorreiosToolsLauncherUI"
+$mutex = New-Object System.Threading.Mutex($false, $mutexName)
+if (-not $mutex.WaitOne(0, $false)) { exit }
+
+Write-Host "`n  [Correios Tools] " -NoNewline -ForegroundColor Cyan
+Write-Host "Nao feche esta janela, ela sera fechada automaticamente ou junto com o aplicativo!" -ForegroundColor Yellow
+Write-Host ""
+
+$windowHelperCode = @"
+using System;
+using System.Runtime.InteropServices;
+public class WindowHelper {
+    [DllImport("kernel32.dll")]
+    public static extern IntPtr GetConsoleWindow();
+    [DllImport("user32.dll")]
+    public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+    [DllImport("user32.dll")]
+    public static extern bool SetForegroundWindow(IntPtr hWnd);
+    [DllImport("user32.dll")]
+    public static extern IntPtr GetForegroundWindow();
+    private const int SW_HIDE = 0;
+    public static void HideConsole() {
+        IntPtr handle = GetConsoleWindow();
+        if (handle != IntPtr.Zero) { ShowWindow(handle, SW_HIDE); }
+    }
+    public static void FocusWindow(IntPtr hWnd) {
+        if (hWnd != IntPtr.Zero) { SetForegroundWindow(hWnd); }
+    }
+}
+"@
+try { Add-Type -TypeDefinition $windowHelperCode -Language CSharp -ErrorAction SilentlyContinue } catch {}
+try { [WindowHelper]::HideConsole() } catch {}
+
+Add-Type -AssemblyName PresentationFramework
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
+
+$script:isProcessing = $false
+$script:updateTimer = $null
+$script:countdownTimer = $null
+$script:needsRestart = $false
+$script:appVersion = "1.0.3"
+$script:lastUpdateCheck = $null
+$script:nextCheckTime = $null
+
+$baseDir = "C:\Users\Public\correios-tools"
+$dataDir = "$baseDir\data"
+$extensionsDir = "$dataDir\extensions"
+$assetsDir = "$dataDir\assets"
+$hashFile = "$dataDir\launcher.hash"
+$selfPath = $MyInvocation.MyCommand.Path
+
+$iconUrl = "https://cdn.jsdelivr.net/gh/henrique-coder/correios-tools/assets/icon.ico"
+$iconPath = "$dataDir\icon.ico"
+$edgeIconUrl = "https://cdn.jsdelivr.net/gh/henrique-coder/correios-tools/assets/logos/edge.png"
+$chromeIconUrl = "https://cdn.jsdelivr.net/gh/henrique-coder/correios-tools/assets/logos/chrome.png"
+$edgeIconPath = "$assetsDir\edge.png"
+$chromeIconPath = "$assetsDir\chrome.png"
+
+$scriptsApiUrl = "https://api.github.com/repos/henrique-coder/correios-tools/releases/tags/minified-scripts"
+$extensionsApiUrl = "https://api.github.com/repos/henrique-coder/correios-tools/releases/tags/browser-extensions"
+$launcherDownloadUrl = "https://github.com/henrique-coder/correios-tools/releases/download/minified-scripts/launcher.min.ps1"
+
+$extensionNames = @("correios-tools")
+
+$updateIntervalHours = 4
+$startUrl = "https://sroweb.correios.com.br/app/index.php"
+
+if (!(Test-Path $dataDir)) { New-Item -ItemType Directory -Path $dataDir -Force | Out-Null }
+if (!(Test-Path $assetsDir)) { New-Item -ItemType Directory -Path $assetsDir -Force | Out-Null }
+
+try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 } catch {}
+
+function Get-StoredHash {
+    try {
+        if (Test-Path $hashFile) {
+            $content = Get-Content $hashFile -Raw -ErrorAction SilentlyContinue
+            if ($content) { return $content.Trim() }
+        }
+    }
+    catch {}
+    return ""
+}
+
+function Save-Hash {
+    param([string]$hash)
+    try { [System.IO.File]::WriteAllText($hashFile, $hash) } catch {}
+}
+
+function Get-ReleaseInfo {
+    param([string]$apiUrl)
+    try {
+        $headers = @{ "User-Agent" = "PowerShell"; "Accept" = "application/vnd.github+json" }
+        return Invoke-RestMethod -Uri $apiUrl -Headers $headers -Method Get -TimeoutSec 30
+    }
+    catch { return $null }
+}
+
+function Get-AssetDigest {
+    param($releaseInfo, [string]$assetName)
+    try {
+        if ($releaseInfo -and $releaseInfo.assets) {
+            foreach ($asset in $releaseInfo.assets) {
+                if ($asset.name -eq $assetName -and $asset.digest) { return $asset.digest }
+            }
+        }
+    }
+    catch {}
+    return ""
+}
+
+function Get-AssetDownloadUrl {
+    param($releaseInfo, [string]$assetName)
+    try {
+        if ($releaseInfo -and $releaseInfo.assets) {
+            foreach ($asset in $releaseInfo.assets) {
+                if ($asset.name -eq $assetName) { return $asset.browser_download_url }
+            }
+        }
+    }
+    catch {}
+    return ""
+}
+
+function Create-Shortcuts {
+    try {
+        $desktopPath = [Environment]::GetFolderPath("Desktop")
+        $shortcutPath = "$desktopPath\Correios Tools.lnk"
+        $shell = New-Object -ComObject WScript.Shell
+        if (!(Test-Path $shortcutPath)) {
+            $shortcut = $shell.CreateShortcut($shortcutPath)
+            $shortcut.TargetPath = "powershell.exe"
+            $shortcut.Arguments = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$selfPath`""
+            $shortcut.IconLocation = $iconPath
+            $shortcut.Description = "Correios Tools Launcher"
+            $shortcut.Save()
+        }
+    }
+    catch {}
+}
+
+[xml]$xaml = @"
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Correios Tools Launcher" Height="530" Width="420"
+        WindowStartupLocation="CenterScreen" ResizeMode="CanMinimize"
+        Background="#1E1E1E" WindowStyle="None" AllowsTransparency="True">
+    <Window.Resources>
+        <Style TargetType="Button">
+            <Setter Property="Background" Value="#2D2D30"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Padding" Value="10,5"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Name="border" Background="{TemplateBinding Background}" CornerRadius="5">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#3E3E42"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#007ACC"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="border" Property="Background" Value="#1A1A1A"/>
+                                <Setter Property="Foreground" Value="#555555"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+    <Grid>
+        <Border BorderBrush="#333337" BorderThickness="1" CornerRadius="0">
+            <Grid Margin="15">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <Grid Grid.Row="0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="CORREIOS TOOLS" Foreground="White" FontSize="18" FontWeight="Bold"/>
+                        <TextBlock Name="TxtVersion" Text="" Foreground="#666666" FontSize="10" VerticalAlignment="Bottom" Margin="8,0,0,2"/>
+                    </StackPanel>
+                    <Button Name="BtnClose" Content="X" Grid.Column="1" Background="Transparent" Foreground="#FF5555" FontWeight="Bold" Width="30"/>
+                </Grid>
+                <TextBlock Name="TxtStatus" Grid.Row="1" Text="Iniciando..." Foreground="#AAAAAA" Margin="0,20,0,10" HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center"/>
+                <StackPanel Grid.Row="2" VerticalAlignment="Center" HorizontalAlignment="Center">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="30"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Button Name="BtnEdge" Width="130" Height="130" Background="Transparent">
+                            <StackPanel>
+                                <Image Name="ImgEdge" Width="90" Height="90" RenderOptions.BitmapScalingMode="HighQuality"/>
+                                <TextBlock Text="Microsoft Edge" Foreground="White" HorizontalAlignment="Center" Margin="0,10,0,0"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Name="BtnChrome" Grid.Column="2" Width="130" Height="130" Background="Transparent">
+                            <StackPanel>
+                                <Image Name="ImgChrome" Width="90" Height="90" RenderOptions.BitmapScalingMode="HighQuality"/>
+                                <TextBlock Text="Google Chrome" Foreground="White" HorizontalAlignment="Center" Margin="0,10,0,0"/>
+                            </StackPanel>
+                        </Button>
+                    </Grid>
+                </StackPanel>
+                <StackPanel Grid.Row="3" Margin="0,15">
+                    <ProgressBar Name="PbMain" Height="3" Background="#2D2D30" Foreground="#007ACC" IsIndeterminate="False" Opacity="0"/>
+                </StackPanel>
+                <Button Name="BtnUpdate" Grid.Row="4" Content="Verificar Atualizacoes" Height="35" FontSize="11" Margin="0,5,0,0"/>
+                <Border Grid.Row="5" Background="#252526" CornerRadius="3" Margin="0,15,0,0" Padding="10">
+                    <TextBlock Name="TxtCountdown" Text="Proxima verificacao em: --" Foreground="#007ACC" FontSize="10" FontWeight="Bold" HorizontalAlignment="Center"/>
+                </Border>
+                <TextBlock Name="LinkRepo" Grid.Row="6" Text="GitHub: henrique-coder/correios-tools" Foreground="#555555" FontSize="10" HorizontalAlignment="Center" Margin="0,15,0,0" Cursor="Hand">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Style.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Foreground" Value="#007ACC"/>
+                                    <Setter Property="TextDecorations" Value="Underline"/>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+            </Grid>
+        </Border>
+        <Border Name="LoadingOverlay" Background="#EE1E1E1E" Visibility="Collapsed">
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                <TextBlock Name="TxtLoading" Text="Carregando..." Foreground="#007ACC" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center"/>
+                <ProgressBar IsIndeterminate="True" Width="200" Height="4" Margin="0,15,0,0" Background="#2D2D30" Foreground="#007ACC"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>
+"@
+
+$window = [Windows.Markup.XamlReader]::Load((New-Object System.Xml.XmlNodeReader $xaml))
+
+$BtnClose = $window.FindName("BtnClose")
+$BtnEdge = $window.FindName("BtnEdge")
+$BtnChrome = $window.FindName("BtnChrome")
+$BtnUpdate = $window.FindName("BtnUpdate")
+
+$TxtStatus = $window.FindName("TxtStatus")
+$TxtVersion = $window.FindName("TxtVersion")
+$TxtCountdown = $window.FindName("TxtCountdown")
+$TxtLoading = $window.FindName("TxtLoading")
+$LoadingOverlay = $window.FindName("LoadingOverlay")
+$ImgEdge = $window.FindName("ImgEdge")
+$ImgChrome = $window.FindName("ImgChrome")
+$PbMain = $window.FindName("PbMain")
+$LinkRepo = $window.FindName("LinkRepo")
+
+$allButtons = @($BtnEdge, $BtnChrome, $BtnUpdate)
+
+function Set-ButtonsEnabled {
+    param([bool]$enabled)
+    foreach ($btn in $allButtons) { $btn.IsEnabled = $enabled }
+}
+
+function Update-Status {
+    param([string]$message, [bool]$loading = $false)
+    $TxtStatus.Text = $message
+    $PbMain.IsIndeterminate = $loading
+    $PbMain.Opacity = if ($loading) { 1 } else { 0 }
+    [System.Windows.Threading.Dispatcher]::CurrentDispatcher.Invoke([Action] {}, [System.Windows.Threading.DispatcherPriority]::Background)
+}
+
+function Show-LoadingOverlay {
+    param([string]$message = "Carregando...")
+    $TxtLoading.Text = $message
+    $LoadingOverlay.Visibility = [System.Windows.Visibility]::Visible
+    [System.Windows.Threading.Dispatcher]::CurrentDispatcher.Invoke([Action] {}, [System.Windows.Threading.DispatcherPriority]::Background)
+}
+
+function Hide-LoadingOverlay {
+    $LoadingOverlay.Visibility = [System.Windows.Visibility]::Collapsed
+    [System.Windows.Threading.Dispatcher]::CurrentDispatcher.Invoke([Action] {}, [System.Windows.Threading.DispatcherPriority]::Background)
+}
+
+function Update-InfoPanel {
+    $TxtVersion.Text = "v$($script:appVersion)"
+    Update-Countdown
+}
+
+function Update-Countdown {
+    if ($script:nextCheckTime) {
+        $remaining = $script:nextCheckTime - (Get-Date)
+        if ($remaining.TotalSeconds -gt 0) {
+            $hours = [math]::Floor($remaining.TotalHours)
+            $mins = $remaining.Minutes
+            $TxtCountdown.Text = "Proxima verificacao em: ${hours}h ${mins}m"
+        }
+        else {
+            $TxtCountdown.Text = "Verificando em breve..."
+        }
+    }
+    else {
+        $TxtCountdown.Text = "Proxima verificacao em: --"
+    }
+}
+
+function Reset-UpdateTimer {
+    $script:nextCheckTime = (Get-Date).AddHours($updateIntervalHours)
+    if ($script:updateTimer) {
+        $script:updateTimer.Stop()
+        $script:updateTimer.Start()
+    }
+    Update-Countdown
+}
+
+function Invoke-SafeAction {
+    param([scriptblock]$action)
+    if ($script:isProcessing) { return }
+    $script:isProcessing = $true
+    Set-ButtonsEnabled $false
+    try { & $action } catch {}
+    finally {
+        $script:isProcessing = $false
+        Set-ButtonsEnabled $true
+    }
+}
+
+function Initialize-WindowIcon {
+    try {
+        if (!(Test-Path $iconPath)) {
+            Invoke-WebRequest -Uri $iconUrl -OutFile $iconPath -UseBasicParsing
+        }
+        if (Test-Path $iconPath) {
+            $uri = New-Object System.Uri($iconPath)
+            $iconBitmap = New-Object System.Windows.Media.Imaging.BitmapImage
+            $iconBitmap.BeginInit()
+            $iconBitmap.UriSource = $uri
+            $iconBitmap.CacheOption = [System.Windows.Media.Imaging.BitmapCacheOption]::OnLoad
+            $iconBitmap.CreateOptions = [System.Windows.Media.Imaging.BitmapCreateOptions]::IgnoreImageCache
+            $iconBitmap.EndInit()
+            $iconBitmap.Freeze()
+            $window.Icon = $iconBitmap
+        }
+    }
+    catch {}
+}
+
+function Initialize-BrowserIcons {
+    try {
+        if (!(Test-Path $edgeIconPath)) { Invoke-WebRequest -Uri $edgeIconUrl -OutFile $edgeIconPath -UseBasicParsing }
+        if (!(Test-Path $chromeIconPath)) { Invoke-WebRequest -Uri $chromeIconUrl -OutFile $chromeIconPath -UseBasicParsing }
+
+        if (Test-Path $edgeIconPath) {
+            $edgeBitmap = New-Object System.Windows.Media.Imaging.BitmapImage
+            $edgeBitmap.BeginInit()
+            $edgeBitmap.UriSource = New-Object System.Uri($edgeIconPath)
+            $edgeBitmap.CacheOption = [System.Windows.Media.Imaging.BitmapCacheOption]::OnLoad
+            $edgeBitmap.EndInit()
+            $edgeBitmap.Freeze()
+            $ImgEdge.Source = $edgeBitmap
+        }
+
+        if (Test-Path $chromeIconPath) {
+            $chromeBitmap = New-Object System.Windows.Media.Imaging.BitmapImage
+            $chromeBitmap.BeginInit()
+            $chromeBitmap.UriSource = New-Object System.Uri($chromeIconPath)
+            $chromeBitmap.CacheOption = [System.Windows.Media.Imaging.BitmapCacheOption]::OnLoad
+            $chromeBitmap.EndInit()
+            $chromeBitmap.Freeze()
+            $ImgChrome.Source = $chromeBitmap
+        }
+    }
+    catch {}
+}
+
+function Invoke-TriggerRestart {
+    $script:needsRestart = $true
+    $window.Close()
+}
+
+function Invoke-CheckLauncherUpdate {
+    param([bool]$showCountdown = $true)
+
+    Update-Status "Verificando atualizacoes..." $true
+
+    try {
+        $releaseInfo = Get-ReleaseInfo $scriptsApiUrl
+        if ($releaseInfo -eq $null) {
+            Update-Status "Pronto! Selecione o navegador." $false
+            return
+        }
+
+        $remoteHash = Get-AssetDigest $releaseInfo "launcher.min.ps1"
+        if ([string]::IsNullOrEmpty($remoteHash)) {
+            Update-Status "Pronto! Selecione o navegador." $false
+            return
+        }
+
+        $localHash = Get-StoredHash
+        if ($remoteHash -eq $localHash) {
+            Update-Status "Pronto! Selecione o navegador." $false
+            return
+        }
+
+        if ($showCountdown) {
+            for ($i = 5; $i -gt 0; $i--) {
+                Update-Status "Atualizacao encontrada! Reiniciando em $i..." $false
+                Start-Sleep -Seconds 1
+            }
+        }
+
+        Update-Status "Baixando atualizacao..." $true
+        $tempPath = "$dataDir\launcher_update.tmp"
+        Invoke-WebRequest -Uri $launcherDownloadUrl -OutFile $tempPath -UseBasicParsing
+
+        Save-Hash $remoteHash
+
+        Copy-Item $tempPath $selfPath -Force
+        Remove-Item $tempPath -Force -ErrorAction SilentlyContinue
+
+        Update-Status "Reiniciando..." $true
+        Invoke-TriggerRestart
+    }
+    catch {
+        Update-Status "Pronto! Selecione o navegador." $false
+    }
+}
+
+function Invoke-DownloadExtensions {
+    Update-Status "Baixando extensoes..." $true
+
+    try {
+        if (Test-Path $extensionsDir) {
+            Remove-Item $extensionsDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
+        New-Item -ItemType Directory -Path $extensionsDir -Force | Out-Null
+
+        $releaseInfo = Get-ReleaseInfo $extensionsApiUrl
+        if ($releaseInfo -eq $null) {
+            Update-Status "Erro: sem conexao." $false
+            return $false
+        }
+
+        $count = 0
+        $total = $extensionNames.Count
+
+        foreach ($extName in $extensionNames) {
+            $count++
+            Update-Status "Baixando $extName ($count/$total)..." $true
+
+            $zipName = "$extName.zip"
+            $downloadUrl = Get-AssetDownloadUrl $releaseInfo $zipName
+
+            if ($downloadUrl) {
+                $tempZip = "$dataDir\temp_$zipName"
+                $extFolder = "$extensionsDir\$extName"
+
+                New-Item -ItemType Directory -Path $extFolder -Force | Out-Null
+                Invoke-WebRequest -Uri $downloadUrl -OutFile $tempZip -UseBasicParsing -TimeoutSec 60
+                Expand-Archive -Path $tempZip -DestinationPath $extFolder -Force
+                Remove-Item $tempZip -Force -ErrorAction SilentlyContinue
+            }
+        }
+
+        return $true
+    }
+    catch {
+        Update-Status "Erro ao baixar extensoes." $false
+        return $false
+    }
+}
+
+
+
+function Get-ExtensionPaths {
+    $paths = @()
+    if (Test-Path $extensionsDir) {
+        $dirs = Get-ChildItem -Path $extensionsDir -Directory -ErrorAction SilentlyContinue
+        foreach ($dir in $dirs) {
+            if (Test-Path "$($dir.FullName)\manifest.json") { $paths += $dir.FullName }
+        }
+    }
+    return ($paths -join ",")
+}
+
+function Wait-ProcessExit {
+    param([string]$processName)
+    $timeout = 15
+    $elapsed = 0
+    while ($elapsed -lt $timeout) {
+        $proc = Get-Process -Name $processName -ErrorAction SilentlyContinue
+        if ($proc -eq $null) { return $true }
+        Start-Sleep -Milliseconds 200
+        $elapsed += 0.2
+        [System.Windows.Threading.Dispatcher]::CurrentDispatcher.Invoke([Action] {}, [System.Windows.Threading.DispatcherPriority]::Background)
+    }
+    return $false
+}
+
+function Set-PreferencesFile {
+    param([string]$prefPath)
+    if (!(Test-Path $prefPath)) { return }
+    try {
+        $prefs = Get-Content $prefPath -Raw -Encoding UTF8 | ConvertFrom-Json
+        $modified = $false
+
+        if ($prefs.session -eq $null) { $prefs | Add-Member -NotePropertyName "session" -NotePropertyValue @{} -Force }
+        if ($prefs.session.restore_on_startup -ne 1) { $prefs.session.restore_on_startup = 1; $modified = $true }
+
+        if ($prefs.extensions -eq $null) { $prefs | Add-Member -NotePropertyName "extensions" -NotePropertyValue @{} -Force }
+        if ($prefs.extensions.ui -eq $null) { $prefs.extensions | Add-Member -NotePropertyName "ui" -NotePropertyValue @{} -Force }
+        if ($prefs.extensions.ui.developer_mode -ne $true) { $prefs.extensions.ui.developer_mode = $true; $modified = $true }
+
+        if ($modified) { $prefs | ConvertTo-Json -Depth 100 -Compress | Set-Content $prefPath -Encoding UTF8 }
+    }
+    catch {}
+}
+
+function Set-BrowserPreferences {
+    param([string]$browserName)
+    $userDataPath = ""
+    if ($browserName -eq "Edge") { $userDataPath = "$env:LOCALAPPDATA\Microsoft\Edge\User Data" }
+    elseif ($browserName -eq "Chrome") { $userDataPath = "$env:LOCALAPPDATA\Google\Chrome\User Data" }
+
+    if (!(Test-Path $userDataPath)) { return }
+
+    $defaultPref = "$userDataPath\Default\Preferences"
+    if (Test-Path $defaultPref) { Set-PreferencesFile $defaultPref }
+
+    $profiles = Get-ChildItem -Path $userDataPath -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -match "^Profile \d+$" }
+    foreach ($profile in $profiles) {
+        $profilePref = "$($profile.FullName)\Preferences"
+        if (Test-Path $profilePref) { Set-PreferencesFile $profilePref }
+    }
+}
+
+function Start-Browser {
+    param([string]$browserName, [string]$processName)
+
+    $downloadOk = Invoke-DownloadExtensions
+    if (-not $downloadOk) {
+        $ext = Get-ExtensionPaths
+        if ([string]::IsNullOrEmpty($ext)) {
+            Update-Status "Sem extensoes disponiveis." $false
+            return
+        }
+    }
+
+    $extensionPaths = Get-ExtensionPaths
+
+    $existingProcess = Get-Process -Name $processName -ErrorAction SilentlyContinue
+    if ($existingProcess) {
+        Update-Status "Fechando $browserName..." $true
+        Stop-Process -Name $processName -Force -ErrorAction SilentlyContinue
+        Wait-ProcessExit $processName
+    }
+
+    Update-Status "Configurando $browserName..." $true
+    Set-BrowserPreferences $browserName
+
+    Update-Status "Iniciando $browserName..." $true
+    $browserArgs = @("--restore-last-session", "--no-first-run", "--no-default-browser-check", $startUrl)
+    if (-not [string]::IsNullOrEmpty($extensionPaths)) { $browserArgs += "--load-extension=`"$extensionPaths`"" }
+
+    try {
+        Start-Process $processName -ArgumentList $browserArgs
+        Update-Status "$browserName iniciado!" $false
+    }
+    catch {
+        Update-Status "Erro ao iniciar $browserName." $false
+    }
+}
+
+function Invoke-AutoUpdateCheck {
+    while ($script:isProcessing) {
+        Start-Sleep -Seconds 1
+        [System.Windows.Threading.Dispatcher]::CurrentDispatcher.Invoke([Action] {}, [System.Windows.Threading.DispatcherPriority]::Background)
+    }
+
+    $script:isProcessing = $true
+    Set-ButtonsEnabled $false
+
+    try {
+        $releaseInfo = Get-ReleaseInfo $scriptsApiUrl
+        if ($releaseInfo -ne $null) {
+            $remoteHash = Get-AssetDigest $releaseInfo "launcher.min.ps1"
+            $localHash = Get-StoredHash
+
+            if (-not [string]::IsNullOrEmpty($remoteHash) -and $remoteHash -ne $localHash) {
+                for ($i = 5; $i -gt 0; $i--) {
+                    Update-Status "Atualizacao encontrada! Reiniciando em $i..." $false
+                    Start-Sleep -Seconds 1
+                }
+
+                Update-Status "Baixando atualizacao..." $true
+                $tempPath = "$dataDir\launcher_update.tmp"
+                Invoke-WebRequest -Uri $launcherDownloadUrl -OutFile $tempPath -UseBasicParsing
+
+                Save-Hash $remoteHash
+
+                Copy-Item $tempPath $selfPath -Force
+                Remove-Item $tempPath -Force -ErrorAction SilentlyContinue
+
+                Update-Status "Reiniciando..." $true
+                Invoke-TriggerRestart
+                return
+            }
+        }
+    }
+    catch {}
+
+    $script:isProcessing = $false
+    Set-ButtonsEnabled $true
+}
+
+function Initialize-UpdateTimer {
+    $script:nextCheckTime = (Get-Date).AddHours($updateIntervalHours)
+    $script:updateTimer = New-Object System.Windows.Threading.DispatcherTimer
+    $script:updateTimer.Interval = [TimeSpan]::FromHours($updateIntervalHours)
+    $script:updateTimer.Add_Tick({ Invoke-AutoUpdateCheck })
+    $script:updateTimer.Start()
+
+    $script:countdownTimer = New-Object System.Windows.Threading.DispatcherTimer
+    $script:countdownTimer.Interval = [TimeSpan]::FromMinutes(1)
+    $script:countdownTimer.Add_Tick({ Update-Countdown })
+    $script:countdownTimer.Start()
+}
+
+function Invoke-StartupSequence {
+    Set-ButtonsEnabled $false
+    $script:isProcessing = $true
+    Show-LoadingOverlay "Iniciando..."
+
+    Initialize-WindowIcon
+    Initialize-BrowserIcons
+    Create-Shortcuts
+
+    Hide-LoadingOverlay
+    Show-LoadingOverlay "Verificando atualizacoes..."
+
+    Invoke-CheckLauncherUpdate -showCountdown $true
+
+    $script:lastUpdateCheck = Get-Date
+    Initialize-UpdateTimer
+    Update-InfoPanel
+
+    Hide-LoadingOverlay
+    Update-Status "Pronto! Selecione o navegador." $false
+    $script:isProcessing = $false
+    Set-ButtonsEnabled $true
+}
+
+$BtnClose.Add_Click({ $window.Close() })
+
+$BtnUpdate.Add_Click({
+        Invoke-SafeAction {
+            Show-LoadingOverlay "Verificando atualizacoes..."
+            Invoke-CheckLauncherUpdate -showCountdown $true
+            $script:lastUpdateCheck = Get-Date
+            Reset-UpdateTimer
+            Update-InfoPanel
+            Hide-LoadingOverlay
+        }
+    })
+
+
+
+$BtnEdge.Add_Click({
+        Invoke-SafeAction { Start-Browser "Edge" "msedge" }
+    })
+
+$BtnChrome.Add_Click({
+        Invoke-SafeAction { Start-Browser "Chrome" "chrome" }
+    })
+
+$LinkRepo.Add_MouseLeftButtonDown({
+        Start-Process "https://github.com/henrique-coder/correios-tools"
+    })
+
+$window.Add_Loaded({
+        $window.Topmost = $true
+        $window.Activate()
+        $window.Focus()
+        $window.Topmost = $false
+        Invoke-StartupSequence
+    })
+$window.Add_MouseLeftButtonDown({ $window.DragMove() })
+
+$window.Add_Closed({
+        if ($script:needsRestart) {
+            Start-Sleep -Milliseconds 1000
+            $shortcutPath = "$([Environment]::GetFolderPath('Desktop'))\Correios Tools.lnk"
+            if (Test-Path $shortcutPath) {
+                Start-Process -FilePath $shortcutPath
+            }
+            else {
+                Start-Process -FilePath "powershell.exe" -ArgumentList "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$selfPath`"" -WindowStyle Hidden
+            }
+        }
+    })
+
+[void]$window.ShowDialog()
