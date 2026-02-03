@@ -35,4 +35,4 @@ function walkDir(dir) {
   });
 }
 
-walkDir("./extensions");
+walkDir("src/extensions");

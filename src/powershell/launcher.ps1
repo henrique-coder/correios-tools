@@ -46,14 +46,15 @@ $script:NextCheckTime = $null
 $INSTALL_DIR = "C:\Users\Public\correios-tools"
 $DATA_DIR = "$INSTALL_DIR\data"
 $EXTENSIONS_DIR = "$DATA_DIR\extensions"
-$ASSETS_DIR = "$DATA_DIR\assets"
+$RESOURCES_DIR = "$INSTALL_DIR\resources"
+$ASSETS_DIR = "$RESOURCES_DIR\assets"
 $HASH_FILE = "$DATA_DIR\launcher.hash"
 $SELF_PATH = $MyInvocation.MyCommand.Path
 
-$ICON_URL = "https://cdn.jsdelivr.net/gh/henrique-coder/correios-tools/assets/icon.ico"
-$ICON_PATH = "$DATA_DIR\icon.ico"
-$EDGE_ICON_URL = "https://cdn.jsdelivr.net/gh/henrique-coder/correios-tools/assets/logos/edge.png"
-$CHROME_ICON_URL = "https://cdn.jsdelivr.net/gh/henrique-coder/correios-tools/assets/logos/chrome.png"
+$ICON_URL = "https://cdn.jsdelivr.net/gh/henrique-coder/correios-tools/resources/assets/icon.ico"
+$ICON_PATH = "$ASSETS_DIR\icon.ico"
+$EDGE_ICON_URL = "https://cdn.jsdelivr.net/gh/henrique-coder/correios-tools/resources/assets/logos/edge.png"
+$CHROME_ICON_URL = "https://cdn.jsdelivr.net/gh/henrique-coder/correios-tools/resources/assets/logos/chrome.png"
 $EDGE_ICON_PATH = "$ASSETS_DIR\edge.png"
 $CHROME_ICON_PATH = "$ASSETS_DIR\chrome.png"
 
@@ -100,7 +101,7 @@ function Get-ReleaseInfo {
 function Get-ReleaseCommitHash {
     param($ReleaseInfo)
     try {
-        
+
         if ($ReleaseInfo.body -match "\*\*Commit:\*\* \[`([a-f0-9]+)`\]") {
             return $matches[1]
         }
@@ -447,14 +448,14 @@ function Download-Extensions {
     Set-UIStatus "Baixando extensões..." $true
 
     try {
-        
+
         $releaseInfo = Get-ReleaseInfo $EXTENSIONS_API_URL
         if ($releaseInfo -eq $null) {
             Set-UIStatus "Erro: sem conexão." $false
             return $false
         }
 
-        
+
         if (Test-Path $EXTENSIONS_DIR) {
             Remove-Item $EXTENSIONS_DIR -Recurse -Force -ErrorAction SilentlyContinue
         }

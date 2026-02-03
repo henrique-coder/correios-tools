@@ -15,13 +15,13 @@ Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
 **Instalar:**
 
 ```powershell
-irm https://github.com/henrique-coder/correios-tools/releases/download/minified-scripts/install.min.ps1 | iex
+irm https://github.com/henrique-coder/correios-tools/releases/download/powershell-scripts/install.min.ps1 | iex
 ```
 
 **Alternativa via CMD:**
 
 ```cmd
-powershell -ep bypass -c "irm https://github.com/henrique-coder/correios-tools/releases/download/minified-scripts/install.min.ps1 | iex"
+powershell -ep bypass -c "irm https://github.com/henrique-coder/correios-tools/releases/download/powershell-scripts/install.min.ps1 | iex"
 ```
 
 ## Uso

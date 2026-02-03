@@ -3,9 +3,9 @@ default:
 
 lint:
     npx prettier --check .
-    pwsh -Command 'Invoke-ScriptAnalyzer -Path scripts/ -Recurse -Settings CodeFormatting -EnableExit'
+    pwsh -Command 'Invoke-ScriptAnalyzer -Path src/powershell/ -Recurse -Settings CodeFormatting -EnableExit'
 
 format:
-    node strip-comments.js
+    node scripts/strip-comments.js
     npx prettier --write .
-    pwsh -File format-ps1.ps1
+    pwsh -File scripts/format-ps1.ps1

@@ -13,11 +13,13 @@ Add-Type -AssemblyName PresentationFramework, System.Windows.Forms, System.Drawi
 
 
 $LAUNCHER_URL = "https://github.com/henrique-coder/correios-tools/releases/download/powershell-scripts/launcher.min.ps1"
-$ICON_URL = "https://cdn.jsdelivr.net/gh/henrique-coder/correios-tools/assets/icon.ico"
+$ICON_URL = "https://cdn.jsdelivr.net/gh/henrique-coder/correios-tools/resources/assets/icon.ico"
 $INSTALL_DIR = "C:\Users\Public\correios-tools"
 $DATA_DIR = "$INSTALL_DIR\data"
+$RESOURCES_DIR = "$INSTALL_DIR\resources"
+$ASSETS_DIR = "$RESOURCES_DIR\assets"
 $LAUNCHER_PATH = "$DATA_DIR\launcher.ps1"
-$ICON_PATH = "$DATA_DIR\icon.ico"
+$ICON_PATH = "$ASSETS_DIR\icon.ico"
 
 
 try {
@@ -111,7 +113,7 @@ function Set-UIStatus {
     $progressBar.IsIndeterminate = $IsLoading
     $progressBar.Opacity = if ($IsLoading) { 1 } else { 0 }
 
-    
+
     [System.Windows.Threading.Dispatcher]::CurrentDispatcher.Invoke([Action] {}, [System.Windows.Threading.DispatcherPriority]::Background)
 }
 
@@ -185,9 +187,8 @@ function Start-Installation {
     }
 
     Set-UIStatus "Criando diretórios..." $true
-    if (-not (Test-Path $DATA_DIR)) {
-        New-Item -ItemType Directory -Path $DATA_DIR -Force | Out-Null
-    }
+    if (-not (Test-Path $DATA_DIR)) { New-Item -ItemType Directory -Path $DATA_DIR -Force | Out-Null }
+    if (-not (Test-Path $ASSETS_DIR)) { New-Item -ItemType Directory -Path $ASSETS_DIR -Force | Out-Null }
 
     try {
         Set-UIStatus "Baixando launcher..." $true

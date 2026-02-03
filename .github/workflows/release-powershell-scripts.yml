@@ -6,7 +6,7 @@ on:
       - prod
     paths:
       - ".github/workflows/release-powershell-scripts.yml"
-      - "scripts/**"
+      - "src/powershell/**"
   workflow_dispatch:
 
 permissions:
@@ -36,7 +36,7 @@ jobs:
           $errorCount = 0
 
           # Only check root scripts folder (extras was removed)
-          $scripts = Get-ChildItem -Path scripts -Recurse -Filter "*.ps1"
+          $scripts = Get-ChildItem -Path src/powershell -Recurse -Filter "*.ps1"
 
           foreach ($script in $scripts) {
              $results = Invoke-ScriptAnalyzer -Path $script.FullName -Severity Error
@@ -66,7 +66,7 @@ jobs:
 
           Write-Host "🔄 Processing scripts..."
 
-          $scripts = Get-ChildItem -Path "scripts" -Filter "*.ps1" -File
+          $scripts = Get-ChildItem -Path "src/powershell" -Filter "*.ps1" -File
 
           if ($scripts.Count -eq 0) {
             Write-Error "No scripts found!"

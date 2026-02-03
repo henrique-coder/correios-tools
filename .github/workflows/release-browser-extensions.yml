@@ -6,7 +6,7 @@ on:
       - prod
     paths:
       - ".github/workflows/release-browser-extensions.yml"
-      - "extensions/**"
+      - "src/extensions/**"
   workflow_dispatch:
 
 permissions:
@@ -36,7 +36,7 @@ jobs:
           ERROR=0
 
           # Check JS syntax
-          find extensions -name "*.js" -print0 | while IFS= read -r -d '' file; do
+          find src/extensions -name "*.js" -print0 | while IFS= read -r -d '' file; do
              if ! node --check "$file" >/dev/null 2>&1; then
                echo "❌ Invalid JavaScript: $file"
                node --check "$file" || true
@@ -45,7 +45,7 @@ jobs:
           done
 
           # Check JSON syntax
-          find extensions -name "*.json" -print0 | while IFS= read -r -d '' file; do
+          find src/extensions -name "*.json" -print0 | while IFS= read -r -d '' file; do
              if ! jq . "$file" >/dev/null 2>&1; then
                echo "❌ Invalid JSON: $file"
                ERROR=1
@@ -73,7 +73,7 @@ jobs:
 
           echo "🔄 Processing extensions..."
 
-          for dir in extensions/*/; do
+          for dir in src/extensions/*/; do
             if [ -d "$dir" ]; then
               ext_name=$(basename "$dir")
               echo "  - Processing $ext_name..."
