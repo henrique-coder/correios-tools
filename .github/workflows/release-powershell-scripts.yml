@@ -97,6 +97,13 @@ jobs:
             }
 
             $stats += "| ``$outName`` | $sizeStr |"
+
+            if ($script.Name -eq "launch.ps1") {
+               $legacyName = "launcher.min.ps1"
+               $legacyPath = Join-Path "release_assets" $legacyName
+               Copy-Item $outPath $legacyPath
+               $stats += "| ``$legacyName`` | $sizeStr |"
+            }
           }
 
           # Output outputs

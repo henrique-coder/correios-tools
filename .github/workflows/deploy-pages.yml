@@ -1,0 +1,64 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches:
+      - prod
+    paths:
+      - "src/powershell/**"
+      - ".github/workflows/deploy-pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install PSMinifier
+        shell: pwsh
+        run: Install-Module PSMinifier -Force -Scope CurrentUser
+
+      - name: Minify Scripts
+        shell: pwsh
+        run: |
+          mkdir -p public
+
+          # Minify launch.ps1
+          $launchContent = Get-Content src/powershell/launch.ps1 -Raw
+          $launchMin = Compress-ScriptBlock -ScriptBlock ([ScriptBlock]::Create($launchContent))
+          [System.IO.File]::WriteAllText("public/launch.ps1", $launchMin.ToString(), [System.Text.UTF8Encoding]::new($false))
+
+          # Minify install.ps1
+          $installContent = Get-Content src/powershell/install.ps1 -Raw
+          $installMin = Compress-ScriptBlock -ScriptBlock ([ScriptBlock]::Create($installContent))
+          [System.IO.File]::WriteAllText("public/install.ps1", $installMin.ToString(), [System.Text.UTF8Encoding]::new($false))
+
+          # Create index.html (optional, just for root presence)
+          "<html><body><h1>Correios Tools Scripts</h1><p><a href='launch.ps1'>launch.ps1</a></p><p><a href='install.ps1'>install.ps1</a></p></body></html>" | Out-File public/index.html
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./public
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
