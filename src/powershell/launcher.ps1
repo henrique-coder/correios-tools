@@ -48,10 +48,14 @@ $RESOURCES_DIR = "$INSTALL_DIR\resources"
 $ASSETS_DIR = "$RESOURCES_DIR\assets"
 $SELF_PATH = $MyInvocation.MyCommand.Path
 
-$ICON_URL = "https://cdn.jsdelivr.net/gh/henrique-coder/correios-tools/resources/assets/icon.ico"
+$ICON_URL = "https://cdn.jsdelivr.net/gh/henrique-coder/correios-tools/resources/assets/app/icon.ico"
+$ICON_PNG_URL = "https://cdn.jsdelivr.net/gh/henrique-coder/correios-tools/resources/assets/app/icon.png"
+$FOLDER_ICON_URL = "https://cdn.jsdelivr.net/gh/henrique-coder/correios-tools/resources/assets/app/open_folder_icon.png"
 $ICON_PATH = "$ASSETS_DIR\icon.ico"
-$EDGE_ICON_URL = "https://cdn.jsdelivr.net/gh/henrique-coder/correios-tools/resources/assets/logos/edge.png"
-$CHROME_ICON_URL = "https://cdn.jsdelivr.net/gh/henrique-coder/correios-tools/resources/assets/logos/chrome.png"
+$ICON_PNG_PATH = "$ASSETS_DIR\icon.png"
+$FOLDER_ICON_PATH = "$ASSETS_DIR\folder.png"
+$EDGE_ICON_URL = "https://cdn.jsdelivr.net/gh/henrique-coder/correios-tools/resources/assets/browsers/edge_logo.png"
+$CHROME_ICON_URL = "https://cdn.jsdelivr.net/gh/henrique-coder/correios-tools/resources/assets/browsers/chrome_logo.png"
 $EDGE_ICON_PATH = "$ASSETS_DIR\edge.png"
 $CHROME_ICON_PATH = "$ASSETS_DIR\chrome.png"
 
@@ -152,6 +156,7 @@ function Create-DesktopShortcuts {
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Image Name="AppIcon" Width="22" Height="22" Margin="0,0,8,0" RenderOptions.BitmapScalingMode="HighQuality"/>
                         <TextBlock Text="CORREIOS TOOLS" Foreground="White" FontSize="18" FontWeight="Bold"/>
                         <TextBlock Name="VersionText" Text="" Foreground="#666666" FontSize="10" VerticalAlignment="Bottom" Margin="8,0,0,2"/>
                     </StackPanel>
@@ -168,13 +173,13 @@ function Create-DesktopShortcuts {
                         <Button Name="EdgeButton" Width="130" Height="130" Background="Transparent">
                             <StackPanel>
                                 <Image Name="EdgeImage" Width="90" Height="90" RenderOptions.BitmapScalingMode="HighQuality"/>
-                                <TextBlock Text="Microsoft Edge" Foreground="White" HorizontalAlignment="Center" Margin="0,10,0,0"/>
+                                <TextBlock Name="EdgeLabel" Text="Microsoft Edge" Foreground="White" HorizontalAlignment="Center" Margin="0,10,0,0"/>
                             </StackPanel>
                         </Button>
                         <Button Name="ChromeButton" Grid.Column="2" Width="130" Height="130" Background="Transparent">
                             <StackPanel>
                                 <Image Name="ChromeImage" Width="90" Height="90" RenderOptions.BitmapScalingMode="HighQuality"/>
-                                <TextBlock Text="Google Chrome" Foreground="White" HorizontalAlignment="Center" Margin="0,10,0,0"/>
+                                <TextBlock Name="ChromeLabel" Text="Google Chrome" Foreground="White" HorizontalAlignment="Center" Margin="0,10,0,0"/>
                             </StackPanel>
                         </Button>
                     </Grid>
@@ -189,11 +194,10 @@ function Create-DesktopShortcuts {
                         <ColumnDefinition Width="35"/>
                     </Grid.ColumnDefinitions>
                     <Button Name="UpdateButton" Content="Verificar Atualizacoes" Height="35" FontSize="11"/>
-                    <Button Name="FolderButton" Grid.Column="2" Height="35" Width="35" FontSize="14" FontFamily="Segoe MDL2 Assets" ToolTip="Abrir Pasta">&#xE8B7;</Button>
+                    <Button Name="FolderButton" Grid.Column="2" Height="35" Width="35" ToolTip="Abrir Pasta">
+                        <Image Name="FolderIcon" Width="18" Height="18" RenderOptions.BitmapScalingMode="HighQuality"/>
+                    </Button>
                 </Grid>
-                <Border Grid.Row="5" Background="#252526" CornerRadius="3" Margin="0,15,0,0" Padding="10">
-                    <TextBlock Name="CountdownText" Text="Proxima verificacao em: --" Foreground="#007ACC" FontSize="10" FontWeight="Bold" HorizontalAlignment="Center"/>
-                </Border>
                 <TextBlock Name="RepoLink" Grid.Row="6" Text="GitHub: henrique-coder/correios-tools" Foreground="#555555" FontSize="10" HorizontalAlignment="Center" Margin="0,15,0,0" Cursor="Hand">
                     <TextBlock.Style>
                         <Style TargetType="TextBlock">
@@ -228,11 +232,14 @@ $FolderButton = $window.FindName("FolderButton")
 
 $StatusText = $window.FindName("StatusText")
 $VersionText = $window.FindName("VersionText")
-$CountdownText = $window.FindName("CountdownText")
 $LoadingText = $window.FindName("LoadingText")
 $LoadingOverlay = $window.FindName("LoadingOverlay")
+$AppIcon = $window.FindName("AppIcon")
+$FolderIcon = $window.FindName("FolderIcon")
 $EdgeImage = $window.FindName("EdgeImage")
 $ChromeImage = $window.FindName("ChromeImage")
+$EdgeLabel = $window.FindName("EdgeLabel")
+$ChromeLabel = $window.FindName("ChromeLabel")
 $MainProgressBar = $window.FindName("MainProgressBar")
 $RepoLink = $window.FindName("RepoLink")
 
@@ -269,20 +276,6 @@ function Update-InfoPanel {
 }
 
 function Update-Countdown {
-    if ($script:NextCheckTime) {
-        $remaining = $script:NextCheckTime - (Get-Date)
-        if ($remaining.TotalSeconds -gt 0) {
-            $hours = [math]::Floor($remaining.TotalHours)
-            $mins = $remaining.Minutes
-            $CountdownText.Text = "Proxima verificacao em: ${hours}h ${mins}m"
-        }
-        else {
-            $CountdownText.Text = "Verificando em breve..."
-        }
-    }
-    else {
-        $CountdownText.Text = "Proxima verificacao em: --"
-    }
 }
 
 function Reset-UpdateTimer {
@@ -352,6 +345,58 @@ function Load-BrowserIcons {
         }
     }
     catch {}
+}
+
+function Load-AppIcons {
+    try {
+        if (-not (Test-Path $ICON_PNG_PATH)) { Invoke-WebRequest -Uri $ICON_PNG_URL -OutFile $ICON_PNG_PATH -UseBasicParsing }
+        if (-not (Test-Path $FOLDER_ICON_PATH)) { Invoke-WebRequest -Uri $FOLDER_ICON_URL -OutFile $FOLDER_ICON_PATH -UseBasicParsing }
+
+        if (Test-Path $ICON_PNG_PATH) {
+            $appBitmap = New-Object System.Windows.Media.Imaging.BitmapImage
+            $appBitmap.BeginInit()
+            $appBitmap.UriSource = New-Object System.Uri($ICON_PNG_PATH)
+            $appBitmap.CacheOption = [System.Windows.Media.Imaging.BitmapCacheOption]::OnLoad
+            $appBitmap.EndInit()
+            $appBitmap.Freeze()
+            $AppIcon.Source = $appBitmap
+        }
+
+        if (Test-Path $FOLDER_ICON_PATH) {
+            $folderBitmap = New-Object System.Windows.Media.Imaging.BitmapImage
+            $folderBitmap.BeginInit()
+            $folderBitmap.UriSource = New-Object System.Uri($FOLDER_ICON_PATH)
+            $folderBitmap.CacheOption = [System.Windows.Media.Imaging.BitmapCacheOption]::OnLoad
+            $folderBitmap.EndInit()
+            $folderBitmap.Freeze()
+            $FolderIcon.Source = $folderBitmap
+        }
+    }
+    catch {}
+}
+
+function Check-BrowserAvailability {
+    $edgePath = "${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe"
+    $edgePathAlt = "$env:ProgramFiles\Microsoft\Edge\Application\msedge.exe"
+    $chromePath = "${env:ProgramFiles(x86)}\Google\Chrome\Application\chrome.exe"
+    $chromePathAlt = "$env:ProgramFiles\Google\Chrome\Application\chrome.exe"
+
+    $script:EdgeAvailable = (Test-Path $edgePath) -or (Test-Path $edgePathAlt) -or ((Get-Command msedge -ErrorAction SilentlyContinue) -ne $null)
+    $script:ChromeAvailable = (Test-Path $chromePath) -or (Test-Path $chromePathAlt) -or ((Get-Command chrome -ErrorAction SilentlyContinue) -ne $null)
+
+    if (-not $script:EdgeAvailable) {
+        $EdgeButton.IsEnabled = $false
+        $EdgeButton.Opacity = 0.4
+        $EdgeLabel.Text = "Nao instalado"
+        $EdgeLabel.Foreground = [System.Windows.Media.Brushes]::Gray
+    }
+
+    if (-not $script:ChromeAvailable) {
+        $ChromeButton.IsEnabled = $false
+        $ChromeButton.Opacity = 0.4
+        $ChromeLabel.Text = "Nao instalado"
+        $ChromeLabel.Foreground = [System.Windows.Media.Brushes]::Gray
+    }
 }
 
 function Trigger-Restart {
@@ -669,7 +714,9 @@ function Start-Application {
     Show-LoadingOverlay "Iniciando..."
 
     Load-WindowIcon
+    Load-AppIcons
     Load-BrowserIcons
+    Check-BrowserAvailability
     Create-DesktopShortcuts
 
     Hide-LoadingOverlay
