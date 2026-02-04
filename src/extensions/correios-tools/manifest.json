@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Correios Tools",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Conjunto de ferramentas internas para otimizar tarefas operacionais nos Correios",
   "author": "Henrique Moreira",
   "homepage_url": "https://github.com/henrique-coder/correios-tools",
