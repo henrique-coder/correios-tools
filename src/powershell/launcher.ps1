@@ -58,27 +58,17 @@ $CHROME_ICON_PATH = "$ASSETS_DIR\chrome.png"
 $UPDATE_INTERVAL_HOURS = 4
 $START_URL = "https://sroweb.correios.com.br/app/index.php"
 
-$SCRIPTS_VERSION_URL = "https://henrique-coder.github.io/correios-tools/script/version/launch.ps1.json"
-$SCRIPTS_HASH_URL = "https://henrique-coder.github.io/correios-tools/script/hashes/launch.ps1.json"
-$EXTENSION_VERSION_URL = "https://henrique-coder.github.io/correios-tools/extension/version/correios-tools.json"
-$EXTENSION_HASH_URL = "https://henrique-coder.github.io/correios-tools/extension/hashes/correios-tools.zip.json"
-$EXTENSION_DOWNLOAD_URL = "https://henrique-coder.github.io/correios-tools/extension/correios-tools.zip"
-$LAUNCHER_DOWNLOAD_URL = "https://henrique-coder.github.io/correios-tools/script/launch.ps1"
+$METADATA_URL = "https://github.com/henrique-coder/correios-tools/releases/download/assets/metadata.json"
+$LAUNCHER_DOWNLOAD_URL = "https://github.com/henrique-coder/correios-tools/releases/download/assets/script-launcher.ps1"
+$EXTENSION_DOWNLOAD_URL = "https://github.com/henrique-coder/correios-tools/releases/download/assets/extension-correios-tools.zip"
 
-function Get-RemoteVersion {
-    param([string]$JsonUrl)
-    try {
-        $response = Invoke-RestMethod -Uri $JsonUrl -Method Get -TimeoutSec 10
-        if ($response -and $response.version) { return $response.version }
-    }
-    catch {}
-    return $null
-}
+$script:CachedMetadata = $null
 
-function Get-RemoteHashes {
-    param([string]$JsonUrl)
+function Get-Metadata {
+    if ($script:CachedMetadata -ne $null) { return $script:CachedMetadata }
     try {
-        $response = Invoke-RestMethod -Uri $JsonUrl -Method Get -TimeoutSec 30
+        $response = Invoke-RestMethod -Uri $METADATA_URL -Method Get -TimeoutSec 30
+        $script:CachedMetadata = $response
         return $response
     }
     catch { return $null }
@@ -367,22 +357,24 @@ function Check-LauncherUpdate {
     Set-UIStatus "Verificando atualizacoes..." $true
 
     try {
-        $remoteVersion = Get-RemoteVersion $SCRIPTS_VERSION_URL
+        $metadata = Get-Metadata
+        if ($metadata -eq $null -or $metadata.scripts -eq $null -or $metadata.scripts.launcher -eq $null) {
+            Set-UIStatus "Pronto! Selecione o navegador." $false
+            return
+        }
+
+        $launcherInfo = $metadata.scripts.launcher
+        $remoteVersion = $launcherInfo.version
+        $remoteHash = $launcherInfo.hashes.sha256
 
         if ($remoteVersion -and $remoteVersion -eq $script:AppVersion) {
             Set-UIStatus "Pronto! Selecione o navegador." $false
             return
         }
 
-        $remoteHashes = Get-RemoteHashes $SCRIPTS_HASH_URL
-        if ($remoteHashes -eq $null -or $remoteHashes.sha256 -eq $null) {
-            Set-UIStatus "Pronto! Selecione o navegador." $false
-            return
-        }
-
         $localHash = Calculate-FileHash $SELF_PATH
 
-        if ($localHash -eq $remoteHashes.sha256) {
+        if ($localHash -eq $remoteHash) {
             Set-UIStatus "Pronto! Selecione o navegador." $false
             return
         }
@@ -399,7 +391,7 @@ function Check-LauncherUpdate {
         Invoke-WebRequest -Uri $LAUNCHER_DOWNLOAD_URL -OutFile $tempPath -UseBasicParsing
 
         $downloadedHash = Calculate-FileHash $tempPath
-        if ($downloadedHash -ne $remoteHashes.sha256) {
+        if ($downloadedHash -ne $remoteHash) {
             Set-UIStatus "Erro: Hash invalido." $false
             Remove-Item $tempPath -Force -ErrorAction SilentlyContinue
             return
@@ -425,35 +417,43 @@ function Download-Extensions {
         try { $localVersion = (Get-Content $localVersionFile -Raw | ConvertFrom-Json).version } catch {}
     }
 
-    $remoteVersion = Get-RemoteVersion $EXTENSION_VERSION_URL
+    $metadata = Get-Metadata
+    if ($metadata -eq $null -or $metadata.extensions -eq $null) {
+        Set-UIStatus "Erro ao verificar extensao." $false
+        return $false
+    }
 
-    if ($remoteVersion -and $localVersion -eq $remoteVersion -and (Test-Path "$EXTENSIONS_DIR\correios-tools")) {
+    $extName = "correios-tools"
+    $extInfo = $metadata.extensions.$extName
+    if ($extInfo -eq $null) {
+        Set-UIStatus "Extensao nao encontrada." $false
+        return $false
+    }
+
+    $remoteVersion = $extInfo.version
+    $remoteHash = $extInfo.hashes.sha256
+
+    if ($remoteVersion -and $localVersion -eq $remoteVersion -and (Test-Path "$EXTENSIONS_DIR\$extName")) {
         return $true
     }
 
     Set-UIStatus "Baixando extensao..." $true
-
-    $remoteHashes = Get-RemoteHashes $EXTENSION_HASH_URL
-    if ($remoteHashes -eq $null -or $remoteHashes.sha256 -eq $null) {
-        Set-UIStatus "Erro ao verificar extensao." $false
-        return $false
-    }
 
     $tempZip = "$DATA_DIR\extension.zip"
     try {
         Invoke-WebRequest -Uri $EXTENSION_DOWNLOAD_URL -OutFile $tempZip -UseBasicParsing
 
         $downloadedHash = Calculate-FileHash $tempZip
-        if ($downloadedHash -ne $remoteHashes.sha256) {
+        if ($downloadedHash -ne $remoteHash) {
             Set-UIStatus "Erro: Hash da extensao invalido." $false
             Remove-Item $tempZip -Force -ErrorAction SilentlyContinue
             return $false
         }
 
         if (Test-Path $EXTENSIONS_DIR) { Remove-Item $EXTENSIONS_DIR -Recurse -Force -ErrorAction SilentlyContinue }
-        New-Item -ItemType Directory -Path "$EXTENSIONS_DIR\correios-tools" -Force | Out-Null
+        New-Item -ItemType Directory -Path "$EXTENSIONS_DIR\$extName" -Force | Out-Null
 
-        Expand-Archive -Path $tempZip -DestinationPath "$EXTENSIONS_DIR\correios-tools" -Force
+        Expand-Archive -Path $tempZip -DestinationPath "$EXTENSIONS_DIR\$extName" -Force
         Remove-Item $tempZip -Force -ErrorAction SilentlyContinue
 
         $versionJson = @{ version = $remoteVersion } | ConvertTo-Json -Compress
@@ -576,21 +576,24 @@ function Invoke-AutoUpdateCheck {
 
     $script:IsProcessing = $true
     Set-ButtonsEnabled $false
+    $script:CachedMetadata = $null
 
     try {
-        $remoteVersion = Get-RemoteVersion $SCRIPTS_VERSION_URL
+        $metadata = Get-Metadata
+        if ($metadata -eq $null -or $metadata.scripts -eq $null -or $metadata.scripts.launcher -eq $null) {
+            return
+        }
+
+        $launcherInfo = $metadata.scripts.launcher
+        $remoteVersion = $launcherInfo.version
+        $remoteHash = $launcherInfo.hashes.sha256
 
         if ($remoteVersion -and $remoteVersion -eq $script:AppVersion) {
             return
         }
 
-        $remoteHashes = Get-RemoteHashes $SCRIPTS_HASH_URL
-        if ($remoteHashes -eq $null -or $remoteHashes.sha256 -eq $null) {
-            return
-        }
-
         $localHash = Calculate-FileHash $SELF_PATH
-        if ($localHash -eq $remoteHashes.sha256) {
+        if ($localHash -eq $remoteHash) {
             return
         }
 
@@ -604,7 +607,7 @@ function Invoke-AutoUpdateCheck {
         Invoke-WebRequest -Uri $LAUNCHER_DOWNLOAD_URL -OutFile $tempPath -UseBasicParsing
 
         $downloadedHash = Calculate-FileHash $tempPath
-        if ($downloadedHash -ne $remoteHashes.sha256) {
+        if ($downloadedHash -ne $remoteHash) {
             Set-UIStatus "Erro: Hash invalido." $false
             Remove-Item $tempPath -Force -ErrorAction SilentlyContinue
             return

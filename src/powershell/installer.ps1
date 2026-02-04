@@ -11,7 +11,7 @@ if ($mainWindowHandle -ne [IntPtr]::Zero) {
 
 Add-Type -AssemblyName PresentationFramework, System.Windows.Forms, System.Drawing
 
-$LAUNCHER_URL = "https://henrique-coder.github.io/correios-tools/script/launch.ps1"
+$LAUNCHER_URL = "https://github.com/henrique-coder/correios-tools/releases/download/assets/script-launcher.ps1"
 $ICON_URL = "https://cdn.jsdelivr.net/gh/henrique-coder/correios-tools/resources/assets/icon.ico"
 $INSTALL_DIR = "C:\Users\Public\correios-tools"
 $DATA_DIR = "$INSTALL_DIR\data"

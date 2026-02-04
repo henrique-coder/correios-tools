@@ -1,0 +1,220 @@
+name: Release Assets
+
+on:
+  push:
+    branches:
+      - prod
+    paths:
+      - "src/powershell/**"
+      - "src/extensions/**"
+      - ".github/workflows/release-assets.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Install Python 3.13
+        run: uv python install 3.13
+
+      - name: Install PSMinifier
+        shell: pwsh
+        run: Install-Module PSMinifier -Force -Scope CurrentUser
+
+      - name: Install Node dependencies
+        run: |
+          npm install -g terser@5.46.0
+          npm install -g csso-cli@4.0.2
+          npm install -g html-minifier-terser@7.2.0
+
+      - name: Validate PowerShell scripts
+        shell: pwsh
+        run: |
+          $scripts = Get-ChildItem "src/powershell/*.ps1"
+          foreach ($script in $scripts) {
+              $results = Invoke-ScriptAnalyzer -Path $script.FullName -Severity Error
+              if ($results) {
+                  Write-Error "Validation failed for $($script.Name)"
+                  $results | Format-Table -AutoSize
+                  exit 1
+              }
+          }
+          Write-Host "All PowerShell scripts validated successfully"
+
+      - name: Build assets
+        shell: pwsh
+        run: |
+          $buildDir = "build"
+          New-Item -ItemType Directory -Path $buildDir -Force | Out-Null
+
+          function Get-GitFileVersion {
+              param($FilePath)
+              $date = git log -1 --format="%cd" --date=format:"%Y.%-m.%-d.%H%M%S" -- $FilePath
+              if (-not $date) {
+                  $now = Get-Date
+                  $date = "$($now.Year).$($now.Month).$($now.Day).$($now.ToString('HHmmss'))"
+              }
+              return $date
+          }
+
+          $metadata = @{
+              scripts = @{}
+              extensions = @{}
+          }
+
+          $scripts = Get-ChildItem "src/powershell/*.ps1"
+          foreach ($script in $scripts) {
+              $version = Get-GitFileVersion $script.FullName
+              $content = Get-Content $script.FullName -Raw
+              $content = $content -replace "\{\{VERSION\}\}", $version
+
+              $minified = Compress-ScriptBlock -ScriptBlock ([ScriptBlock]::Create($content))
+              $outPath = "$buildDir/script-$($script.Name)"
+              [System.IO.File]::WriteAllText($outPath, $minified.ToString(), [System.Text.UTF8Encoding]::new($false))
+
+              $metadata.scripts[$script.BaseName] = @{
+                  version = $version
+                  filename = "script-$($script.Name)"
+              }
+              Write-Host "Built: script-$($script.Name) (v$version)"
+          }
+
+          $extensions = Get-ChildItem "src/extensions" -Directory
+          foreach ($ext in $extensions) {
+              $version = Get-GitFileVersion $ext.FullName
+              $extBuildDir = "$buildDir/ext-$($ext.Name)"
+              New-Item -ItemType Directory -Path $extBuildDir -Force | Out-Null
+
+              Copy-Item -Path "$($ext.FullName)/*" -Destination $extBuildDir -Recurse -Force
+
+              $manifestPath = "$extBuildDir/manifest.json"
+              if (Test-Path $manifestPath) {
+                  $manifest = Get-Content $manifestPath -Raw | ConvertFrom-Json
+                  $manifest.version = $version
+                  $manifest | ConvertTo-Json -Depth 10 -Compress | Set-Content $manifestPath -Encoding UTF8
+              }
+
+              $jsFiles = Get-ChildItem "$extBuildDir/*.js" -ErrorAction SilentlyContinue
+              foreach ($js in $jsFiles) {
+                  $minPath = "$($js.DirectoryName)/$($js.BaseName).min.js"
+                  & terser $js.FullName --compress --mangle -o $minPath
+                  Move-Item $minPath $js.FullName -Force
+              }
+
+              $zipName = "extension-$($ext.Name).zip"
+              $zipPath = "$buildDir/$zipName"
+              Push-Location $extBuildDir
+              7z a -tzip -mx=9 "../$zipName" *
+              Pop-Location
+              Remove-Item $extBuildDir -Recurse -Force
+
+              $metadata.extensions[$ext.Name] = @{
+                  version = $version
+                  filename = $zipName
+              }
+              Write-Host "Built: $zipName (v$version)"
+          }
+
+          $metadataJson = $metadata | ConvertTo-Json -Depth 10 -Compress
+          [System.IO.File]::WriteAllText("$buildDir/metadata-temp.json", $metadataJson, [System.Text.UTF8Encoding]::new($false))
+
+      - name: Generate hashes
+        run: |
+          uv run --python 3.13 --with orjson --with blake3 python -c "
+          import hashlib
+          import glob
+          import os
+          import orjson
+          import blake3
+
+          def calculate_hashes(filepath):
+              with open(filepath, 'rb') as f:
+                  data = f.read()
+              return {
+                  'sha256': hashlib.sha256(data).hexdigest(),
+                  'sha512': hashlib.sha512(data).hexdigest(),
+                  'md5': hashlib.md5(data).hexdigest(),
+                  'blake2': hashlib.blake2b(data).hexdigest(),
+                  'blake3': blake3.blake3(data).hexdigest(),
+                  'sha3': hashlib.sha3_256(data).hexdigest()
+              }
+
+          with open('build/metadata-temp.json', 'rb') as f:
+              metadata = orjson.loads(f.read())
+
+          for script_name, script_data in metadata['scripts'].items():
+              filepath = f\"build/{script_data['filename']}\"
+              if os.path.exists(filepath):
+                  metadata['scripts'][script_name]['hashes'] = calculate_hashes(filepath)
+
+          for ext_name, ext_data in metadata['extensions'].items():
+              filepath = f\"build/{ext_data['filename']}\"
+              if os.path.exists(filepath):
+                  metadata['extensions'][ext_name]['hashes'] = calculate_hashes(filepath)
+
+          with open('build/metadata.json', 'wb') as f:
+              f.write(orjson.dumps(metadata))
+
+          os.remove('build/metadata-temp.json')
+          print('Hashes generated successfully')
+          "
+
+      - name: Create or update release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: assets
+          name: Assets
+          body: |
+            Automatically generated assets for Correios Tools.
+
+            **Do not delete this release.** The application depends on these assets.
+          draft: false
+          prerelease: false
+          files: build/*
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Cleanup orphaned assets
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+
+            const buildDir = 'build';
+            const localFiles = fs.readdirSync(buildDir);
+
+            const { data: release } = await github.rest.repos.getReleaseByTag({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag: 'assets'
+            });
+
+            for (const asset of release.assets) {
+              if (!localFiles.includes(asset.name)) {
+                console.log(`Deleting orphaned asset: ${asset.name}`);
+                await github.rest.repos.deleteReleaseAsset({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  asset_id: asset.id
+                });
+              }
+            }
+            console.log('Orphan cleanup complete');
