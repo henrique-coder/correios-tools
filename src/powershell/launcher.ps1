@@ -60,7 +60,6 @@ $START_URL = "https://sroweb.correios.com.br/app/index.php"
 
 $METADATA_URL = "https://github.com/henrique-coder/correios-tools/releases/download/assets/metadata.json"
 $LAUNCHER_DOWNLOAD_URL = "https://github.com/henrique-coder/correios-tools/releases/download/assets/script-launcher.ps1"
-$EXTENSION_DOWNLOAD_URL = "https://github.com/henrique-coder/correios-tools/releases/download/assets/extension-correios-tools.zip"
 
 $script:CachedMetadata = $null
 
@@ -409,64 +408,71 @@ function Check-LauncherUpdate {
 }
 
 function Download-Extensions {
-    Set-UIStatus "Verificando extensoes..." $true
+    param([bool]$Silent = $false)
 
-    $localVersionFile = "$DATA_DIR\extension_version.json"
-    $localVersion = $null
-    if (Test-Path $localVersionFile) {
-        try { $localVersion = (Get-Content $localVersionFile -Raw | ConvertFrom-Json).version } catch {}
-    }
+    if (-not $Silent) { Set-UIStatus "Verificando extensoes..." $true }
 
     $metadata = Get-Metadata
     if ($metadata -eq $null -or $metadata.extensions -eq $null) {
-        Set-UIStatus "Erro ao verificar extensao." $false
+        if (-not $Silent) { Set-UIStatus "Erro ao verificar extensoes." $false }
         return $false
     }
 
-    $extName = "correios-tools"
-    $extInfo = $metadata.extensions.$extName
-    if ($extInfo -eq $null) {
-        Set-UIStatus "Extensao nao encontrada." $false
-        return $false
-    }
+    $allSuccess = $true
+    $extensionNames = $metadata.extensions.PSObject.Properties.Name
 
-    $remoteVersion = $extInfo.version
-    $remoteHash = $extInfo.hashes.sha256
+    foreach ($extName in $extensionNames) {
+        $extInfo = $metadata.extensions.$extName
+        if ($extInfo -eq $null) { continue }
 
-    if ($remoteVersion -and $localVersion -eq $remoteVersion -and (Test-Path "$EXTENSIONS_DIR\$extName")) {
-        return $true
-    }
-
-    Set-UIStatus "Baixando extensao..." $true
-
-    $tempZip = "$DATA_DIR\extension.zip"
-    try {
-        Invoke-WebRequest -Uri $EXTENSION_DOWNLOAD_URL -OutFile $tempZip -UseBasicParsing
-
-        $downloadedHash = Calculate-FileHash $tempZip
-        if ($downloadedHash -ne $remoteHash) {
-            Set-UIStatus "Erro: Hash da extensao invalido." $false
-            Remove-Item $tempZip -Force -ErrorAction SilentlyContinue
-            return $false
+        $localVersionFile = "$DATA_DIR\extension_$extName.json"
+        $localVersion = $null
+        if (Test-Path $localVersionFile) {
+            try { $localVersion = (Get-Content $localVersionFile -Raw | ConvertFrom-Json).version } catch {}
         }
 
-        if (Test-Path $EXTENSIONS_DIR) { Remove-Item $EXTENSIONS_DIR -Recurse -Force -ErrorAction SilentlyContinue }
-        New-Item -ItemType Directory -Path "$EXTENSIONS_DIR\$extName" -Force | Out-Null
+        $remoteVersion = $extInfo.version
+        $remoteHash = $extInfo.hashes.sha256
 
-        Expand-Archive -Path $tempZip -DestinationPath "$EXTENSIONS_DIR\$extName" -Force
-        Remove-Item $tempZip -Force -ErrorAction SilentlyContinue
+        if ($remoteVersion -and $localVersion -eq $remoteVersion -and (Test-Path "$EXTENSIONS_DIR\$extName")) {
+            continue
+        }
 
-        $versionJson = @{ version = $remoteVersion } | ConvertTo-Json -Compress
-        $versionJson | Set-Content $localVersionFile -Encoding UTF8
+        if (-not $Silent) { Set-UIStatus "Baixando $extName..." $true }
 
-        Set-UIStatus "Extensao atualizada!" $false
-        return $true
+        $downloadUrl = "https://github.com/henrique-coder/correios-tools/releases/download/assets/extension-$extName.zip"
+        $tempZip = "$DATA_DIR\extension_$extName.zip"
+
+        try {
+            Invoke-WebRequest -Uri $downloadUrl -OutFile $tempZip -UseBasicParsing
+
+            $downloadedHash = Calculate-FileHash $tempZip
+            if ($downloadedHash -ne $remoteHash) {
+                if (-not $Silent) { Set-UIStatus "Erro: Hash de $extName invalido." $false }
+                Remove-Item $tempZip -Force -ErrorAction SilentlyContinue
+                $allSuccess = $false
+                continue
+            }
+
+            $extDir = "$EXTENSIONS_DIR\$extName"
+            if (Test-Path $extDir) { Remove-Item $extDir -Recurse -Force -ErrorAction SilentlyContinue }
+            New-Item -ItemType Directory -Path $extDir -Force | Out-Null
+
+            Expand-Archive -Path $tempZip -DestinationPath $extDir -Force
+            Remove-Item $tempZip -Force -ErrorAction SilentlyContinue
+
+            $versionJson = @{ version = $remoteVersion } | ConvertTo-Json -Compress
+            $versionJson | Set-Content $localVersionFile -Encoding UTF8
+        }
+        catch {
+            if (-not $Silent) { Set-UIStatus "Erro ao baixar $extName." $false }
+            Remove-Item $tempZip -Force -ErrorAction SilentlyContinue
+            $allSuccess = $false
+        }
     }
-    catch {
-        Set-UIStatus "Erro ao baixar extensao." $false
-        Remove-Item $tempZip -Force -ErrorAction SilentlyContinue
-        return $false
-    }
+
+    if ($allSuccess -and -not $Silent) { Set-UIStatus "Extensoes atualizadas!" $false }
+    return $allSuccess
 }
 
 function Get-ExtensionPaths {
@@ -623,6 +629,7 @@ function Invoke-AutoUpdateCheck {
         Set-UIStatus "Pronto! Selecione o navegador." $false
     }
     finally {
+        Download-Extensions -Silent $true
         $script:IsProcessing = $false
         Set-ButtonsEnabled $true
         Reset-UpdateTimer
@@ -656,6 +663,7 @@ function Start-Application {
     Show-LoadingOverlay "Verificando atualizacoes..."
 
     Check-LauncherUpdate -ShowCountdown $true
+    Download-Extensions
 
     $script:LastUpdateCheck = Get-Date
     Initialize-UpdateTimer
@@ -672,7 +680,9 @@ $CloseButton.Add_Click({ $window.Close() })
 $UpdateButton.Add_Click({
         Invoke-SafeAction {
             Show-LoadingOverlay "Verificando atualizacoes..."
+            $script:CachedMetadata = $null
             Check-LauncherUpdate -ShowCountdown $true
+            Download-Extensions
             $script:LastUpdateCheck = Get-Date
             Reset-UpdateTimer
             Update-InfoPanel

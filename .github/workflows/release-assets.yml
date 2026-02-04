@@ -180,10 +180,7 @@ jobs:
         with:
           tag_name: assets
           name: Assets
-          body: |
-            Automatically generated assets for Correios Tools.
-
-            **Do not delete this release.** The application depends on these assets.
+          body: Automatically generated assets for Correios Tools.
           draft: false
           prerelease: false
           files: build/*
