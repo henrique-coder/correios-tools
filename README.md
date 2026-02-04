@@ -1,42 +1,33 @@
-# correios-tools
+# Correios Tools
 
-Ferramentas para uso interno dos Correios.
+Ferramentas para otimizar tarefas operacionais nos Correios.
 
-## Instalação
+## Instalação Rápida
 
-> **Requisito:** PowerShell deve estar habilitado no sistema.
+> **Requisito:** Windows 10/11 com PowerShell
 
-**Habilitar PowerShell (se necessário):**
-
-```powershell
-Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
-```
-
-**Instalar:**
+**Via PowerShell:**
 
 ```powershell
-irm "https://henrique-coder.github.io/correios-tools/script/install.ps1" | iex
+irm https://github.com/henrique-coder/correios-tools/releases/download/assets/script-installer.ps1 | iex
 ```
 
-**Alternativa via CMD:**
+**Via CMD:**
 
 ```cmd
-powershell -ep bypass -c "irm https://henrique-coder.github.io/correios-tools/script/install.ps1 | iex"
+powershell -ep bypass -c "irm https://github.com/henrique-coder/correios-tools/releases/download/assets/script-installer.ps1 | iex"
 ```
 
-## Uso
+## Funcionalidades
 
-Após instalação, o atalho **Correios Tools** será criado na Área de Trabalho.
-
-Funcionalidades:
-
-- Abrir Edge/Chrome com extensões carregadas
-- Sincronização automática
-- Auto-atualização
+- 🚀 Abertura rápida do Edge/Chrome com extensões
+- 🔄 Auto-atualização de launcher e extensões
+- 📦 Sincronização automática a cada 4 horas
+- ✨ Interface moderna com indicadores de status
 
 ## Desenvolvimento
 
-```bash
+```sh
 just format   # Formatar código
 just lint     # Verificar linting
 ```
