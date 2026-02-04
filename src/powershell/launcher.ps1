@@ -182,7 +182,15 @@ function Create-DesktopShortcuts {
                 <StackPanel Grid.Row="3" Margin="0,15">
                     <ProgressBar Name="MainProgressBar" Height="3" Background="#2D2D30" Foreground="#007ACC" IsIndeterminate="False" Opacity="0"/>
                 </StackPanel>
-                <Button Name="UpdateButton" Grid.Row="4" Content="Verificar Atualizacoes" Height="35" FontSize="11" Margin="0,5,0,0"/>
+                <Grid Grid.Row="4" Margin="0,5,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="5"/>
+                        <ColumnDefinition Width="35"/>
+                    </Grid.ColumnDefinitions>
+                    <Button Name="UpdateButton" Content="Verificar Atualizacoes" Height="35" FontSize="11"/>
+                    <Button Name="FolderButton" Grid.Column="2" Height="35" Width="35" FontSize="14" ToolTip="Abrir Pasta">📁</Button>
+                </Grid>
                 <Border Grid.Row="5" Background="#252526" CornerRadius="3" Margin="0,15,0,0" Padding="10">
                     <TextBlock Name="CountdownText" Text="Proxima verificacao em: --" Foreground="#007ACC" FontSize="10" FontWeight="Bold" HorizontalAlignment="Center"/>
                 </Border>
@@ -216,6 +224,7 @@ $CloseButton = $window.FindName("CloseButton")
 $EdgeButton = $window.FindName("EdgeButton")
 $ChromeButton = $window.FindName("ChromeButton")
 $UpdateButton = $window.FindName("UpdateButton")
+$FolderButton = $window.FindName("FolderButton")
 
 $StatusText = $window.FindName("StatusText")
 $VersionText = $window.FindName("VersionText")
@@ -700,6 +709,10 @@ $ChromeButton.Add_Click({
 
 $RepoLink.Add_MouseLeftButtonDown({
         Start-Process "https://github.com/henrique-coder/correios-tools"
+    })
+
+$FolderButton.Add_Click({
+        Start-Process "explorer.exe" -ArgumentList $INSTALL_DIR
     })
 
 $window.Add_Loaded({
