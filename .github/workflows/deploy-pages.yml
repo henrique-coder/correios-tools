@@ -5,8 +5,9 @@ on:
     branches:
       - prod
     paths:
-      - "src/powershell/**"
       - ".github/workflows/deploy-pages.yml"
+      - "src/powershell/**"
+      - "src/extensions/**"
   workflow_dispatch:
 
 permissions:
@@ -74,13 +75,16 @@ jobs:
           $extVersionJson = @{ version = $extVersion } | ConvertTo-Json -Compress
           [System.IO.File]::WriteAllText("public/extension/version/correios-tools.json", $extVersionJson, [System.Text.UTF8Encoding]::new($false))
 
-          Compress-Archive -Path "src/extensions/correios-tools/*" -DestinationPath "public/extension/correios-tools.zip" -Force
+          Push-Location "src/extensions/correios-tools"
+          7z a -tzip -mx=9 "../../../public/extension/correios-tools.zip" *
+          Pop-Location
 
           $hashScript = @"
           import hashlib
           import glob
           import os
           import orjson
+          import blake3
           from Crypto.Hash import SHA3_256, BLAKE2s, BLAKE2b
 
           def calculate_hashes(filepath):
@@ -92,6 +96,7 @@ jobs:
               hashes['sha512'] = hashlib.sha512(data).hexdigest()
               hashes['md5'] = hashlib.md5(data).hexdigest()
               hashes['blake2'] = hashlib.blake2b(data).hexdigest()
+              hashes['blake3'] = blake3.blake3(data).hexdigest()
               hashes['sha3'] = hashlib.sha3_256(data).hexdigest()
 
               return hashes
@@ -113,7 +118,7 @@ jobs:
 
           [System.IO.File]::WriteAllText("hasher.py", $hashScript, [System.Text.UTF8Encoding]::new($false))
 
-          uv run --python 3.14 --with pycryptodome --with orjson python hasher.py
+          uv run --python 3.14 --with pycryptodome --with orjson --with blake3 python hasher.py
 
           $html = @"
           <!DOCTYPE html>
