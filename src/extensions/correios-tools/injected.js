@@ -6,34 +6,51 @@
       "CT-INDUZIROBJETO": () => {
         if (document.activeElement) document.activeElement.blur();
         const a = document.getElementById("btnModalA");
-        if (a && a.offsetParent !== null) a.click();
-        let t = 0;
-        const c = setInterval(() => {
-          const i = document.getElementById("txtNumero");
-          if (i) {
-            const v = i.value.trim().toUpperCase();
-            if (v.length > 0 && v !== "S/N" && v !== "N/A" && v !== "NA") {
+        let d = 0;
+        if (a && a.offsetParent !== null) {
+          a.click();
+          d = 300;
+        }
+        setTimeout(() => {
+          let t = 0;
+          const c = setInterval(() => {
+            const i = document.getElementById("txtNumero");
+            if (i) {
               clearInterval(c);
               setTimeout(() => {
-                const b = document.getElementById("btnIncluirObjeto");
-                if (b) {
-                  b.click();
-                  let w = 0;
-                  const wc = setInterval(() => {
-                    const mi = document.getElementById("txtObjeto");
-                    if (mi && mi.value.trim() === "") {
-                      clearInterval(wc);
-                      mi.focus();
-                      RFC(mi);
-                    }
-                    if (++w > 50) clearInterval(wc);
-                  }, 100);
-                }
+                const v = i.value.trim().toUpperCase();
+                if (v === "" || v === "N/A" || v === "S/A" || v === "S/N")
+                  return;
+                i.blur();
+                if (document.activeElement) document.activeElement.blur();
+                setTimeout(() => {
+                  const b = document.getElementById("btnIncluirObjeto");
+                  if (b) {
+                    b.click();
+                    b.dispatchEvent(
+                      new MouseEvent("click", {
+                        bubbles: !0,
+                        cancelable: !0,
+                        view: window,
+                      }),
+                    );
+                    let w = 0;
+                    const wc = setInterval(() => {
+                      const m = document.getElementById("txtObjeto");
+                      if (m && m.value === "") {
+                        clearInterval(wc);
+                        m.focus();
+                        RFC(m);
+                      }
+                      if (++w > 100) clearInterval(wc);
+                    }, 100);
+                  }
+                }, 200);
               }, 200);
             }
-          }
-          if (++t > 50) clearInterval(c);
-        }, 100);
+            if (++t > 60) clearInterval(c);
+          }, 50);
+        }, d);
       },
       "CT-EXCLUIROBJETO": () => {
         if (document.activeElement) document.activeElement.blur();
@@ -90,6 +107,7 @@
     const K = {
       POS: "correiostools_pos_v2",
       LAYOUT: "correiostools_layout_inv",
+      HIDDEN: "correiostools_panel_hide",
     };
     let S = {
       code: "--",
@@ -424,18 +442,15 @@
     }
     const oF = window.fetch;
     window.fetch = async function (...a) {
-      const u = a[0] ? a[0].toString() : "";
-      const l = u.toLowerCase();
-      if (l.includes("acao=salvar") && a[1] && a[1].body) {
-        try {
-          const b = JSON.parse(a[1].body);
-          if (b.distrito) S.pendingDist = b.distrito;
-        } catch (e) {}
-      }
-      if (l.includes("listar-impressoras-disponiveis")) ATC();
       const r = await oF.apply(this, a);
       try {
-        if (l.includes("controller.php"))
+        const u = a[0] ? a[0].toString() : "";
+        if (u.includes("lancamentoController.php?acao=listar"))
+          r.clone()
+            .json()
+            .then((j) => PRL(u, j))
+            .catch(() => {});
+        if (u.toLowerCase().includes("controller.php"))
           r.clone()
             .json()
             .then((j) => HRE(u, j))
@@ -459,10 +474,15 @@
         } catch (e) {}
       }
       this.addEventListener("load", function () {
-        if (this._u && this._u.toLowerCase().includes("controller.php")) {
-          try {
-            HRE(this._u, JSON.parse(this.responseText));
-          } catch (e) {}
+        if (this._u) {
+          if (this._u.includes("lancamentoController.php?acao=listar"))
+            try {
+              PRL(this._u, JSON.parse(this.responseText));
+            } catch (e) {}
+          if (this._u.toLowerCase().includes("controller.php"))
+            try {
+              HRE(this._u, JSON.parse(this.responseText));
+            } catch (e) {}
         }
       });
       return oS.apply(this, arguments);
@@ -471,8 +491,15 @@
       let t = 0;
       const i = setInterval(() => {
         const b = document.getElementById("btnImprimirEtiquetaNao");
-        if (b) {
+        if (b && b.offsetParent !== null) {
           b.click();
+          b.dispatchEvent(
+            new MouseEvent("click", {
+              bubbles: !0,
+              cancelable: !0,
+              view: window,
+            }),
+          );
           clearInterval(i);
           let t2 = 0;
           const i2 = setInterval(() => {
@@ -485,7 +512,7 @@
           }, 100);
         }
         if (++t >= 50) clearInterval(i);
-      }, 100);
+      }, 200);
     }
     function WTI() {
       const inp = document.getElementById("txtObjeto");
