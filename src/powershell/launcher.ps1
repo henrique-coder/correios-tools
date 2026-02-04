@@ -189,7 +189,7 @@ function Create-DesktopShortcuts {
                         <ColumnDefinition Width="35"/>
                     </Grid.ColumnDefinitions>
                     <Button Name="UpdateButton" Content="Verificar Atualizacoes" Height="35" FontSize="11"/>
-                    <Button Name="FolderButton" Grid.Column="2" Height="35" Width="35" FontSize="14" ToolTip="Abrir Pasta">📁</Button>
+                    <Button Name="FolderButton" Grid.Column="2" Height="35" Width="35" FontSize="14" FontFamily="Segoe MDL2 Assets" ToolTip="Abrir Pasta">&#xE8B7;</Button>
                 </Grid>
                 <Border Grid.Row="5" Background="#252526" CornerRadius="3" Margin="0,15,0,0" Padding="10">
                     <TextBlock Name="CountdownText" Text="Proxima verificacao em: --" Foreground="#007ACC" FontSize="10" FontWeight="Bold" HorizontalAlignment="Center"/>
@@ -362,13 +362,13 @@ function Trigger-Restart {
 function Check-LauncherUpdate {
     param([bool]$ShowCountdown = $true)
 
-    Set-UIStatus "Verificando atualizacoes..." $true
+    Set-UIStatus "Verificando launcher..." $true
 
     try {
         $metadata = Get-Metadata
         if ($metadata -eq $null -or $metadata.scripts -eq $null -or $metadata.scripts.launcher -eq $null) {
             Set-UIStatus "Pronto! Selecione o navegador." $false
-            return
+            return $false
         }
 
         $launcherInfo = $metadata.scripts.launcher
@@ -376,25 +376,26 @@ function Check-LauncherUpdate {
         $remoteHash = $launcherInfo.hashes.sha256
 
         if ($remoteVersion -and $remoteVersion -eq $script:AppVersion) {
-            Set-UIStatus "Pronto! Selecione o navegador." $false
-            return
+            Set-UIStatus "Launcher atualizado." $false
+            return $false
         }
 
         $localHash = Calculate-FileHash $SELF_PATH
-
         if ($localHash -eq $remoteHash) {
-            Set-UIStatus "Pronto! Selecione o navegador." $false
-            return
+            Set-UIStatus "Launcher atualizado." $false
+            return $false
         }
+
+        Set-UIStatus "Atualizacao do launcher encontrada!" $false
 
         if ($ShowCountdown) {
             for ($i = 5; $i -gt 0; $i--) {
-                Set-UIStatus "Atualizacao encontrada! Reiniciando em $i..." $false
+                Set-UIStatus "Reiniciando em $i..." $false
                 Start-Sleep -Seconds 1
             }
         }
 
-        Set-UIStatus "Baixando atualizacao..." $true
+        Set-UIStatus "Baixando launcher..." $true
         $tempPath = "$DATA_DIR\launcher_update.tmp"
         Invoke-WebRequest -Uri $LAUNCHER_DOWNLOAD_URL -OutFile $tempPath -UseBasicParsing
 
@@ -402,17 +403,20 @@ function Check-LauncherUpdate {
         if ($downloadedHash -ne $remoteHash) {
             Set-UIStatus "Erro: Hash invalido." $false
             Remove-Item $tempPath -Force -ErrorAction SilentlyContinue
-            return
+            return $false
         }
 
+        Set-UIStatus "Instalando atualizacao..." $true
         Copy-Item $tempPath $SELF_PATH -Force
         Remove-Item $tempPath -Force -ErrorAction SilentlyContinue
 
         Set-UIStatus "Reiniciando..." $true
         Trigger-Restart
+        return $true
     }
     catch {
         Set-UIStatus "Pronto! Selecione o navegador." $false
+        return $false
     }
 }
 
@@ -690,12 +694,14 @@ $UpdateButton.Add_Click({
         Invoke-SafeAction {
             Show-LoadingOverlay "Verificando atualizacoes..."
             $script:CachedMetadata = $null
-            Check-LauncherUpdate -ShowCountdown $true
+            $needsRestart = Check-LauncherUpdate -ShowCountdown $true
+            if ($needsRestart) { return }
             Download-Extensions
             $script:LastUpdateCheck = Get-Date
             Reset-UpdateTimer
             Update-InfoPanel
             Hide-LoadingOverlay
+            Set-UIStatus "Pronto! Selecione o navegador." $false
         }
     })
 
