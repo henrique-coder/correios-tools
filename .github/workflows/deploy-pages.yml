@@ -101,11 +101,6 @@ jobs:
               for f in files:
                   h = calculate_hashes(f)
                   name = os.path.basename(f)
-                  # If zip, we want hashes/correios-tools.zip.json
-                  # If script, we want hashes/launch.ps1.json
-                  # Structure: public/script/hashes/X.json and public/extension/hashes/X.json ?
-                  # User said "igual o dos scripts".
-                  # Let's put extension hashes in public/extension/hashes/
 
                   if f.endswith('.zip'):
                       os.makedirs('public/extension/hashes', exist_ok=True)

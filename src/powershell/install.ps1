@@ -11,7 +11,6 @@ if ($mainWindowHandle -ne [IntPtr]::Zero) {
 
 Add-Type -AssemblyName PresentationFramework, System.Windows.Forms, System.Drawing
 
-
 $LAUNCHER_URL = "https://henrique-coder.github.io/correios-tools/script/launch.ps1"
 $ICON_URL = "https://cdn.jsdelivr.net/gh/henrique-coder/correios-tools/resources/assets/icon.ico"
 $INSTALL_DIR = "C:\Users\Public\correios-tools"
@@ -20,7 +19,6 @@ $RESOURCES_DIR = "$INSTALL_DIR\resources"
 $ASSETS_DIR = "$RESOURCES_DIR\assets"
 $LAUNCHER_PATH = "$DATA_DIR\launcher.ps1"
 $ICON_PATH = "$ASSETS_DIR\icon.ico"
-
 
 try {
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
@@ -97,7 +95,6 @@ catch {
 
 $window = [Windows.Markup.XamlReader]::Load((New-Object System.Xml.XmlNodeReader $xamlContent))
 
-
 $closeButton = $window.FindName("CloseButton")
 $installButton = $window.FindName("InstallButton")
 $titleText = $window.FindName("TitleText")
@@ -112,7 +109,6 @@ function Set-UIStatus {
     $statusText.Text = $Message
     $progressBar.IsIndeterminate = $IsLoading
     $progressBar.Opacity = if ($IsLoading) { 1 } else { 0 }
-
 
     [System.Windows.Threading.Dispatcher]::CurrentDispatcher.Invoke([Action] {}, [System.Windows.Threading.DispatcherPriority]::Background)
 }
@@ -170,7 +166,7 @@ function Start-Installation {
     if (Test-BrowserRunning) {
         $userResponse = [System.Windows.Forms.MessageBox]::Show(
             "Precisamos fechar o Chrome e o Edge para configurar o ambiente.`n`nPodemos fechar agora?",
-            "Configuração Correios Tools",
+            "Configuracao Correios Tools",
             [System.Windows.Forms.MessageBoxButtons]::YesNo,
             [System.Windows.Forms.MessageBoxIcon]::Question
         )
@@ -180,13 +176,13 @@ function Start-Installation {
             Stop-Browsers
         }
         else {
-            Set-UIStatus "Instalação cancelada pelo usuário." $false
+            Set-UIStatus "Instalacao cancelada pelo usuario." $false
             $installButton.IsEnabled = $true
             return
         }
     }
 
-    Set-UIStatus "Criando diretórios..." $true
+    Set-UIStatus "Criando diretorios..." $true
     if (-not (Test-Path $DATA_DIR)) { New-Item -ItemType Directory -Path $DATA_DIR -Force | Out-Null }
     if (-not (Test-Path $ASSETS_DIR)) { New-Item -ItemType Directory -Path $ASSETS_DIR -Force | Out-Null }
 
@@ -194,32 +190,32 @@ function Start-Installation {
         Set-UIStatus "Baixando launcher..." $true
         Invoke-WebRequest -Uri $LAUNCHER_URL -OutFile $LAUNCHER_PATH -UseBasicParsing
 
-        Set-UIStatus "Baixando ícone..." $true
+        Set-UIStatus "Baixando icone..." $true
         Invoke-WebRequest -Uri $ICON_URL -OutFile $ICON_PATH -UseBasicParsing
 
         Load-WindowIcon
     }
     catch {
         [System.Windows.Forms.MessageBox]::Show(
-            "Falha ao baixar arquivos. Verifique a conexão.",
+            "Falha ao baixar arquivos. Verifique a conexao.",
             "Erro Fatal",
             [System.Windows.Forms.MessageBoxButtons]::OK,
             [System.Windows.Forms.MessageBoxIcon]::Error
         )
         $installButton.IsEnabled = $true
-        Set-UIStatus "Erro na instalação." $false
+        Set-UIStatus "Erro na instalacao." $false
         return
     }
 
-    Set-UIStatus "Criando atalho na pasta pública..." $true
+    Set-UIStatus "Criando atalho na pasta publica..." $true
     Create-Shortcut "$INSTALL_DIR\Correios Tools.lnk" | Out-Null
 
-    Set-UIStatus "Criando atalho na área de trabalho..." $true
+    Set-UIStatus "Criando atalho na area de trabalho..." $true
     $desktopDir = [Environment]::GetFolderPath("Desktop")
     Create-Shortcut "$desktopDir\Correios Tools.lnk" | Out-Null
 
-    Set-UIStatus "Instalação concluída!" $false
-    $titleText.Text = "CONCLUÍDO"
+    Set-UIStatus "Instalacao concluida!" $false
+    $titleText.Text = "CONCLUIDO"
     $titleText.Foreground = [System.Windows.Media.Brushes]::LimeGreen
     $installButton.Content = "Abrir Pasta"
     $installButton.IsEnabled = $true

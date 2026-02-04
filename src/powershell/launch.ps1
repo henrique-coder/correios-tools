@@ -3,7 +3,7 @@ $mutex = New-Object System.Threading.Mutex($false, $MUTEX_NAME)
 if (-not $mutex.WaitOne(0, $false)) { exit }
 
 Write-Host "`n  [Correios Tools] " -NoNewline -ForegroundColor Cyan
-Write-Host "Não feche esta janela, ela será fechada automaticamente ou junto com o aplicativo!" -ForegroundColor Yellow
+Write-Host "Nao feche esta janela, ela sera fechada automaticamente ou junto com o aplicativo!" -ForegroundColor Yellow
 Write-Host ""
 
 $windowHelperCode = @"
@@ -33,7 +33,6 @@ try { [WindowHelper]::HideConsole() } catch {}
 
 Add-Type -AssemblyName PresentationFramework, System.Windows.Forms, System.Drawing
 
-
 $script:IsProcessing = $false
 $script:UpdateTimer = $null
 $script:CountdownTimer = $null
@@ -41,7 +40,6 @@ $script:NeedsRestart = $false
 $script:AppVersion = "{{VERSION}}"
 $script:LastUpdateCheck = $null
 $script:NextCheckTime = $null
-
 
 $INSTALL_DIR = "C:\Users\Public\correios-tools"
 $DATA_DIR = "$INSTALL_DIR\data"
@@ -57,6 +55,9 @@ $CHROME_ICON_URL = "https://cdn.jsdelivr.net/gh/henrique-coder/correios-tools/re
 $EDGE_ICON_PATH = "$ASSETS_DIR\edge.png"
 $CHROME_ICON_PATH = "$ASSETS_DIR\chrome.png"
 
+$UPDATE_INTERVAL_HOURS = 4
+$START_URL = "https://sroweb.correios.com.br/app/index.php"
+
 $SCRIPTS_VERSION_URL = "https://henrique-coder.github.io/correios-tools/script/version/launch.ps1.json"
 $SCRIPTS_HASH_URL = "https://henrique-coder.github.io/correios-tools/script/hashes/launch.ps1.json"
 $EXTENSION_VERSION_URL = "https://henrique-coder.github.io/correios-tools/extension/version/correios-tools.json"
@@ -64,9 +65,6 @@ $EXTENSION_HASH_URL = "https://henrique-coder.github.io/correios-tools/extension
 $EXTENSION_DOWNLOAD_URL = "https://henrique-coder.github.io/correios-tools/extension/correios-tools.zip"
 $LAUNCHER_DOWNLOAD_URL = "https://henrique-coder.github.io/correios-tools/script/launch.ps1"
 
-# ... (lines 66-70)
-
-# (Add Get-RemoteVersion)
 function Get-RemoteVersion {
     param([string]$JsonUrl)
     try {
@@ -76,97 +74,6 @@ function Get-RemoteVersion {
     catch {}
     return $null
 }
-
-# ... (keep Get-RemoteHashes, Calculate-FileHash, Get-AssetDownloadUrl etc)
-
-# Update Check-LauncherUpdate
-function Check-LauncherUpdate {
-    param([bool]$ShowCountdown = $true)
-
-    Set-UIStatus "Verificando atualizações..." $true
-
-    try {
-        # 1. Check Version (Fast)
-        $remoteVersion = Get-RemoteVersion $SCRIPTS_VERSION_URL
-        # If we had a local version file, we could check here.
-        # But for now user requested: "check hash if version differs".
-        # Since we don't store local version "YYYY/..." yet, we might always proceed to hash check
-        # OR we rely on hash check being the definitive source of truth if version check passes.
-        # Actually user said: "o script... atualizaria... na api (website)... nao tocar install.ps1"
-        # The prompt implies: "check date version first".
-        # Let's add $VERSION_FILE = "$DATA_DIR\version.dat" to store local version?
-        # User didn't ask for local storage of version, but implicitly we need it to compare.
-        # Let's assume we treat the hash check as the robust fallback if proper versioning isn't established locally.
-        # OR: We just check hash as primary for now as per previous logic, BUT user explicitly asked for /version endpoint.
-        # Let's use the version endpoint to optimize:
-        # If remote version > local stored version (if exists) -> Update.
-
-        # However, to be safe and robust as per previous cycle:
-        # We will check Hash. The Version endpoint is mainly for display or fast-check optimization.
-        # Let's fetch hash if version endpoint returns valid data.
-
-        $remoteHashes = Get-RemoteHashes $SCRIPTS_HASH_URL
-        if ($remoteHashes -eq $null -or $remoteHashes.sha256 -eq $null) {
-            Set-UIStatus "Pronto! Selecione o navegador." $false
-            return
-        }
-
-        $localHash = Calculate-FileHash $SELF_PATH
-
-        if ($localHash -eq $remoteHashes.sha256) {
-            Set-UIStatus "Pronto! Selecione o navegador." $false
-            return
-        }
-
-        if ($ShowCountdown) {
-            for ($i = 5; $i -gt 0; $i--) {
-                Set-UIStatus "Atualização encontrada! Reiniciando em $i..." $false
-                Start-Sleep -Seconds 1
-            }
-        }
-
-        Set-UIStatus "Baixando atualização..." $true
-        $tempPath = "$DATA_DIR\launcher_update.tmp"
-        Invoke-WebRequest -Uri $LAUNCHER_DOWNLOAD_URL -OutFile $tempPath -UseBasicParsing
-
-        $downloadedHash = Calculate-FileHash $tempPath
-        if ($downloadedHash -ne $remoteHashes.sha256) {
-            Set-UIStatus "Erro: Hash inválido." $false
-            Remove-Item $tempPath -Force -ErrorAction SilentlyContinue
-            return
-        }
-
-        Copy-Item $tempPath $SELF_PATH -Force
-        Remove-Item $tempPath -Force -ErrorAction SilentlyContinue
-
-        # Optional: Save new version to file if we implemented local version storage
-        # For now, just restart.
-
-        Set-UIStatus "Reiniciando..." $true
-        Trigger-Restart
-    }
-    catch {
-        Set-UIStatus "Pronto! Selecione o navegador." $false
-    }
-}
-
-# Update Invoke-AutoUpdateCheck similarly
-
-
-$EXTENSION_NAMES = @("correios-tools")
-
-$UPDATE_INTERVAL_HOURS = 4
-$START_URL = "https://sroweb.correios.com.br/app/index.php"
-
-
-if (-not (Test-Path $DATA_DIR)) { New-Item -ItemType Directory -Path $DATA_DIR -Force | Out-Null }
-if (-not (Test-Path $ASSETS_DIR)) { New-Item -ItemType Directory -Path $ASSETS_DIR -Force | Out-Null }
-
-try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 } catch {}
-
-
-
-
 
 function Get-RemoteHashes {
     param([string]$JsonUrl)
@@ -182,8 +89,6 @@ function Calculate-FileHash {
     if (-not (Test-Path $FilePath)) { return "" }
     return (Get-FileHash -Path $FilePath -Algorithm SHA256).Hash.ToLower()
 }
-
-
 
 function Create-DesktopShortcuts {
     try {
@@ -288,9 +193,9 @@ function Create-DesktopShortcuts {
                 <StackPanel Grid.Row="3" Margin="0,15">
                     <ProgressBar Name="MainProgressBar" Height="3" Background="#2D2D30" Foreground="#007ACC" IsIndeterminate="False" Opacity="0"/>
                 </StackPanel>
-                <Button Name="UpdateButton" Grid.Row="4" Content="Verificar Atualizações" Height="35" FontSize="11" Margin="0,5,0,0"/>
+                <Button Name="UpdateButton" Grid.Row="4" Content="Verificar Atualizacoes" Height="35" FontSize="11" Margin="0,5,0,0"/>
                 <Border Grid.Row="5" Background="#252526" CornerRadius="3" Margin="0,15,0,0" Padding="10">
-                    <TextBlock Name="CountdownText" Text="Próxima verificação em: --" Foreground="#007ACC" FontSize="10" FontWeight="Bold" HorizontalAlignment="Center"/>
+                    <TextBlock Name="CountdownText" Text="Proxima verificacao em: --" Foreground="#007ACC" FontSize="10" FontWeight="Bold" HorizontalAlignment="Center"/>
                 </Border>
                 <TextBlock Name="RepoLink" Grid.Row="6" Text="GitHub: henrique-coder/correios-tools" Foreground="#555555" FontSize="10" HorizontalAlignment="Center" Margin="0,15,0,0" Cursor="Hand">
                     <TextBlock.Style>
@@ -317,7 +222,6 @@ function Create-DesktopShortcuts {
 "@
 
 $window = [Windows.Markup.XamlReader]::Load((New-Object System.Xml.XmlNodeReader $xamlContent))
-
 
 $CloseButton = $window.FindName("CloseButton")
 $EdgeButton = $window.FindName("EdgeButton")
@@ -372,14 +276,14 @@ function Update-Countdown {
         if ($remaining.TotalSeconds -gt 0) {
             $hours = [math]::Floor($remaining.TotalHours)
             $mins = $remaining.Minutes
-            $CountdownText.Text = "Próxima verificação em: ${hours}h ${mins}m"
+            $CountdownText.Text = "Proxima verificacao em: ${hours}h ${mins}m"
         }
         else {
             $CountdownText.Text = "Verificando em breve..."
         }
     }
     else {
-        $CountdownText.Text = "Próxima verificação em: --"
+        $CountdownText.Text = "Proxima verificacao em: --"
     }
 }
 
@@ -460,28 +364,18 @@ function Trigger-Restart {
 function Check-LauncherUpdate {
     param([bool]$ShowCountdown = $true)
 
-    Set-UIStatus "Verificando atualizações..." $true
+    Set-UIStatus "Verificando atualizacoes..." $true
 
     try {
-        # 1. Check Version (Fast & Primary)
         $remoteVersion = Get-RemoteVersion $SCRIPTS_VERSION_URL
 
-        # If we have a valid remote version and it matches our local injected version, we are up to date.
-        # This assumes strict consistency between UI version and API version as requested.
         if ($remoteVersion -and $remoteVersion -eq $script:AppVersion) {
             Set-UIStatus "Pronto! Selecione o navegador." $false
             return
         }
 
-        # If versions differ (or remote version check failed/is null), we proceed to verify hashes.
-        # This covers cases where:
-        # a) New version available (Differs)
-        # b) Version API down, fallback to hash check safety
-
         $remoteHashes = Get-RemoteHashes $SCRIPTS_HASH_URL
         if ($remoteHashes -eq $null -or $remoteHashes.sha256 -eq $null) {
-            # If both version check (implicit failure if we are here and versions matched, but they didn't)
-            # and hash check fail, we can't update.
             Set-UIStatus "Pronto! Selecione o navegador." $false
             return
         }
@@ -489,25 +383,24 @@ function Check-LauncherUpdate {
         $localHash = Calculate-FileHash $SELF_PATH
 
         if ($localHash -eq $remoteHashes.sha256) {
-            # Hash matches, so we are actually up to date even if version string logic was weird.
             Set-UIStatus "Pronto! Selecione o navegador." $false
             return
         }
 
         if ($ShowCountdown) {
             for ($i = 5; $i -gt 0; $i--) {
-                Set-UIStatus "Atualização encontrada! Reiniciando em $i..." $false
+                Set-UIStatus "Atualizacao encontrada! Reiniciando em $i..." $false
                 Start-Sleep -Seconds 1
             }
         }
 
-        Set-UIStatus "Baixando atualização..." $true
+        Set-UIStatus "Baixando atualizacao..." $true
         $tempPath = "$DATA_DIR\launcher_update.tmp"
         Invoke-WebRequest -Uri $LAUNCHER_DOWNLOAD_URL -OutFile $tempPath -UseBasicParsing
 
         $downloadedHash = Calculate-FileHash $tempPath
         if ($downloadedHash -ne $remoteHashes.sha256) {
-            Set-UIStatus "Erro: Hash inválido." $false
+            Set-UIStatus "Erro: Hash invalido." $false
             Remove-Item $tempPath -Force -ErrorAction SilentlyContinue
             return
         }
@@ -524,7 +417,7 @@ function Check-LauncherUpdate {
 }
 
 function Download-Extensions {
-    Set-UIStatus "Verificando extensões..." $true
+    Set-UIStatus "Verificando extensoes..." $true
 
     $localVersionFile = "$DATA_DIR\extension_version.json"
     $localVersion = $null
@@ -534,17 +427,15 @@ function Download-Extensions {
 
     $remoteVersion = Get-RemoteVersion $EXTENSION_VERSION_URL
 
-    # If versions match and folder exists, we are good
     if ($remoteVersion -and $localVersion -eq $remoteVersion -and (Test-Path "$EXTENSIONS_DIR\correios-tools")) {
         return $true
     }
 
-    Set-UIStatus "Baixando extensão..." $true
+    Set-UIStatus "Baixando extensao..." $true
 
-    # Check Hash
     $remoteHashes = Get-RemoteHashes $EXTENSION_HASH_URL
     if ($remoteHashes -eq $null -or $remoteHashes.sha256 -eq $null) {
-        Set-UIStatus "Erro ao verificar extensão." $false
+        Set-UIStatus "Erro ao verificar extensao." $false
         return $false
     }
 
@@ -554,27 +445,25 @@ function Download-Extensions {
 
         $downloadedHash = Calculate-FileHash $tempZip
         if ($downloadedHash -ne $remoteHashes.sha256) {
-            Set-UIStatus "Erro: Hash da extensão inválido." $false
+            Set-UIStatus "Erro: Hash da extensao invalido." $false
             Remove-Item $tempZip -Force -ErrorAction SilentlyContinue
             return $false
         }
 
-        # Clear old and Extract
         if (Test-Path $EXTENSIONS_DIR) { Remove-Item $EXTENSIONS_DIR -Recurse -Force -ErrorAction SilentlyContinue }
         New-Item -ItemType Directory -Path "$EXTENSIONS_DIR\correios-tools" -Force | Out-Null
 
         Expand-Archive -Path $tempZip -DestinationPath "$EXTENSIONS_DIR\correios-tools" -Force
         Remove-Item $tempZip -Force -ErrorAction SilentlyContinue
 
-        # Save Version
         $versionJson = @{ version = $remoteVersion } | ConvertTo-Json -Compress
         $versionJson | Set-Content $localVersionFile -Encoding UTF8
 
-        Set-UIStatus "Extensão atualizada!" $false
+        Set-UIStatus "Extensao atualizada!" $false
         return $true
     }
     catch {
-        Set-UIStatus "Erro ao baixar extensão." $false
+        Set-UIStatus "Erro ao baixar extensao." $false
         Remove-Item $tempZip -Force -ErrorAction SilentlyContinue
         return $false
     }
@@ -649,7 +538,7 @@ function Launch-Browser {
     if (-not $downloadOk) {
         $ext = Get-ExtensionPaths
         if ([string]::IsNullOrEmpty($ext)) {
-            Set-UIStatus "Sem extensões disponíveis." $false
+            Set-UIStatus "Sem extensoes disponiveis." $false
             return
         }
     }
@@ -689,15 +578,12 @@ function Invoke-AutoUpdateCheck {
     Set-ButtonsEnabled $false
 
     try {
-        # 1. Check Version (Fast & Primary)
         $remoteVersion = Get-RemoteVersion $SCRIPTS_VERSION_URL
 
         if ($remoteVersion -and $remoteVersion -eq $script:AppVersion) {
-            # Up to date
             return
         }
 
-        # If versions differ, check hash
         $remoteHashes = Get-RemoteHashes $SCRIPTS_HASH_URL
         if ($remoteHashes -eq $null -or $remoteHashes.sha256 -eq $null) {
             return
@@ -705,23 +591,21 @@ function Invoke-AutoUpdateCheck {
 
         $localHash = Calculate-FileHash $SELF_PATH
         if ($localHash -eq $remoteHashes.sha256) {
-            # Hash matches, so we are up to date
             return
         }
 
-        # Update found
         for ($i = 5; $i -gt 0; $i--) {
-            Set-UIStatus "Atualização encontrada! Reiniciando em $i..." $false
+            Set-UIStatus "Atualizacao encontrada! Reiniciando em $i..." $false
             Start-Sleep -Seconds 1
         }
 
-        Set-UIStatus "Baixando atualização..." $true
+        Set-UIStatus "Baixando atualizacao..." $true
         $tempPath = "$DATA_DIR\launcher_update.tmp"
         Invoke-WebRequest -Uri $LAUNCHER_DOWNLOAD_URL -OutFile $tempPath -UseBasicParsing
 
         $downloadedHash = Calculate-FileHash $tempPath
         if ($downloadedHash -ne $remoteHashes.sha256) {
-            Set-UIStatus "Erro: Hash inválido." $false
+            Set-UIStatus "Erro: Hash invalido." $false
             Remove-Item $tempPath -Force -ErrorAction SilentlyContinue
             return
         }
@@ -766,7 +650,7 @@ function Start-Application {
     Create-DesktopShortcuts
 
     Hide-LoadingOverlay
-    Show-LoadingOverlay "Verificando atualizações..."
+    Show-LoadingOverlay "Verificando atualizacoes..."
 
     Check-LauncherUpdate -ShowCountdown $true
 
@@ -784,7 +668,7 @@ $CloseButton.Add_Click({ $window.Close() })
 
 $UpdateButton.Add_Click({
         Invoke-SafeAction {
-            Show-LoadingOverlay "Verificando atualizações..."
+            Show-LoadingOverlay "Verificando atualizacoes..."
             Check-LauncherUpdate -ShowCountdown $true
             $script:LastUpdateCheck = Get-Date
             Reset-UpdateTimer
