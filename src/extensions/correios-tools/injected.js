@@ -6,17 +6,15 @@
       "CT-INDUZIROBJETO": () => {
         if (document.activeElement) document.activeElement.blur();
         const a = document.getElementById("btnModalA");
-        if (!a) return;
-        a.click();
+        if (a && a.offsetParent !== null) a.click();
         let t = 0;
         const c = setInterval(() => {
           const i = document.getElementById("txtNumero");
           if (i) {
-            clearInterval(c);
-            setTimeout(() => {
-              const v = i.value.trim();
-              if (v !== "" && v !== "N/A") {
-                if (document.activeElement) document.activeElement.blur();
+            const v = i.value.trim().toUpperCase();
+            if (v.length > 0 && v !== "S/N" && v !== "N/A" && v !== "NA") {
+              clearInterval(c);
+              setTimeout(() => {
                 const b = document.getElementById("btnIncluirObjeto");
                 if (b) {
                   b.click();
@@ -26,16 +24,15 @@
                     if (mi && mi.value.trim() === "") {
                       clearInterval(wc);
                       mi.focus();
+                      RFC(mi);
                     }
                     if (++w > 50) clearInterval(wc);
                   }, 100);
                 }
-              }
-            }, 500);
-          } else {
-            t++;
-            if (t >= 30) clearInterval(c);
+              }, 200);
+            }
           }
+          if (++t > 50) clearInterval(c);
         }, 100);
       },
       "CT-EXCLUIROBJETO": () => {
