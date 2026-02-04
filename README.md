@@ -15,13 +15,13 @@ Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
 **Instalar:**
 
 ```powershell
-irm https://henrique-coder.github.io/correios-tools/install.ps1 | iex
+irm https://henrique-coder.github.io/correios-tools/script/install.ps1 | iex
 ```
 
 **Alternativa via CMD:**
 
 ```cmd
-powershell -ep bypass -c "irm https://henrique-coder.github.io/correios-tools/install.ps1 | iex"
+powershell -ep bypass -c "irm https://henrique-coder.github.io/correios-tools/script/install.ps1 | iex"
 ```
 
 ## Uso

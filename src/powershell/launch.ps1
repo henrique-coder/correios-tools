@@ -38,7 +38,7 @@ $script:IsProcessing = $false
 $script:UpdateTimer = $null
 $script:CountdownTimer = $null
 $script:NeedsRestart = $false
-$script:AppVersion = "2.0.0"
+$script:AppVersion = "{{VERSION}}"
 $script:LastUpdateCheck = $null
 $script:NextCheckTime = $null
 
@@ -48,7 +48,6 @@ $DATA_DIR = "$INSTALL_DIR\data"
 $EXTENSIONS_DIR = "$DATA_DIR\extensions"
 $RESOURCES_DIR = "$INSTALL_DIR\resources"
 $ASSETS_DIR = "$RESOURCES_DIR\assets"
-$HASH_FILE = "$DATA_DIR\launcher.hash"
 $SELF_PATH = $MyInvocation.MyCommand.Path
 
 $ICON_URL = "https://cdn.jsdelivr.net/gh/henrique-coder/correios-tools/resources/assets/icon.ico"
@@ -58,9 +57,101 @@ $CHROME_ICON_URL = "https://cdn.jsdelivr.net/gh/henrique-coder/correios-tools/re
 $EDGE_ICON_PATH = "$ASSETS_DIR\edge.png"
 $CHROME_ICON_PATH = "$ASSETS_DIR\chrome.png"
 
-$SCRIPTS_API_URL = "https://api.github.com/repos/henrique-coder/correios-tools/releases/tags/powershell-scripts"
-$EXTENSIONS_API_URL = "https://api.github.com/repos/henrique-coder/correios-tools/releases/tags/browser-extensions"
-$LAUNCHER_DOWNLOAD_URL = "https://henrique-coder.github.io/correios-tools/launch.ps1"
+$SCRIPTS_VERSION_URL = "https://henrique-coder.github.io/correios-tools/script/version/launch.ps1.json"
+$SCRIPTS_HASH_URL = "https://henrique-coder.github.io/correios-tools/script/hashes/launch.ps1.json"
+$EXTENSION_VERSION_URL = "https://henrique-coder.github.io/correios-tools/extension/version/correios-tools.json"
+$EXTENSION_HASH_URL = "https://henrique-coder.github.io/correios-tools/extension/hashes/correios-tools.zip.json"
+$EXTENSION_DOWNLOAD_URL = "https://henrique-coder.github.io/correios-tools/extension/correios-tools.zip"
+$LAUNCHER_DOWNLOAD_URL = "https://henrique-coder.github.io/correios-tools/script/launch.ps1"
+
+# ... (lines 66-70)
+
+# (Add Get-RemoteVersion)
+function Get-RemoteVersion {
+    param([string]$JsonUrl)
+    try {
+        $response = Invoke-RestMethod -Uri $JsonUrl -Method Get -TimeoutSec 10
+        if ($response -and $response.version) { return $response.version }
+    }
+    catch {}
+    return $null
+}
+
+# ... (keep Get-RemoteHashes, Calculate-FileHash, Get-AssetDownloadUrl etc)
+
+# Update Check-LauncherUpdate
+function Check-LauncherUpdate {
+    param([bool]$ShowCountdown = $true)
+
+    Set-UIStatus "Verificando atualizações..." $true
+
+    try {
+        # 1. Check Version (Fast)
+        $remoteVersion = Get-RemoteVersion $SCRIPTS_VERSION_URL
+        # If we had a local version file, we could check here.
+        # But for now user requested: "check hash if version differs".
+        # Since we don't store local version "YYYY/..." yet, we might always proceed to hash check
+        # OR we rely on hash check being the definitive source of truth if version check passes.
+        # Actually user said: "o script... atualizaria... na api (website)... nao tocar install.ps1"
+        # The prompt implies: "check date version first".
+        # Let's add $VERSION_FILE = "$DATA_DIR\version.dat" to store local version?
+        # User didn't ask for local storage of version, but implicitly we need it to compare.
+        # Let's assume we treat the hash check as the robust fallback if proper versioning isn't established locally.
+        # OR: We just check hash as primary for now as per previous logic, BUT user explicitly asked for /version endpoint.
+        # Let's use the version endpoint to optimize:
+        # If remote version > local stored version (if exists) -> Update.
+
+        # However, to be safe and robust as per previous cycle:
+        # We will check Hash. The Version endpoint is mainly for display or fast-check optimization.
+        # Let's fetch hash if version endpoint returns valid data.
+
+        $remoteHashes = Get-RemoteHashes $SCRIPTS_HASH_URL
+        if ($remoteHashes -eq $null -or $remoteHashes.sha256 -eq $null) {
+            Set-UIStatus "Pronto! Selecione o navegador." $false
+            return
+        }
+
+        $localHash = Calculate-FileHash $SELF_PATH
+
+        if ($localHash -eq $remoteHashes.sha256) {
+            Set-UIStatus "Pronto! Selecione o navegador." $false
+            return
+        }
+
+        if ($ShowCountdown) {
+            for ($i = 5; $i -gt 0; $i--) {
+                Set-UIStatus "Atualização encontrada! Reiniciando em $i..." $false
+                Start-Sleep -Seconds 1
+            }
+        }
+
+        Set-UIStatus "Baixando atualização..." $true
+        $tempPath = "$DATA_DIR\launcher_update.tmp"
+        Invoke-WebRequest -Uri $LAUNCHER_DOWNLOAD_URL -OutFile $tempPath -UseBasicParsing
+
+        $downloadedHash = Calculate-FileHash $tempPath
+        if ($downloadedHash -ne $remoteHashes.sha256) {
+            Set-UIStatus "Erro: Hash inválido." $false
+            Remove-Item $tempPath -Force -ErrorAction SilentlyContinue
+            return
+        }
+
+        Copy-Item $tempPath $SELF_PATH -Force
+        Remove-Item $tempPath -Force -ErrorAction SilentlyContinue
+
+        # Optional: Save new version to file if we implemented local version storage
+        # For now, just restart.
+
+        Set-UIStatus "Reiniciando..." $true
+        Trigger-Restart
+    }
+    catch {
+        Set-UIStatus "Pronto! Selecione o navegador." $false
+    }
+}
+
+# Update Invoke-AutoUpdateCheck similarly
+
 
 $EXTENSION_NAMES = @("correios-tools")
 
@@ -73,56 +164,26 @@ if (-not (Test-Path $ASSETS_DIR)) { New-Item -ItemType Directory -Path $ASSETS_D
 
 try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 } catch {}
 
-function Get-StoredHash {
-    try {
-        if (Test-Path $HASH_FILE) {
-            $content = Get-Content $HASH_FILE -Raw -ErrorAction SilentlyContinue
-            if ($content) { return $content.Trim() }
-        }
-    }
-    catch {}
-    return ""
-}
 
-function Save-Hash {
-    param([string]$Hash)
-    try { [System.IO.File]::WriteAllText($HASH_FILE, $Hash) } catch {}
-}
 
-function Get-ReleaseInfo {
-    param([string]$ApiUrl)
+
+
+function Get-RemoteHashes {
+    param([string]$JsonUrl)
     try {
-        $headers = @{ "User-Agent" = "PowerShell"; "Accept" = "application/vnd.github+json" }
-        return Invoke-RestMethod -Uri $ApiUrl -Headers $headers -Method Get -TimeoutSec 30
+        $response = Invoke-RestMethod -Uri $JsonUrl -Method Get -TimeoutSec 30
+        return $response
     }
     catch { return $null }
 }
 
-function Get-ReleaseCommitHash {
-    param($ReleaseInfo)
-    try {
-
-        if ($ReleaseInfo.body -match "\*\*Commit:\*\* \[`([a-f0-9]+)`\]") {
-            return $matches[1]
-        }
-        return $ReleaseInfo.target_commitish
-    }
-    catch {}
-    return ""
+function Calculate-FileHash {
+    param([string]$FilePath)
+    if (-not (Test-Path $FilePath)) { return "" }
+    return (Get-FileHash -Path $FilePath -Algorithm SHA256).Hash.ToLower()
 }
 
-function Get-AssetDownloadUrl {
-    param($ReleaseInfo, [string]$AssetName)
-    try {
-        if ($ReleaseInfo -and $ReleaseInfo.assets) {
-            foreach ($asset in $ReleaseInfo.assets) {
-                if ($asset.name -eq $AssetName) { return $asset.browser_download_url }
-            }
-        }
-    }
-    catch {}
-    return ""
-}
+
 
 function Create-DesktopShortcuts {
     try {
@@ -402,20 +463,33 @@ function Check-LauncherUpdate {
     Set-UIStatus "Verificando atualizações..." $true
 
     try {
-        $releaseInfo = Get-ReleaseInfo $SCRIPTS_API_URL
-        if ($releaseInfo -eq $null) {
+        # 1. Check Version (Fast & Primary)
+        $remoteVersion = Get-RemoteVersion $SCRIPTS_VERSION_URL
+
+        # If we have a valid remote version and it matches our local injected version, we are up to date.
+        # This assumes strict consistency between UI version and API version as requested.
+        if ($remoteVersion -and $remoteVersion -eq $script:AppVersion) {
             Set-UIStatus "Pronto! Selecione o navegador." $false
             return
         }
 
-        $remoteCommitHash = Get-ReleaseCommitHash $releaseInfo
-        if ([string]::IsNullOrEmpty($remoteCommitHash)) {
+        # If versions differ (or remote version check failed/is null), we proceed to verify hashes.
+        # This covers cases where:
+        # a) New version available (Differs)
+        # b) Version API down, fallback to hash check safety
+
+        $remoteHashes = Get-RemoteHashes $SCRIPTS_HASH_URL
+        if ($remoteHashes -eq $null -or $remoteHashes.sha256 -eq $null) {
+            # If both version check (implicit failure if we are here and versions matched, but they didn't)
+            # and hash check fail, we can't update.
             Set-UIStatus "Pronto! Selecione o navegador." $false
             return
         }
 
-        $localHash = Get-StoredHash
-        if ($remoteCommitHash -eq $localHash) {
+        $localHash = Calculate-FileHash $SELF_PATH
+
+        if ($localHash -eq $remoteHashes.sha256) {
+            # Hash matches, so we are actually up to date even if version string logic was weird.
             Set-UIStatus "Pronto! Selecione o navegador." $false
             return
         }
@@ -431,7 +505,12 @@ function Check-LauncherUpdate {
         $tempPath = "$DATA_DIR\launcher_update.tmp"
         Invoke-WebRequest -Uri $LAUNCHER_DOWNLOAD_URL -OutFile $tempPath -UseBasicParsing
 
-        Save-Hash $remoteCommitHash
+        $downloadedHash = Calculate-FileHash $tempPath
+        if ($downloadedHash -ne $remoteHashes.sha256) {
+            Set-UIStatus "Erro: Hash inválido." $false
+            Remove-Item $tempPath -Force -ErrorAction SilentlyContinue
+            return
+        }
 
         Copy-Item $tempPath $SELF_PATH -Force
         Remove-Item $tempPath -Force -ErrorAction SilentlyContinue
@@ -445,47 +524,58 @@ function Check-LauncherUpdate {
 }
 
 function Download-Extensions {
-    Set-UIStatus "Baixando extensões..." $true
+    Set-UIStatus "Verificando extensões..." $true
 
+    $localVersionFile = "$DATA_DIR\extension_version.json"
+    $localVersion = $null
+    if (Test-Path $localVersionFile) {
+        try { $localVersion = (Get-Content $localVersionFile -Raw | ConvertFrom-Json).version } catch {}
+    }
+
+    $remoteVersion = Get-RemoteVersion $EXTENSION_VERSION_URL
+
+    # If versions match and folder exists, we are good
+    if ($remoteVersion -and $localVersion -eq $remoteVersion -and (Test-Path "$EXTENSIONS_DIR\correios-tools")) {
+        return $true
+    }
+
+    Set-UIStatus "Baixando extensão..." $true
+
+    # Check Hash
+    $remoteHashes = Get-RemoteHashes $EXTENSION_HASH_URL
+    if ($remoteHashes -eq $null -or $remoteHashes.sha256 -eq $null) {
+        Set-UIStatus "Erro ao verificar extensão." $false
+        return $false
+    }
+
+    $tempZip = "$DATA_DIR\extension.zip"
     try {
+        Invoke-WebRequest -Uri $EXTENSION_DOWNLOAD_URL -OutFile $tempZip -UseBasicParsing
 
-        $releaseInfo = Get-ReleaseInfo $EXTENSIONS_API_URL
-        if ($releaseInfo -eq $null) {
-            Set-UIStatus "Erro: sem conexão." $false
+        $downloadedHash = Calculate-FileHash $tempZip
+        if ($downloadedHash -ne $remoteHashes.sha256) {
+            Set-UIStatus "Erro: Hash da extensão inválido." $false
+            Remove-Item $tempZip -Force -ErrorAction SilentlyContinue
             return $false
         }
 
+        # Clear old and Extract
+        if (Test-Path $EXTENSIONS_DIR) { Remove-Item $EXTENSIONS_DIR -Recurse -Force -ErrorAction SilentlyContinue }
+        New-Item -ItemType Directory -Path "$EXTENSIONS_DIR\correios-tools" -Force | Out-Null
 
-        if (Test-Path $EXTENSIONS_DIR) {
-            Remove-Item $EXTENSIONS_DIR -Recurse -Force -ErrorAction SilentlyContinue
-        }
-        New-Item -ItemType Directory -Path $EXTENSIONS_DIR -Force | Out-Null
+        Expand-Archive -Path $tempZip -DestinationPath "$EXTENSIONS_DIR\correios-tools" -Force
+        Remove-Item $tempZip -Force -ErrorAction SilentlyContinue
 
-        $count = 0
-        $total = $EXTENSION_NAMES.Count
+        # Save Version
+        $versionJson = @{ version = $remoteVersion } | ConvertTo-Json -Compress
+        $versionJson | Set-Content $localVersionFile -Encoding UTF8
 
-        foreach ($extName in $EXTENSION_NAMES) {
-            $count++
-            Set-UIStatus "Baixando $extName ($count/$total)..." $true
-
-            $zipName = "$extName.zip"
-            $downloadUrl = Get-AssetDownloadUrl $releaseInfo $zipName
-
-            if ($downloadUrl) {
-                $tempZip = "$DATA_DIR\temp_$zipName"
-                $extFolder = "$EXTENSIONS_DIR\$extName"
-
-                New-Item -ItemType Directory -Path $extFolder -Force | Out-Null
-                Invoke-WebRequest -Uri $downloadUrl -OutFile $tempZip -UseBasicParsing -TimeoutSec 60
-                Expand-Archive -Path $tempZip -DestinationPath $extFolder -Force
-                Remove-Item $tempZip -Force -ErrorAction SilentlyContinue
-            }
-        }
-
+        Set-UIStatus "Extensão atualizada!" $false
         return $true
     }
     catch {
-        Set-UIStatus "Erro ao baixar extensões." $false
+        Set-UIStatus "Erro ao baixar extensão." $false
+        Remove-Item $tempZip -Force -ErrorAction SilentlyContinue
         return $false
     }
 }
@@ -599,37 +689,59 @@ function Invoke-AutoUpdateCheck {
     Set-ButtonsEnabled $false
 
     try {
-        $releaseInfo = Get-ReleaseInfo $SCRIPTS_API_URL
-        if ($releaseInfo -ne $null) {
-            $remoteCommitHash = Get-ReleaseCommitHash $releaseInfo
-            $localHash = Get-StoredHash
+        # 1. Check Version (Fast & Primary)
+        $remoteVersion = Get-RemoteVersion $SCRIPTS_VERSION_URL
 
-            if (-not [string]::IsNullOrEmpty($remoteCommitHash) -and $remoteCommitHash -ne $localHash) {
-                for ($i = 5; $i -gt 0; $i--) {
-                    Set-UIStatus "Atualização encontrada! Reiniciando em $i..." $false
-                    Start-Sleep -Seconds 1
-                }
-
-                Set-UIStatus "Baixando atualização..." $true
-                $tempPath = "$DATA_DIR\launcher_update.tmp"
-                Invoke-WebRequest -Uri $LAUNCHER_DOWNLOAD_URL -OutFile $tempPath -UseBasicParsing
-
-                Save-Hash $remoteCommitHash
-
-                Copy-Item $tempPath $SELF_PATH -Force
-                Remove-Item $tempPath -Force -ErrorAction SilentlyContinue
-
-                Set-UIStatus "Reiniciando..." $true
-                Trigger-Restart
-                return
-            }
+        if ($remoteVersion -and $remoteVersion -eq $script:AppVersion) {
+            # Up to date
+            return
         }
-    }
-    catch {}
 
-    $script:IsProcessing = $false
-    Set-ButtonsEnabled $true
+        # If versions differ, check hash
+        $remoteHashes = Get-RemoteHashes $SCRIPTS_HASH_URL
+        if ($remoteHashes -eq $null -or $remoteHashes.sha256 -eq $null) {
+            return
+        }
+
+        $localHash = Calculate-FileHash $SELF_PATH
+        if ($localHash -eq $remoteHashes.sha256) {
+            # Hash matches, so we are up to date
+            return
+        }
+
+        # Update found
+        for ($i = 5; $i -gt 0; $i--) {
+            Set-UIStatus "Atualização encontrada! Reiniciando em $i..." $false
+            Start-Sleep -Seconds 1
+        }
+
+        Set-UIStatus "Baixando atualização..." $true
+        $tempPath = "$DATA_DIR\launcher_update.tmp"
+        Invoke-WebRequest -Uri $LAUNCHER_DOWNLOAD_URL -OutFile $tempPath -UseBasicParsing
+
+        $downloadedHash = Calculate-FileHash $tempPath
+        if ($downloadedHash -ne $remoteHashes.sha256) {
+            Set-UIStatus "Erro: Hash inválido." $false
+            Remove-Item $tempPath -Force -ErrorAction SilentlyContinue
+            return
+        }
+
+        Copy-Item $tempPath $SELF_PATH -Force
+        Remove-Item $tempPath -Force -ErrorAction SilentlyContinue
+
+        Set-UIStatus "Reiniciando..." $true
+        Trigger-Restart
+    }
+    catch {
+        Set-UIStatus "Pronto! Selecione o navegador." $false
+    }
+    finally {
+        $script:IsProcessing = $false
+        Set-ButtonsEnabled $true
+        Reset-UpdateTimer
+    }
 }
+
 
 function Initialize-UpdateTimer {
     $script:NextCheckTime = (Get-Date).AddHours($UPDATE_INTERVAL_HOURS)

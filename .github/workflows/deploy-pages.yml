@@ -24,31 +24,118 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Install PSMinifier
         shell: pwsh
         run: Install-Module PSMinifier -Force -Scope CurrentUser
 
-      - name: Minify Scripts
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Install Python 3.14
+        run: uv python install 3.14
+
+      - name: Build and Hash
         shell: pwsh
         run: |
-          mkdir -p public
+          mkdir -p public/script/hashes
+          mkdir -p public/script/version
+          mkdir -p public/extension/version
 
-          # Minify launch.ps1
-          $launchContent = Get-Content src/powershell/launch.ps1 -Raw
-          $launchMin = Compress-ScriptBlock -ScriptBlock ([ScriptBlock]::Create($launchContent))
-          [System.IO.File]::WriteAllText("public/launch.ps1", $launchMin.ToString(), [System.Text.UTF8Encoding]::new($false))
+          function Get-GitFileDate {
+              param($FilePath)
+              $date = git log -1 --format="%cd" --date=format:"%Y/%m/%d-%H:%M:%S" $FilePath
+              if (-not $date) {
+                  $date = Get-Date -Format "yyyy/MM/dd-HH:mm:ss"
+              }
+              return $date
+          }
 
-          # Minify install.ps1
-          $installContent = Get-Content src/powershell/install.ps1 -Raw
-          $installMin = Compress-ScriptBlock -ScriptBlock ([ScriptBlock]::Create($installContent))
-          [System.IO.File]::WriteAllText("public/install.ps1", $installMin.ToString(), [System.Text.UTF8Encoding]::new($false))
+          $scripts = Get-ChildItem "src/powershell/*.ps1"
+          foreach ($script in $scripts) {
+              $version = Get-GitFileDate $script.FullName
 
-          # Create index.html (optional, just for root presence)
-          "<html><body><h1>Correios Tools Scripts</h1><p><a href='launch.ps1'>launch.ps1</a></p><p><a href='install.ps1'>install.ps1</a></p></body></html>" | Out-File public/index.html
+              $content = Get-Content $script.FullName -Raw
+              $content = $content -replace "\{\{VERSION\}\}", $version
+
+              $minified = Compress-ScriptBlock -ScriptBlock ([ScriptBlock]::Create($content))
+
+              $outPath = "public/script/$($script.Name)"
+              [System.IO.File]::WriteAllText($outPath, $minified.ToString(), [System.Text.UTF8Encoding]::new($false))
+
+              $versionJson = @{ version = $version } | ConvertTo-Json -Compress
+              $versionOutPath = "public/script/version/$($script.Name).json"
+              [System.IO.File]::WriteAllText($versionOutPath, $versionJson, [System.Text.UTF8Encoding]::new($false))
+          }
+
+          $extVersion = Get-GitFileDate "src/extensions/correios-tools"
+          $extVersionJson = @{ version = $extVersion } | ConvertTo-Json -Compress
+          [System.IO.File]::WriteAllText("public/extension/version/correios-tools.json", $extVersionJson, [System.Text.UTF8Encoding]::new($false))
+
+          Compress-Archive -Path "src/extensions/correios-tools/*" -DestinationPath "public/extension/correios-tools.zip" -Force
+
+          $hashScript = @"
+          import hashlib
+          import glob
+          import os
+          import orjson
+          from Crypto.Hash import SHA3_256, BLAKE2s, BLAKE2b
+
+          def calculate_hashes(filepath):
+              with open(filepath, 'rb') as f:
+                  data = f.read()
+
+              hashes = {}
+              hashes['sha256'] = hashlib.sha256(data).hexdigest()
+              hashes['sha512'] = hashlib.sha512(data).hexdigest()
+              hashes['md5'] = hashlib.md5(data).hexdigest()
+              hashes['blake2'] = hashlib.blake2b(data).hexdigest()
+              hashes['sha3'] = hashlib.sha3_256(data).hexdigest()
+
+              return hashes
+
+          if __name__ == '__main__':
+              files = glob.glob('public/script/*.ps1') + glob.glob('public/extension/*.zip')
+              for f in files:
+                  h = calculate_hashes(f)
+                  name = os.path.basename(f)
+                  # If zip, we want hashes/correios-tools.zip.json
+                  # If script, we want hashes/launch.ps1.json
+                  # Structure: public/script/hashes/X.json and public/extension/hashes/X.json ?
+                  # User said "igual o dos scripts".
+                  # Let's put extension hashes in public/extension/hashes/
+
+                  if f.endswith('.zip'):
+                      os.makedirs('public/extension/hashes', exist_ok=True)
+                      with open(f'public/extension/hashes/{name}.json', 'wb') as json_file:
+                          json_file.write(orjson.dumps(h))
+                  else:
+                      with open(f'public/script/hashes/{name}.json', 'wb') as json_file:
+                          json_file.write(orjson.dumps(h))
+          "@
+
+          [System.IO.File]::WriteAllText("hasher.py", $hashScript, [System.Text.UTF8Encoding]::new($false))
+
+          uv run --python 3.14 --with pycryptodome --with orjson python hasher.py
+
+          $html = @"
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <meta charset="utf-8">
+              <meta http-equiv="refresh" content="0; url=https://github.com/henrique-coder/correios-tools">
+              <script>window.location.replace("https://github.com/henrique-coder/correios-tools");</script>
+              <title>Redirecting...</title>
+            </head>
+            <body></body>
+          </html>
+          "@
+          $html | Out-File public/index.html -Encoding utf8
 
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v4
         with:
           path: ./public
 
