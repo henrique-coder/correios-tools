@@ -1,258 +1,45 @@
-Add-Type -MemberDefinition @"
-[DllImport("user32.dll")]
-public static extern bool ShowWindowAsync(IntPtr hWnd, int nCmdShow);
-"@ -Name Win32 -Namespace Native -PassThru | Out-Null
+$ErrorActionPreference = "SilentlyContinue"
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
-$currentProcess = Get-Process -Id $PID
-$mainWindowHandle = $currentProcess.MainWindowHandle
-if ($mainWindowHandle -ne [IntPtr]::Zero) {
-    [Native.Win32]::ShowWindowAsync($mainWindowHandle, 0) | Out-Null
+$LogPath = "$([Environment]::GetFolderPath('Desktop'))\correiostools_install.log"
+"$(Get-Date) - Iniciando instalacao..." | Out-File $LogPath
+
+$BaseUrl = "https://github.com/henrique-coder/correios-tools/releases/download/assets"
+$InstallDir = "C:\Users\Public\correios-tools"
+$LauncherPath = "$InstallDir\data\launcher.ps1"
+$IconPath = "$InstallDir\resources\assets\icon.ico"
+
+"$(Get-Date) - Fechando navegadores..." | Out-File -Append $LogPath
+Stop-Process -Name "msedge" -Force
+Stop-Process -Name "chrome" -Force
+Start-Sleep -Seconds 1
+
+if (Test-Path $InstallDir) {
+    "$(Get-Date) - Removendo versao antiga..." | Out-File -Append $LogPath
+    Remove-Item -Path $InstallDir -Recurse -Force
 }
 
-Add-Type -AssemblyName PresentationFramework, System.Windows.Forms, System.Drawing
-
-$LAUNCHER_URL = "https://github.com/henrique-coder/correios-tools/releases/download/assets/script-launcher.ps1"
-$ICON_URL = "https://cdn.jsdelivr.net/gh/henrique-coder/correios-tools/resources/assets/app/icon.ico"
-$INSTALL_DIR = "C:\Users\Public\correios-tools"
-$DATA_DIR = "$INSTALL_DIR\data"
-$RESOURCES_DIR = "$INSTALL_DIR\resources"
-$ASSETS_DIR = "$RESOURCES_DIR\assets"
-$LAUNCHER_PATH = "$DATA_DIR\launcher.ps1"
-$ICON_PATH = "$ASSETS_DIR\icon.ico"
+"$(Get-Date) - Criando diretorios..." | Out-File -Append $LogPath
+New-Item -ItemType Directory -Path "$InstallDir\data" -Force | Out-Null
+New-Item -ItemType Directory -Path "$InstallDir\resources\assets" -Force | Out-Null
 
 try {
-    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-}
-catch {
-    Write-Warning "Failed to set TLS 1.2 protocol."
-}
-
-[xml]$xamlContent = @"
-<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Correios Tools - Instalador" Height="300" Width="400"
-        WindowStartupLocation="CenterScreen" ResizeMode="NoResize"
-        Background="#1E1E1E" WindowStyle="None" AllowsTransparency="True">
-    <Window.Resources>
-        <Style TargetType="Button">
-            <Setter Property="Background" Value="#2D2D30"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="Padding" Value="10,5"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border Name="border" Background="{TemplateBinding Background}" CornerRadius="5">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#3E3E42"/>
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#007ACC"/>
-                            </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter TargetName="border" Property="Background" Value="#1A1A1A"/>
-                                <Setter Property="Foreground" Value="#555555"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-    </Window.Resources>
-    <Border BorderBrush="#333337" BorderThickness="1" CornerRadius="0">
-        <Grid Margin="20">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="*"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-            </Grid.RowDefinitions>
-            <Grid Grid.Row="0">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <TextBlock Text="CORREIOS TOOLS" Foreground="White" FontSize="18" FontWeight="Bold" VerticalAlignment="Center"/>
-                <Button Name="CloseButton" Content="X" Grid.Column="1" Background="Transparent" Foreground="#FF5555" FontWeight="Bold" Width="30"/>
-            </Grid>
-            <StackPanel Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center">
-                <TextBlock Name="TitleText" Text="INSTALADOR" Foreground="#007ACC" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center"/>
-                <TextBlock Name="StatusText" Text="Aguardando..." Foreground="#AAAAAA" FontSize="12" HorizontalAlignment="Center" Margin="0,15,0,0" TextWrapping="Wrap" TextAlignment="Center"/>
-            </StackPanel>
-            <StackPanel Grid.Row="2" Margin="0,15">
-                <ProgressBar Name="MainProgressBar" Height="4" Background="#2D2D30" Foreground="#007ACC" IsIndeterminate="False" Opacity="0"/>
-            </StackPanel>
-            <Button Name="InstallButton" Grid.Row="3" Content="Instalar" Height="40" FontSize="14" FontWeight="Bold"/>
-        </Grid>
-    </Border>
-</Window>
-"@
-
-$window = [Windows.Markup.XamlReader]::Load((New-Object System.Xml.XmlNodeReader $xamlContent))
-
-$closeButton = $window.FindName("CloseButton")
-$installButton = $window.FindName("InstallButton")
-$titleText = $window.FindName("TitleText")
-$statusText = $window.FindName("StatusText")
-$progressBar = $window.FindName("MainProgressBar")
-
-function Set-UIStatus {
-    param(
-        [string]$Message,
-        [bool]$IsLoading = $false
-    )
-    $statusText.Text = $Message
-    $progressBar.IsIndeterminate = $IsLoading
-    $progressBar.Opacity = if ($IsLoading) { 1 } else { 0 }
-
-    [System.Windows.Threading.Dispatcher]::CurrentDispatcher.Invoke([Action] {}, [System.Windows.Threading.DispatcherPriority]::Background)
+    "$(Get-Date) - Baixando arquivos..." | Out-File -Append $LogPath
+    Invoke-WebRequest -Uri "$BaseUrl/script-launcher.ps1" -OutFile $LauncherPath -UseBasicParsing
+    Invoke-WebRequest -Uri "https://cdn.jsdelivr.net/gh/henrique-coder/correios-tools/resources/assets/app/icon.ico" -OutFile $IconPath -UseBasicParsing
+} catch {
+    "$(Get-Date) - ERRO DE REDE: $($_.Exception.Message)" | Out-File -Append $LogPath
+    exit
 }
 
-function Load-WindowIcon {
-    try {
-        if (Test-Path $ICON_PATH) {
-            $uri = New-Object System.Uri($ICON_PATH)
-            $bitmap = New-Object System.Windows.Media.Imaging.BitmapImage
-            $bitmap.BeginInit()
-            $bitmap.UriSource = $uri
-            $bitmap.CacheOption = [System.Windows.Media.Imaging.BitmapCacheOption]::OnLoad
-            $bitmap.CreateOptions = [System.Windows.Media.Imaging.BitmapCreateOptions]::IgnoreImageCache
-            $bitmap.EndInit()
-            $bitmap.Freeze()
-            $window.Icon = $bitmap
-        }
-    }
-    catch {
-        Write-Warning "Could not load window icon."
-    }
-}
+"$(Get-Date) - Criando atalhos..." | Out-File -Append $LogPath
+$WshShell = New-Object -ComObject WScript.Shell
+$Shortcut = $WshShell.CreateShortcut("$([Environment]::GetFolderPath('Desktop'))\Correios Tools.lnk")
+$Shortcut.TargetPath = "powershell.exe"
+$Shortcut.Arguments = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$LauncherPath`""
+$Shortcut.IconLocation = $IconPath
+$Shortcut.Description = "Correios Tools Launcher"
+$Shortcut.Save()
 
-function Test-BrowserRunning {
-    $processes = Get-Process -Name "msedge", "chrome" -ErrorAction SilentlyContinue
-    return ($null -ne $processes)
-}
-
-function Stop-Browsers {
-    Stop-Process -Name "msedge", "chrome" -Force -ErrorAction SilentlyContinue
-    Start-Sleep -Milliseconds 500
-}
-
-function Create-Shortcut {
-    param([string]$LinkPath)
-
-    try {
-        $wshShell = New-Object -ComObject WScript.Shell
-        $shortcut = $wshShell.CreateShortcut($LinkPath)
-        $shortcut.TargetPath = "powershell.exe"
-        $shortcut.Arguments = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$LAUNCHER_PATH`""
-        $shortcut.IconLocation = $ICON_PATH
-        $shortcut.Description = "Correios Tools Launcher"
-        $shortcut.Save()
-        return $true
-    }
-    catch {
-        return $false
-    }
-}
-
-function Start-Installation {
-    $installButton.IsEnabled = $false
-
-    if (Test-BrowserRunning) {
-        $userResponse = [System.Windows.Forms.MessageBox]::Show(
-            "Precisamos fechar o Chrome e o Edge para configurar o ambiente.`n`nPodemos fechar agora?",
-            "Configuracao Correios Tools",
-            [System.Windows.Forms.MessageBoxButtons]::YesNo,
-            [System.Windows.Forms.MessageBoxIcon]::Question
-        )
-
-        if ($userResponse -eq "Yes") {
-            Set-UIStatus "Fechando navegadores..." $true
-            Stop-Browsers
-        }
-        else {
-            Set-UIStatus "Instalacao cancelada pelo usuario." $false
-            $installButton.IsEnabled = $true
-            return
-        }
-    }
-
-    Set-UIStatus "Removendo versão antiga..." $true
-    try {
-        if (Test-Path $INSTALL_DIR) {
-            Remove-Item -Path $INSTALL_DIR -Recurse -Force -ErrorAction Stop
-        }
-    }
-    catch {
-        Start-Sleep -Milliseconds 200
-        Remove-Item -Path $INSTALL_DIR -Recurse -Force -ErrorAction SilentlyContinue
-    }
-
-    Set-UIStatus "Criando diretorios..." $true
-    if (-not (Test-Path $DATA_DIR)) { New-Item -ItemType Directory -Path $DATA_DIR -Force | Out-Null }
-    if (-not (Test-Path $ASSETS_DIR)) { New-Item -ItemType Directory -Path $ASSETS_DIR -Force | Out-Null }
-
-    try {
-        Set-UIStatus "Baixando launcher..." $true
-        Invoke-WebRequest -Uri $LAUNCHER_URL -OutFile $LAUNCHER_PATH -UseBasicParsing
-
-        Set-UIStatus "Baixando icone..." $true
-        Invoke-WebRequest -Uri $ICON_URL -OutFile $ICON_PATH -UseBasicParsing
-
-        Load-WindowIcon
-    }
-    catch {
-        [System.Windows.Forms.MessageBox]::Show(
-            "Falha ao baixar arquivos. Verifique a conexao.",
-            "Erro Fatal",
-            [System.Windows.Forms.MessageBoxButtons]::OK,
-            [System.Windows.Forms.MessageBoxIcon]::Error
-        )
-        $installButton.IsEnabled = $true
-        Set-UIStatus "Erro na instalacao." $false
-        return
-    }
-
-    Set-UIStatus "Criando atalho na pasta publica..." $true
-    Create-Shortcut "$INSTALL_DIR\Correios Tools.lnk" | Out-Null
-
-    Set-UIStatus "Criando atalho na area de trabalho..." $true
-    $desktopDir = [Environment]::GetFolderPath("Desktop")
-    Create-Shortcut "$desktopDir\Correios Tools.lnk" | Out-Null
-
-    Set-UIStatus "Instalacao concluida!" $false
-    $titleText.Text = "CONCLUIDO"
-    $titleText.Foreground = [System.Windows.Media.Brushes]::LimeGreen
-    $installButton.Content = "Abrir Pasta"
-    $installButton.IsEnabled = $true
-    $installButton.Tag = "COMPLETED"
-}
-
-function Open-InstallationFolder {
-    Start-Process "explorer.exe" -ArgumentList $INSTALL_DIR
-    $window.Close()
-}
-
-$closeButton.Add_Click({ $window.Close() })
-
-$installButton.Add_Click({
-        if ($installButton.Tag -eq "COMPLETED") {
-            Open-InstallationFolder
-        }
-        else {
-            Start-Installation
-        }
-    })
-
-$window.Add_Loaded({
-        Set-UIStatus "Clique em Instalar para iniciar." $false
-    })
-
-$window.Add_MouseLeftButtonDown({ $window.DragMove() })
-
-[void]$window.ShowDialog()
+"$(Get-Date) - Abrindo pasta..." | Out-File -Append $LogPath
+Start-Process "explorer.exe" -ArgumentList $InstallDir
