@@ -1,21 +1,7 @@
-$LogPath = "$([Environment]::GetFolderPath('Desktop'))\correiostools.log"
-function Log-Activity {
-    param([string]$Message)
-    $Line = "$(Get-Date -Format 'HH:mm:ss') - $Message"
-    Add-Content -Path $LogPath -Value $Line -Force
-}
-
-Log-Activity "----------------------------------------"
-Log-Activity "Iniciando Launcher v3 (Debug Mode)"
-
 $MUTEX_NAME = "Global\CorreiosToolsLauncherUI"
 $mutex = New-Object System.Threading.Mutex($false, $MUTEX_NAME)
-if (-not $mutex.WaitOne(0, $false)) { 
-    Log-Activity "App ja esta rodando. Fechando duplicata."
-    exit 
-}
+if (-not $mutex.WaitOne(0, $false)) { exit }
 
-Log-Activity "Configurando ambiente grafico..."
 $windowHelperCode = @"
 using System;
 using System.Runtime.InteropServices;
@@ -61,6 +47,15 @@ $START_URL = "https://sroweb.correios.com.br/app/index.php"
 $METADATA_URL = "https://github.com/henrique-coder/correios-tools/releases/download/assets/metadata.json"
 $LAUNCHER_DOWNLOAD_URL = "https://github.com/henrique-coder/correios-tools/releases/download/assets/script-launcher.ps1"
 
+$LogPath = "$([Environment]::GetFolderPath('Desktop'))\correiostools.log"
+function Log-Activity {
+    param([string]$Message)
+    $Line = "$(Get-Date -Format 'HH:mm:ss') - $Message"
+    Add-Content -Path $LogPath -Value $Line -Force
+}
+
+Log-Activity "----------------------------------------"
+Log-Activity "Iniciando Launcher v3"
 Log-Activity "Diretorios definidos. InstallDir: $INSTALL_DIR"
 
 function Get-Metadata {
@@ -88,7 +83,7 @@ function Create-DesktopShortcuts {
             $shortcut.Description = "Correios Tools Launcher"
             $shortcut.Save()
         }
-    } catch { Log-Activity "Erro ao criar atalho: $_" }
+    } catch { Log-Activity "Erro ao criar atalho: $($_.Exception.Message)" }
 }
 
 [xml]$xamlContent = @"
@@ -270,7 +265,7 @@ function Invoke-SafeAction {
     if ($script:IsProcessing) { return }
     $script:IsProcessing = $true
     Set-ButtonsEnabled $false
-    try { & $Action } catch { Log-Activity "Erro na SafeAction: $_" }
+    try { & $Action } catch { Log-Activity "Erro na SafeAction: $($_.Exception.Message)" }
     finally {
         $script:IsProcessing = $false
         Set-ButtonsEnabled $true
@@ -302,7 +297,7 @@ function Load-Icons {
         $FolderIcon.Source = [System.Windows.Media.Imaging.BitmapFrame]::Create([System.Uri]$FOLDER_ICON_PATH)
         $EdgeImage.Source = [System.Windows.Media.Imaging.BitmapFrame]::Create([System.Uri]$EDGE_ICON_PATH)
         $ChromeImage.Source = [System.Windows.Media.Imaging.BitmapFrame]::Create([System.Uri]$CHROME_ICON_PATH)
-    } catch { Log-Activity "Erro ao carregar icones: $_" }
+    } catch { Log-Activity "Erro ao carregar icones: $($_.Exception.Message)" }
 }
 
 function Check-BrowserAvailability {
@@ -381,7 +376,7 @@ function Sync-Extensions {
             Remove-Item $tempZip -Force -ErrorAction SilentlyContinue
             Log-Activity "$extName instalado."
         } catch {
-            Log-Activity "FALHA ao baixar $extName: $_"
+            Log-Activity "FALHA ao baixar $extName: $($_.Exception.Message)"
             Set-UIStatus "Erro ao baixar $extName" $false
             Start-Sleep -Seconds 1
         }
@@ -436,7 +431,7 @@ function Start-Browser {
         Start-Sleep -Seconds 1
         Set-UIStatus "Pronto." $false
     } catch {
-        Log-Activity "ERRO CRITICO ao iniciar processo: $_"
+        Log-Activity "ERRO CRITICO ao iniciar processo: $($_.Exception.Message)"
         Set-UIStatus "Erro ao abrir $BrowserName" $false
     }
     Log-Activity "--- Fim da rotina de abertura ---"
@@ -468,7 +463,7 @@ function Check-LauncherUpdate {
             $script:NeedsRestart = $true
             $window.Close()
         }
-    } catch { Log-Activity "Erro no update: $_" }
+    } catch { Log-Activity "Erro no update: $($_.Exception.Message)" }
 }
 
 $CloseButton.Add_Click({ 
