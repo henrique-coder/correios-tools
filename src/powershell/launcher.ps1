@@ -6,7 +6,7 @@ function Log-Activity {
 }
 
 Log-Activity "----------------------------------------"
-Log-Activity "Iniciando Launcher v3.1 (Safe Mode)"
+Log-Activity "Iniciando Launcher v3.2 (Stable)"
 
 $MUTEX_NAME = "Global\CorreiosToolsLauncherUI"
 $mutex = New-Object System.Threading.Mutex($false, $MUTEX_NAME)
@@ -304,6 +304,7 @@ function Load-Icons {
 }
 
 function Check-BrowserAvailability {
+    Log-Activity "Verificando navegadores..."
     $edgePath = "${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe"
     $edgePathAlt = "$env:ProgramFiles\Microsoft\Edge\Application\msedge.exe"
     $chromePath = "${env:ProgramFiles(x86)}\Google\Chrome\Application\chrome.exe"
@@ -326,7 +327,7 @@ function Check-BrowserAvailability {
 
 function Force-CloseBrowser {
     param([string]$ProcessName)
-    Log-Activity "Fechando $ProcessName..."
+    Log-Activity "Tentando fechar $ProcessName..."
     $attempts = 0
     while ($attempts -lt 10) {
         $proc = Get-Process -Name $ProcessName -ErrorAction SilentlyContinue
@@ -377,7 +378,7 @@ function Sync-Extensions {
             Remove-Item $tempZip -Force -ErrorAction SilentlyContinue
             Log-Activity "$extName OK."
         } catch {
-            Log-Activity "FALHA $extName: $($_.Exception.Message)"
+            Log-Activity "FALHA ao baixar $extName - $($_.Exception.Message)"
             Set-UIStatus "Erro download $extName" $false
             Start-Sleep -Seconds 1
         }
