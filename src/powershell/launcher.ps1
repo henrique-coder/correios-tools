@@ -31,11 +31,9 @@ Add-Type -AssemblyName PresentationFramework, System.Windows.Forms, System.Drawi
 
 $script:IsProcessing = $false
 $script:UpdateTimer = $null
-$script:CountdownTimer = $null
 $script:NeedsRestart = $false
 $script:AppVersion = "{{VERSION}}"
 $script:LastUpdateCheck = $null
-$script:NextCheckTime = $null
 
 $INSTALL_DIR = "C:\Users\Public\correios-tools"
 $DATA_DIR = "$INSTALL_DIR\data"
@@ -268,10 +266,6 @@ function Hide-LoadingOverlay {
 
 function Update-InfoPanel {
     $VersionText.Text = "v$($script:AppVersion)"
-    Update-Countdown
-}
-
-function Update-Countdown {
 }
 
 function Reset-UpdateTimer {
@@ -280,7 +274,6 @@ function Reset-UpdateTimer {
         $script:UpdateTimer.Stop()
         $script:UpdateTimer.Start()
     }
-    Update-Countdown
 }
 
 function Invoke-SafeAction {
@@ -594,6 +587,13 @@ function Configure-BrowserPreferences {
 function Launch-Browser {
     param([string]$BrowserName, [string]$ProcessName)
 
+    $existingProcess = Get-Process -Name $ProcessName -ErrorAction SilentlyContinue
+    if ($existingProcess) {
+        Set-UIStatus "Fechando $BrowserName para atualizar..." $true
+        Stop-Process -Name $ProcessName -Force -ErrorAction SilentlyContinue
+        Wait-ProcessExit $ProcessName
+    }
+
     $downloadOk = Download-Extensions
     if (-not $downloadOk) {
         $ext = Get-ExtensionPaths
@@ -603,27 +603,20 @@ function Launch-Browser {
         }
     }
 
-    $extensionPaths = Get-ExtensionPaths
-
-    $existingProcess = Get-Process -Name $ProcessName -ErrorAction SilentlyContinue
-    if ($existingProcess) {
-        Set-UIStatus "Fechando $BrowserName..." $true
-        Stop-Process -Name $ProcessName -Force -ErrorAction SilentlyContinue
-        Wait-ProcessExit $ProcessName
-    }
-
     Set-UIStatus "Configurando $BrowserName..." $true
     Configure-BrowserPreferences $BrowserName
 
     Set-UIStatus "Iniciando $BrowserName..." $true
     
-    $argString = "--restore-last-session --no-first-run --no-default-browser-check $START_URL"
+    $extensionPaths = Get-ExtensionPaths
+    $browserArgs = @("--restore-last-session", "--no-first-run", "--no-default-browser-check", $START_URL)
+    
     if (-not [string]::IsNullOrEmpty($extensionPaths)) {
-        $argString += " --load-extension=`"$extensionPaths`""
+        $browserArgs += "--load-extension=$extensionPaths"
     }
 
     try {
-        Start-Process -FilePath $ProcessName -ArgumentList $argString -ErrorAction Stop
+        Start-Process -FilePath $ProcessName -ArgumentList $browserArgs -ErrorAction Stop
         Set-UIStatus "$BrowserName iniciado!" $false
     }
     catch {
@@ -682,7 +675,6 @@ function Invoke-AutoUpdateCheck {
         Set-UIStatus "Pronto! Selecione o navegador." $false
     }
     finally {
-        Download-Extensions -Silent $true
         $script:IsProcessing = $false
         Set-ButtonsEnabled $true
         Reset-UpdateTimer
@@ -698,11 +690,6 @@ function Initialize-UpdateTimer {
         try { Invoke-AutoUpdateCheck } catch {}
     })
     $script:UpdateTimer.Start()
-
-    $script:CountdownTimer = New-Object System.Windows.Threading.DispatcherTimer
-    $script:CountdownTimer.Interval = [TimeSpan]::FromMinutes(1)
-    $script:CountdownTimer.Add_Tick({ Update-Countdown })
-    $script:CountdownTimer.Start()
 }
 
 function Start-Application {
