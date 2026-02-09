@@ -182,6 +182,17 @@ function Start-Installation {
         }
     }
 
+    Set-UIStatus "Removendo versão antiga..." $true
+    try {
+        if (Test-Path $INSTALL_DIR) {
+            Remove-Item -Path $INSTALL_DIR -Recurse -Force -ErrorAction Stop
+        }
+    }
+    catch {
+        Start-Sleep -Milliseconds 200
+        Remove-Item -Path $INSTALL_DIR -Recurse -Force -ErrorAction SilentlyContinue
+    }
+
     Set-UIStatus "Criando diretorios..." $true
     if (-not (Test-Path $DATA_DIR)) { New-Item -ItemType Directory -Path $DATA_DIR -Force | Out-Null }
     if (-not (Test-Path $ASSETS_DIR)) { New-Item -ItemType Directory -Path $ASSETS_DIR -Force | Out-Null }
