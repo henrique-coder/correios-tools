@@ -2,7 +2,6 @@ $MUTEX_NAME = "Global\CorreiosToolsLauncherUI"
 $mutex = New-Object System.Threading.Mutex($false, $MUTEX_NAME)
 if (-not $mutex.WaitOne(0, $false)) { exit }
 
-# --- PREPARAÇÃO DO AMBIENTE (Janela Oculta) ---
 $windowHelperCode = @"
 using System;
 using System.Runtime.InteropServices;
@@ -23,7 +22,6 @@ try { [WindowHelper]::HideConsole() } catch {}
 
 Add-Type -AssemblyName PresentationFramework, System.Windows.Forms, System.Drawing
 
-# --- VARIÁVEIS GLOBAIS ---
 $script:IsProcessing = $false
 $script:UpdateTimer = $null
 $script:NeedsRestart = $false
@@ -51,7 +49,7 @@ $START_URL = "https://sroweb.correios.com.br/app/index.php"
 $METADATA_URL = "https://github.com/henrique-coder/correios-tools/releases/download/assets/metadata.json"
 $LAUNCHER_DOWNLOAD_URL = "https://github.com/henrique-coder/correios-tools/releases/download/assets/script-launcher.ps1"
 
-# --- FUNÇÕES UTILITÁRIAS ---
+$script:CachedMetadata = $null
 
 function Get-Metadata {
     try {
@@ -76,7 +74,6 @@ function Create-DesktopShortcuts {
     } catch {}
 }
 
-# --- UI (XAML) ---
 [xml]$xamlContent = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -200,7 +197,6 @@ function Create-DesktopShortcuts {
 
 $window = [Windows.Markup.XamlReader]::Load((New-Object System.Xml.XmlNodeReader $xamlContent))
 
-# --- ELEMENTOS DA UI ---
 $CloseButton = $window.FindName("CloseButton")
 $EdgeButton = $window.FindName("EdgeButton")
 $ChromeButton = $window.FindName("ChromeButton")
@@ -221,7 +217,6 @@ $RepoLink = $window.FindName("RepoLink")
 
 $BrowserButtons = @($EdgeButton, $ChromeButton, $UpdateButton)
 
-# --- FUNÇÕES DE CONTROLE DA UI ---
 function Set-ButtonsEnabled {
     param([bool]$Enabled)
     foreach ($btn in $BrowserButtons) { $btn.IsEnabled = $Enabled }
@@ -263,7 +258,6 @@ function Invoke-SafeAction {
     }
 }
 
-# --- CARREGAMENTO DE ÍCONES ---
 function Load-Icons {
     try {
         if (-not (Test-Path $ASSETS_DIR)) { New-Item -ItemType Directory -Path $ASSETS_DIR -Force | Out-Null }
@@ -288,7 +282,6 @@ function Load-Icons {
     } catch {}
 }
 
-# --- VERIFICAÇÃO DE NAVEGADORES ---
 function Check-BrowserAvailability {
     $edgePath = "${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe"
     $edgePathAlt = "$env:ProgramFiles\Microsoft\Edge\Application\msedge.exe"
@@ -310,8 +303,6 @@ function Check-BrowserAvailability {
     }
 }
 
-# --- LÓGICA DE EXECUÇÃO E ATUALIZAÇÃO ---
-
 function Force-CloseBrowser {
     param([string]$ProcessName)
     $attempts = 0
@@ -320,7 +311,7 @@ function Force-CloseBrowser {
         if ($proc) {
             Set-UIStatus "Fechando navegador..." $true
             Stop-Process -Name $ProcessName -Force -ErrorAction SilentlyContinue
-            Start-Sleep -Milliseconds 500
+            Start-Sleep -Milliseconds 800
         } else {
             return
         }
@@ -329,10 +320,11 @@ function Force-CloseBrowser {
 }
 
 function Sync-Extensions {
-    Set-UIStatus "Buscando informações..." $true
+    Set-UIStatus "Buscando informacoes..." $true
     $metadata = Get-Metadata
     if ($metadata -eq $null -or $metadata.extensions -eq $null) { 
         Set-UIStatus "Sem rede. Usando local." $false
+        Start-Sleep -Seconds 1
         return 
     }
 
@@ -342,7 +334,7 @@ function Sync-Extensions {
 
     foreach ($extName in $extNames) {
         $current++
-        Set-UIStatus "Baixando extensão $current de $total..." $true
+        Set-UIStatus "Baixando extensao $current / $total..." $true
         
         $downloadUrl = "https://github.com/henrique-coder/correios-tools/releases/download/assets/extension-$extName.zip"
         $tempZip = "$DATA_DIR\extension_$extName.zip"
@@ -350,6 +342,7 @@ function Sync-Extensions {
 
         try {
             Invoke-WebRequest -Uri $downloadUrl -OutFile $tempZip -UseBasicParsing
+            Start-Sleep -Milliseconds 300
             
             if (Test-Path $extDir) { Remove-Item $extDir -Recurse -Force -ErrorAction SilentlyContinue }
             New-Item -ItemType Directory -Path $extDir -Force | Out-Null
@@ -361,7 +354,8 @@ function Sync-Extensions {
             Start-Sleep -Seconds 1
         }
     }
-    Set-UIStatus "Extensões atualizadas!" $false
+    Set-UIStatus "Extensoes atualizadas!" $false
+    Start-Sleep -Milliseconds 800
 }
 
 function Configure-BrowserPrefs {
@@ -412,6 +406,7 @@ function Start-Browser {
     Configure-BrowserPrefs $BrowserName
     
     Set-UIStatus "Abrindo $BrowserName..." $true
+    Start-Sleep -Milliseconds 500
     
     $extArgs = ""
     $extPaths = Get-ExtensionString
@@ -428,14 +423,15 @@ function Start-Browser {
     )
 
     try {
-        Start-Process -FilePath $ProcessName -ArgumentList $args -ErrorAction Stop
+        Start-Process -FilePath $ProcessName -ArgumentList $args
         Set-UIStatus "$BrowserName aberto!" $false
+        Start-Sleep -Seconds 1
+        Set-UIStatus "Pronto." $false
     } catch {
         Set-UIStatus "Erro ao abrir $BrowserName" $false
     }
 }
 
-# --- ATUALIZAÇÃO DO LAUNCHER (APENAS APP) ---
 function Check-LauncherUpdate {
     try {
         $meta = Get-Metadata
@@ -444,7 +440,6 @@ function Check-LauncherUpdate {
         $remoteVer = $meta.scripts.launcher.version
         if ($remoteVer -eq $null -or $remoteVer -eq $script:AppVersion) { return }
 
-        # Atualização simples por hash
         $selfHash = (Get-FileHash -Path $SELF_PATH -Algorithm SHA256).Hash.ToLower()
         $remoteHash = $meta.scripts.launcher.hashes.sha256.ToLower()
         
@@ -463,7 +458,6 @@ function Check-LauncherUpdate {
     } catch {}
 }
 
-# --- EVENTOS ---
 $CloseButton.Add_Click({ $window.Close() })
 $RepoLink.Add_MouseLeftButtonDown({ Start-Process "https://github.com/henrique-coder/correios-tools" })
 $FolderButton.Add_Click({ Start-Process "explorer.exe" -ArgumentList $INSTALL_DIR })
@@ -491,7 +485,6 @@ $window.Add_Loaded({
     Create-DesktopShortcuts
     Update-InfoPanel
     
-    # Auto-update do launcher silencioso ao iniciar
     $timer = New-Object System.Windows.Threading.DispatcherTimer
     $timer.Interval = [TimeSpan]::FromSeconds(2)
     $timer.Add_Tick({ 
