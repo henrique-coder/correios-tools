@@ -1,7 +1,21 @@
+$LogPath = "$([Environment]::GetFolderPath('Desktop'))\correiostools.log"
+function Log-Activity {
+    param([string]$Message)
+    $Line = "$(Get-Date -Format 'HH:mm:ss') - $Message"
+    Add-Content -Path $LogPath -Value $Line -Force
+}
+
+Log-Activity "----------------------------------------"
+Log-Activity "Iniciando Launcher v3 (Debug Mode)"
+
 $MUTEX_NAME = "Global\CorreiosToolsLauncherUI"
 $mutex = New-Object System.Threading.Mutex($false, $MUTEX_NAME)
-if (-not $mutex.WaitOne(0, $false)) { exit }
+if (-not $mutex.WaitOne(0, $false)) { 
+    Log-Activity "App ja esta rodando. Fechando duplicata."
+    exit 
+}
 
+Log-Activity "Configurando ambiente grafico..."
 $windowHelperCode = @"
 using System;
 using System.Runtime.InteropServices;
@@ -10,17 +24,10 @@ public class WindowHelper {
     public static extern IntPtr GetConsoleWindow();
     [DllImport("user32.dll")]
     public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
-    [DllImport("user32.dll")]
-    public static extern bool SetForegroundWindow(IntPtr hWnd);
-    [DllImport("user32.dll")]
-    public static extern IntPtr GetForegroundWindow();
     private const int SW_HIDE = 0;
     public static void HideConsole() {
         IntPtr handle = GetConsoleWindow();
         if (handle != IntPtr.Zero) { ShowWindow(handle, SW_HIDE); }
-    }
-    public static void FocusWindow(IntPtr hWnd) {
-        if (hWnd != IntPtr.Zero) { SetForegroundWindow(hWnd); }
     }
 }
 "@
@@ -30,12 +37,7 @@ try { [WindowHelper]::HideConsole() } catch {}
 Add-Type -AssemblyName PresentationFramework, System.Windows.Forms, System.Drawing
 
 $script:IsProcessing = $false
-$script:UpdateTimer = $null
-$script:CountdownTimer = $null
-$script:NeedsRestart = $false
 $script:AppVersion = "{{VERSION}}"
-$script:LastUpdateCheck = $null
-$script:NextCheckTime = $null
 
 $INSTALL_DIR = "C:\Users\Public\correios-tools"
 $DATA_DIR = "$INSTALL_DIR\data"
@@ -55,28 +57,21 @@ $CHROME_ICON_URL = "https://cdn.jsdelivr.net/gh/henrique-coder/correios-tools/re
 $EDGE_ICON_PATH = "$ASSETS_DIR\edge.png"
 $CHROME_ICON_PATH = "$ASSETS_DIR\chrome.png"
 
-$UPDATE_INTERVAL_HOURS = 4
 $START_URL = "https://sroweb.correios.com.br/app/index.php"
-
 $METADATA_URL = "https://github.com/henrique-coder/correios-tools/releases/download/assets/metadata.json"
 $LAUNCHER_DOWNLOAD_URL = "https://github.com/henrique-coder/correios-tools/releases/download/assets/script-launcher.ps1"
 
-$script:CachedMetadata = $null
+Log-Activity "Diretorios definidos. InstallDir: $INSTALL_DIR"
 
 function Get-Metadata {
-    if ($script:CachedMetadata -ne $null) { return $script:CachedMetadata }
+    Log-Activity "Baixando metadados..."
     try {
-        $response = Invoke-RestMethod -Uri $METADATA_URL -Method Get -TimeoutSec 30
-        $script:CachedMetadata = $response
-        return $response
+        return Invoke-RestMethod -Uri $METADATA_URL -Method Get -TimeoutSec 10
     }
-    catch { return $null }
-}
-
-function Calculate-FileHash {
-    param([string]$FilePath)
-    if (-not (Test-Path $FilePath)) { return "" }
-    return (Get-FileHash -Path $FilePath -Algorithm SHA256).Hash.ToLower()
+    catch { 
+        Log-Activity "Erro ao baixar metadados: $($_.Exception.Message)"
+        return $null 
+    }
 }
 
 function Create-DesktopShortcuts {
@@ -84,8 +79,8 @@ function Create-DesktopShortcuts {
         $desktopDir = [Environment]::GetFolderPath("Desktop")
         $shortcutPath = "$desktopDir\Correios Tools.lnk"
         $wshShell = New-Object -ComObject WScript.Shell
-
         if (-not (Test-Path $shortcutPath)) {
+            Log-Activity "Recriando atalho na area de trabalho..."
             $shortcut = $wshShell.CreateShortcut($shortcutPath)
             $shortcut.TargetPath = "powershell.exe"
             $shortcut.Arguments = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$SELF_PATH`""
@@ -93,8 +88,7 @@ function Create-DesktopShortcuts {
             $shortcut.Description = "Correios Tools Launcher"
             $shortcut.Save()
         }
-    }
-    catch {}
+    } catch { Log-Activity "Erro ao criar atalho: $_" }
 }
 
 [xml]$xamlContent = @"
@@ -189,7 +183,7 @@ function Create-DesktopShortcuts {
                         <ColumnDefinition Width="5"/>
                         <ColumnDefinition Width="35"/>
                     </Grid.ColumnDefinitions>
-                    <Button Name="UpdateButton" Content="Verificar Atualizacoes" Height="35" FontSize="11"/>
+                    <Button Name="UpdateButton" Content="Atualizar App" Height="35" FontSize="11"/>
                     <Button Name="FolderButton" Grid.Column="2" Height="35" Width="35" ToolTip="Abrir Pasta">
                         <Image Name="FolderIcon" Width="18" Height="18" RenderOptions.BitmapScalingMode="HighQuality"/>
                     </Button>
@@ -218,6 +212,7 @@ function Create-DesktopShortcuts {
 </Window>
 "@
 
+Log-Activity "Carregando XAML..."
 $window = [Windows.Markup.XamlReader]::Load((New-Object System.Xml.XmlNodeReader $xamlContent))
 
 $CloseButton = $window.FindName("CloseButton")
@@ -225,7 +220,6 @@ $EdgeButton = $window.FindName("EdgeButton")
 $ChromeButton = $window.FindName("ChromeButton")
 $UpdateButton = $window.FindName("UpdateButton")
 $FolderButton = $window.FindName("FolderButton")
-
 $StatusText = $window.FindName("StatusText")
 $VersionText = $window.FindName("VersionText")
 $LoadingText = $window.FindName("LoadingText")
@@ -248,6 +242,7 @@ function Set-ButtonsEnabled {
 
 function Set-UIStatus {
     param([string]$Message, [bool]$IsLoading = $false)
+    Log-Activity "Status UI: $Message"
     $StatusText.Text = $Message
     $MainProgressBar.IsIndeterminate = $IsLoading
     $MainProgressBar.Opacity = if ($IsLoading) { 1 } else { 0 }
@@ -268,19 +263,6 @@ function Hide-LoadingOverlay {
 
 function Update-InfoPanel {
     $VersionText.Text = "v$($script:AppVersion)"
-    Update-Countdown
-}
-
-function Update-Countdown {
-}
-
-function Reset-UpdateTimer {
-    $script:NextCheckTime = (Get-Date).AddHours($UPDATE_INTERVAL_HOURS)
-    if ($script:UpdateTimer) {
-        $script:UpdateTimer.Stop()
-        $script:UpdateTimer.Start()
-    }
-    Update-Countdown
 }
 
 function Invoke-SafeAction {
@@ -288,184 +270,89 @@ function Invoke-SafeAction {
     if ($script:IsProcessing) { return }
     $script:IsProcessing = $true
     Set-ButtonsEnabled $false
-    try { & $Action } catch {}
+    try { & $Action } catch { Log-Activity "Erro na SafeAction: $_" }
     finally {
         $script:IsProcessing = $false
         Set-ButtonsEnabled $true
     }
 }
 
-function Load-WindowIcon {
+function Load-Icons {
+    Log-Activity "Carregando icones..."
     try {
-        if (-not (Test-Path $ICON_PATH)) {
-            Invoke-WebRequest -Uri $ICON_URL -OutFile $ICON_PATH -UseBasicParsing
-        }
-        if (Test-Path $ICON_PATH) {
-            $uri = New-Object System.Uri($ICON_PATH)
-            $bitmap = New-Object System.Windows.Media.Imaging.BitmapImage
-            $bitmap.BeginInit()
-            $bitmap.UriSource = $uri
-            $bitmap.CacheOption = [System.Windows.Media.Imaging.BitmapCacheOption]::OnLoad
-            $bitmap.CreateOptions = [System.Windows.Media.Imaging.BitmapCreateOptions]::IgnoreImageCache
-            $bitmap.EndInit()
-            $bitmap.Freeze()
-            $window.Icon = $bitmap
-        }
-    }
-    catch {}
-}
-
-function Load-BrowserIcons {
-    try {
-        if (-not (Test-Path $EDGE_ICON_PATH)) { Invoke-WebRequest -Uri $EDGE_ICON_URL -OutFile $EDGE_ICON_PATH -UseBasicParsing }
-        if (-not (Test-Path $CHROME_ICON_PATH)) { Invoke-WebRequest -Uri $CHROME_ICON_URL -OutFile $CHROME_ICON_PATH -UseBasicParsing }
-
-        if (Test-Path $EDGE_ICON_PATH) {
-            $edgeBitmap = New-Object System.Windows.Media.Imaging.BitmapImage
-            $edgeBitmap.BeginInit()
-            $edgeBitmap.UriSource = New-Object System.Uri($EDGE_ICON_PATH)
-            $edgeBitmap.CacheOption = [System.Windows.Media.Imaging.BitmapCacheOption]::OnLoad
-            $edgeBitmap.EndInit()
-            $edgeBitmap.Freeze()
-            $EdgeImage.Source = $edgeBitmap
+        if (-not (Test-Path $ASSETS_DIR)) { New-Item -ItemType Directory -Path $ASSETS_DIR -Force | Out-Null }
+        
+        $icons = @{
+            $ICON_PATH = $ICON_URL
+            $ICON_PNG_PATH = $ICON_PNG_URL
+            $FOLDER_ICON_PATH = $FOLDER_ICON_URL
+            $EDGE_ICON_PATH = $EDGE_ICON_URL
+            $CHROME_ICON_PATH = $CHROME_ICON_URL
         }
 
-        if (Test-Path $CHROME_ICON_PATH) {
-            $chromeBitmap = New-Object System.Windows.Media.Imaging.BitmapImage
-            $chromeBitmap.BeginInit()
-            $chromeBitmap.UriSource = New-Object System.Uri($CHROME_ICON_PATH)
-            $chromeBitmap.CacheOption = [System.Windows.Media.Imaging.BitmapCacheOption]::OnLoad
-            $chromeBitmap.EndInit()
-            $chromeBitmap.Freeze()
-            $ChromeImage.Source = $chromeBitmap
-        }
-    }
-    catch {}
-}
-
-function Load-AppIcons {
-    try {
-        if (-not (Test-Path $ICON_PNG_PATH)) { Invoke-WebRequest -Uri $ICON_PNG_URL -OutFile $ICON_PNG_PATH -UseBasicParsing }
-        if (-not (Test-Path $FOLDER_ICON_PATH)) { Invoke-WebRequest -Uri $FOLDER_ICON_URL -OutFile $FOLDER_ICON_PATH -UseBasicParsing }
-
-        if (Test-Path $ICON_PNG_PATH) {
-            $appBitmap = New-Object System.Windows.Media.Imaging.BitmapImage
-            $appBitmap.BeginInit()
-            $appBitmap.UriSource = New-Object System.Uri($ICON_PNG_PATH)
-            $appBitmap.CacheOption = [System.Windows.Media.Imaging.BitmapCacheOption]::OnLoad
-            $appBitmap.EndInit()
-            $appBitmap.Freeze()
-            $AppIcon.Source = $appBitmap
+        foreach ($path in $icons.Keys) {
+            if (-not (Test-Path $path)) { 
+                Log-Activity "Baixando icone: $path"
+                Invoke-WebRequest -Uri $icons[$path] -OutFile $path -UseBasicParsing 
+            }
         }
 
-        if (Test-Path $FOLDER_ICON_PATH) {
-            $folderBitmap = New-Object System.Windows.Media.Imaging.BitmapImage
-            $folderBitmap.BeginInit()
-            $folderBitmap.UriSource = New-Object System.Uri($FOLDER_ICON_PATH)
-            $folderBitmap.CacheOption = [System.Windows.Media.Imaging.BitmapCacheOption]::OnLoad
-            $folderBitmap.EndInit()
-            $folderBitmap.Freeze()
-            $FolderIcon.Source = $folderBitmap
-        }
-    }
-    catch {}
+        $window.Icon = [System.Windows.Media.Imaging.BitmapFrame]::Create([System.Uri]$ICON_PATH)
+        $AppIcon.Source = [System.Windows.Media.Imaging.BitmapFrame]::Create([System.Uri]$ICON_PNG_PATH)
+        $FolderIcon.Source = [System.Windows.Media.Imaging.BitmapFrame]::Create([System.Uri]$FOLDER_ICON_PATH)
+        $EdgeImage.Source = [System.Windows.Media.Imaging.BitmapFrame]::Create([System.Uri]$EDGE_ICON_PATH)
+        $ChromeImage.Source = [System.Windows.Media.Imaging.BitmapFrame]::Create([System.Uri]$CHROME_ICON_PATH)
+    } catch { Log-Activity "Erro ao carregar icones: $_" }
 }
 
 function Check-BrowserAvailability {
+    Log-Activity "Verificando navegadores..."
     $edgePath = "${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe"
     $edgePathAlt = "$env:ProgramFiles\Microsoft\Edge\Application\msedge.exe"
     $chromePath = "${env:ProgramFiles(x86)}\Google\Chrome\Application\chrome.exe"
     $chromePathAlt = "$env:ProgramFiles\Google\Chrome\Application\chrome.exe"
 
-    $script:EdgeAvailable = (Test-Path $edgePath) -or (Test-Path $edgePathAlt) -or ((Get-Command msedge -ErrorAction SilentlyContinue) -ne $null)
-    $script:ChromeAvailable = (Test-Path $chromePath) -or (Test-Path $chromePathAlt) -or ((Get-Command chrome -ErrorAction SilentlyContinue) -ne $null)
+    $script:EdgeAvailable = (Test-Path $edgePath) -or (Test-Path $edgePathAlt)
+    $script:ChromeAvailable = (Test-Path $chromePath) -or (Test-Path $chromePathAlt)
 
     if (-not $script:EdgeAvailable) {
         $EdgeButton.IsEnabled = $false
         $EdgeButton.Opacity = 0.4
         $EdgeLabel.Text = "Nao instalado"
-        $EdgeLabel.Foreground = [System.Windows.Media.Brushes]::Gray
     }
-
     if (-not $script:ChromeAvailable) {
         $ChromeButton.IsEnabled = $false
         $ChromeButton.Opacity = 0.4
         $ChromeLabel.Text = "Nao instalado"
-        $ChromeLabel.Foreground = [System.Windows.Media.Brushes]::Gray
     }
 }
 
-function Trigger-Restart {
-    $script:NeedsRestart = $true
-    $window.Close()
-}
-
-function Check-LauncherUpdate {
-    param([bool]$ShowCountdown = $true)
-
-    Set-UIStatus "Verificando launcher..." $true
-
-    try {
-        $metadata = Get-Metadata
-        if ($metadata -eq $null -or $metadata.scripts -eq $null -or $metadata.scripts.launcher -eq $null) {
-            Set-UIStatus "Pronto! Selecione o navegador." $false
-            return $false
+function Force-CloseBrowser {
+    param([string]$ProcessName)
+    Log-Activity "Tentando fechar $ProcessName..."
+    $attempts = 0
+    while ($attempts -lt 10) {
+        $proc = Get-Process -Name $ProcessName -ErrorAction SilentlyContinue
+        if ($proc) {
+            Stop-Process -Name $ProcessName -Force -ErrorAction SilentlyContinue
+            Start-Sleep -Milliseconds 800
+        } else {
+            Log-Activity "$ProcessName fechado com sucesso."
+            return
         }
-
-        $launcherInfo = $metadata.scripts.launcher
-        $remoteVersion = $launcherInfo.version
-        $remoteHash = $launcherInfo.hashes.sha256
-
-        if ($remoteVersion -and $remoteVersion -eq $script:AppVersion) {
-            Set-UIStatus "Launcher atualizado." $false
-            return $false
-        }
-
-        $localHash = Calculate-FileHash $SELF_PATH
-        if ($localHash -eq $remoteHash) {
-            Set-UIStatus "Launcher atualizado." $false
-            return $false
-        }
-
-        Set-UIStatus "Atualizacao do launcher encontrada!" $false
-
-        if ($ShowCountdown) {
-            for ($i = 5; $i -gt 0; $i--) {
-                Set-UIStatus "Reiniciando em $i..." $false
-                Start-Sleep -Seconds 1
-            }
-        }
-
-        Set-UIStatus "Baixando launcher..." $true
-        $tempPath = "$DATA_DIR\launcher_update.tmp"
-        Invoke-WebRequest -Uri $LAUNCHER_DOWNLOAD_URL -OutFile $tempPath -UseBasicParsing
-
-        $downloadedHash = Calculate-FileHash $tempPath
-        if ($downloadedHash -ne $remoteHash) {
-            Set-UIStatus "Erro: Hash invalido." $false
-            Remove-Item $tempPath -Force -ErrorAction SilentlyContinue
-            return $false
-        }
-
-        Set-UIStatus "Instalando atualizacao..." $true
-        Copy-Item $tempPath $SELF_PATH -Force
-        Remove-Item $tempPath -Force -ErrorAction SilentlyContinue
-
-        Set-UIStatus "Reiniciando..." $true
-        Trigger-Restart
-        return $true
+        $attempts++
     }
-    catch {
-        Set-UIStatus "Pronto! Selecione o navegador." $false
-        return $false
-    }
+    Log-Activity "Alerta: Nao foi possivel confirmar fechamento do $ProcessName."
 }
 
 function Sync-Extensions {
+    Log-Activity "Sincronizando extensoes..."
     Set-UIStatus "Buscando informacoes..." $true
+    
     $metadata = Get-Metadata
     if ($metadata -eq $null -or $metadata.extensions -eq $null) { 
-        Set-UIStatus "Sem rede. Usando local." $false
+        Log-Activity "Metadata falhou. Usando extensoes locais se existirem."
+        Set-UIStatus "Modo Offline (Cache)" $false
         Start-Sleep -Seconds 1
         return 
     }
@@ -483,6 +370,7 @@ function Sync-Extensions {
         $extDir = "$EXTENSIONS_DIR\$extName"
 
         try {
+            Log-Activity "Baixando $extName..."
             Invoke-WebRequest -Uri $downloadUrl -OutFile $tempZip -UseBasicParsing
             Start-Sleep -Milliseconds 300
             
@@ -491,13 +379,15 @@ function Sync-Extensions {
             
             Expand-Archive -Path $tempZip -DestinationPath $extDir -Force
             Remove-Item $tempZip -Force -ErrorAction SilentlyContinue
+            Log-Activity "$extName instalado."
         } catch {
+            Log-Activity "FALHA ao baixar $extName: $_"
             Set-UIStatus "Erro ao baixar $extName" $false
             Start-Sleep -Seconds 1
         }
     }
-    Set-UIStatus "Extensoes atualizadas!" $false
-    Start-Sleep -Milliseconds 800
+    Set-UIStatus "Extensoes prontas!" $false
+    Start-Sleep -Milliseconds 500
 }
 
 function Get-ExtensionString {
@@ -506,27 +396,13 @@ function Get-ExtensionString {
         $items = Get-ChildItem -Path $EXTENSIONS_DIR -Directory
         foreach ($item in $items) { $paths += $item.FullName }
     }
+    Log-Activity "Caminhos de extensao encontrados: $($paths -join ',')"
     return $paths -join ","
 }
 
-function Force-CloseBrowser {
-    param([string]$ProcessName)
-    $attempts = 0
-    while ($attempts -lt 20) {
-        $proc = Get-Process -Name $ProcessName -ErrorAction SilentlyContinue
-        if ($proc) {
-            Set-UIStatus "Fechando navegador..." $true
-            Stop-Process -Name $ProcessName -Force -ErrorAction SilentlyContinue
-            Start-Sleep -Milliseconds 800
-        } else {
-            return
-        }
-        $attempts++
-    }
-}
-
-function Launch-Browser {
+function Start-Browser {
     param([string]$BrowserName, [string]$ProcessName)
+    Log-Activity "--- Inicio da abertura do $BrowserName ---"
     
     Force-CloseBrowser $ProcessName
     
@@ -539,6 +415,8 @@ function Launch-Browser {
     $extPaths = Get-ExtensionString
     if (-not [string]::IsNullOrEmpty($extPaths)) {
         $extArgs = "--load-extension=`"$extPaths`""
+    } else {
+        Log-Activity "AVISO: Nenhuma extensao encontrada para carregar."
     }
 
     $args = @(
@@ -549,121 +427,100 @@ function Launch-Browser {
         $START_URL
     )
 
+    Log-Activity "Argumentos: $args"
+
     try {
         Start-Process -FilePath $ProcessName -ArgumentList $args
-        Set-UIStatus "$BrowserName aberto!" $false
+        Set-UIStatus "$BrowserName iniciado!" $false
+        Log-Activity "$BrowserName processo disparado."
         Start-Sleep -Seconds 1
         Set-UIStatus "Pronto." $false
     } catch {
+        Log-Activity "ERRO CRITICO ao iniciar processo: $_"
         Set-UIStatus "Erro ao abrir $BrowserName" $false
     }
+    Log-Activity "--- Fim da rotina de abertura ---"
 }
 
-function Invoke-AutoUpdateCheck {
+function Check-LauncherUpdate {
+    Log-Activity "Verificando update do Launcher..."
     try {
-        if ($script:IsProcessing) { return }
-        $script:IsProcessing = $true
-        Set-ButtonsEnabled $false
-        $script:CachedMetadata = $null
-        Check-LauncherUpdate -ShowCountdown $false
-    }
-    catch {}
-    finally {
-        $script:IsProcessing = $false
-        Set-ButtonsEnabled $true
-    }
+        $meta = Get-Metadata
+        if ($meta -eq $null) { return }
+        
+        $remoteVer = $meta.scripts.launcher.version
+        if ($remoteVer -eq $null -or $remoteVer -eq $script:AppVersion) { return }
+
+        $selfHash = (Get-FileHash -Path $SELF_PATH -Algorithm SHA256).Hash.ToLower()
+        $remoteHash = $meta.scripts.launcher.hashes.sha256.ToLower()
+        
+        if ($selfHash -eq $remoteHash) { return }
+
+        Set-UIStatus "Baixando novo Launcher..." $true
+        Log-Activity "Nova versao encontrada. Baixando..."
+        $temp = "$DATA_DIR\launcher_new.ps1"
+        Invoke-WebRequest -Uri $LAUNCHER_DOWNLOAD_URL -OutFile $temp -UseBasicParsing
+        
+        if ((Get-FileHash $temp -Algorithm SHA256).Hash.ToLower() -eq $remoteHash) {
+            Copy-Item $temp $SELF_PATH -Force
+            Remove-Item $temp -Force
+            Log-Activity "Launcher atualizado. Reiniciando."
+            $script:NeedsRestart = $true
+            $window.Close()
+        }
+    } catch { Log-Activity "Erro no update: $_" }
 }
 
-function Initialize-UpdateTimer {
-    $script:UpdateTimer = New-Object System.Windows.Threading.DispatcherTimer
-    $script:UpdateTimer.Interval = [TimeSpan]::FromHours($UPDATE_INTERVAL_HOURS)
-    $script:UpdateTimer.Add_Tick({ Invoke-AutoUpdateCheck })
-    $script:UpdateTimer.Start()
-    
-    $script:CountdownTimer = New-Object System.Windows.Threading.DispatcherTimer
-    $script:CountdownTimer.Interval = [TimeSpan]::FromMinutes(1)
-    $script:CountdownTimer.Add_Tick({ Update-Countdown })
-    $script:CountdownTimer.Start()
-}
+$CloseButton.Add_Click({ 
+    Log-Activity "Botao Fechar clicado."
+    $window.Close() 
+})
 
-function Start-Application {
-    Set-ButtonsEnabled $false
-    $script:IsProcessing = $true
-    Show-LoadingOverlay "Iniciando..."
-
-    Load-WindowIcon
-    Load-AppIcons
-    Load-BrowserIcons
-    Check-BrowserAvailability
-    Create-DesktopShortcuts
-
-    Hide-LoadingOverlay
-    Show-LoadingOverlay "Verificando atualizacoes..."
-
-    Check-LauncherUpdate -ShowCountdown $true
-
-    $script:LastUpdateCheck = Get-Date
-    Initialize-UpdateTimer
-    Update-InfoPanel
-
-    Hide-LoadingOverlay
-    Set-UIStatus "Pronto! Selecione o navegador." $false
-    $script:IsProcessing = $false
-    Set-ButtonsEnabled $true
-}
-
-$CloseButton.Add_Click({ $window.Close() })
+$RepoLink.Add_MouseLeftButtonDown({ Start-Process "https://github.com/henrique-coder/correios-tools" })
+$FolderButton.Add_Click({ Start-Process "explorer.exe" -ArgumentList $INSTALL_DIR })
 
 $UpdateButton.Add_Click({
-        Invoke-SafeAction {
-            Show-LoadingOverlay "Verificando atualizacoes..."
-            $script:CachedMetadata = $null
-            $needsRestart = Check-LauncherUpdate -ShowCountdown $true
-            if ($needsRestart) { return }
-            $script:LastUpdateCheck = Get-Date
-            Reset-UpdateTimer
-            Update-InfoPanel
-            Hide-LoadingOverlay
-            Set-UIStatus "Pronto! Selecione o navegador." $false
-        }
-    })
+    Invoke-SafeAction {
+        Show-LoadingOverlay "Verificando..."
+        Check-LauncherUpdate
+        Hide-LoadingOverlay
+        Set-UIStatus "App atualizado." $false
+    }
+})
 
-$EdgeButton.Add_Click({
-        Invoke-SafeAction { Launch-Browser "Edge" "msedge" }
-    })
-
-$ChromeButton.Add_Click({
-        Invoke-SafeAction { Launch-Browser "Chrome" "chrome" }
-    })
-
-$RepoLink.Add_MouseLeftButtonDown({
-        Start-Process "https://github.com/henrique-coder/correios-tools"
-    })
-
-$FolderButton.Add_Click({
-        Start-Process "explorer.exe" -ArgumentList $INSTALL_DIR
-    })
+$EdgeButton.Add_Click({ Invoke-SafeAction { Start-Browser "Edge" "msedge" } })
+$ChromeButton.Add_Click({ Invoke-SafeAction { Start-Browser "Chrome" "chrome" } })
 
 $window.Add_Loaded({
-        $window.Topmost = $true
-        $window.Activate()
-        $window.Focus()
-        $window.Topmost = $false
-        Start-Application
+    Log-Activity "Janela carregada."
+    $window.Topmost = $true
+    $window.Activate()
+    $window.Topmost = $false
+    
+    Set-UIStatus "Iniciando..." $true
+    Load-Icons
+    Check-BrowserAvailability
+    Create-DesktopShortcuts
+    Update-InfoPanel
+    
+    $timer = New-Object System.Windows.Threading.DispatcherTimer
+    $timer.Interval = [TimeSpan]::FromSeconds(2)
+    $timer.Add_Tick({ 
+        $timer.Stop()
+        Check-LauncherUpdate 
+        Set-UIStatus "Pronto." $false
     })
+    $timer.Start()
+})
+
 $window.Add_MouseLeftButtonDown({ $window.DragMove() })
 
 $window.Add_Closed({
-        if ($script:NeedsRestart) {
-            Start-Sleep -Milliseconds 1000
-            $shortcutPath = "$([Environment]::GetFolderPath('Desktop'))\Correios Tools.lnk"
-            if (Test-Path $shortcutPath) {
-                Start-Process -FilePath $shortcutPath
-            }
-            else {
-                Start-Process -FilePath "powershell.exe" -ArgumentList "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$SELF_PATH`"" -WindowStyle Hidden
-            }
-        }
-    })
+    Log-Activity "Encerrando aplicativo..."
+    if ($script:NeedsRestart) {
+        Log-Activity "Reiniciando processo..."
+        Start-Process -FilePath "powershell.exe" -ArgumentList "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$SELF_PATH`""
+    }
+})
 
 [void]$window.ShowDialog()
