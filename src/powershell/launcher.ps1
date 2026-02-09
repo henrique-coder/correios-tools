@@ -6,7 +6,7 @@ function Log-Activity {
 }
 
 Log-Activity "----------------------------------------"
-Log-Activity "Iniciando Launcher v3.3 (Stable Fix)"
+Log-Activity "Iniciando Launcher v3.3 (Syntax Fix)"
 
 $MUTEX_NAME = "Global\CorreiosToolsLauncherUI"
 $mutex = New-Object System.Threading.Mutex($false, $MUTEX_NAME)
@@ -388,7 +388,7 @@ function Sync-Extensions {
             Remove-Item $tempZip -Force -ErrorAction SilentlyContinue
             Log-Activity "$extName OK."
         } catch {
-            Log-Activity "FALHA $extName: $($_.Exception.Message)"
+            Log-Activity "FALHA ao baixar $extName - $($_.Exception.Message)"
             Set-UIStatus "Erro download $extName" $false
             Start-Sleep -Seconds 1
         }
