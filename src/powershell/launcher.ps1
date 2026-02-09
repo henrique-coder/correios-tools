@@ -62,9 +62,8 @@ $LAUNCHER_DOWNLOAD_URL = "https://github.com/henrique-coder/correios-tools/relea
 $script:CachedMetadata = $null
 
 function Get-Metadata {
-    if ($script:CachedMetadata -ne $null) { return $script:CachedMetadata }
     try {
-        $response = Invoke-RestMethod -Uri $METADATA_URL -Method Get -TimeoutSec 30
+        $response = Invoke-RestMethod -Uri $METADATA_URL -Method Get -TimeoutSec 15
         $script:CachedMetadata = $response
         return $response
     }
@@ -268,14 +267,6 @@ function Update-InfoPanel {
     $VersionText.Text = "v$($script:AppVersion)"
 }
 
-function Reset-UpdateTimer {
-    $script:NextCheckTime = (Get-Date).AddHours($UPDATE_INTERVAL_HOURS)
-    if ($script:UpdateTimer) {
-        $script:UpdateTimer.Stop()
-        $script:UpdateTimer.Start()
-    }
-}
-
 function Invoke-SafeAction {
     param([scriptblock]$Action)
     if ($script:IsProcessing) { return }
@@ -290,9 +281,7 @@ function Invoke-SafeAction {
 
 function Load-WindowIcon {
     try {
-        if (-not (Test-Path $ICON_PATH)) {
-            Invoke-WebRequest -Uri $ICON_URL -OutFile $ICON_PATH -UseBasicParsing
-        }
+        if (-not (Test-Path $ICON_PATH)) { Invoke-WebRequest -Uri $ICON_URL -OutFile $ICON_PATH -UseBasicParsing }
         if (Test-Path $ICON_PATH) {
             $uri = New-Object System.Uri($ICON_PATH)
             $bitmap = New-Object System.Windows.Media.Imaging.BitmapImage
@@ -304,8 +293,7 @@ function Load-WindowIcon {
             $bitmap.Freeze()
             $window.Icon = $bitmap
         }
-    }
-    catch {}
+    } catch {}
 }
 
 function Load-BrowserIcons {
@@ -332,8 +320,7 @@ function Load-BrowserIcons {
             $chromeBitmap.Freeze()
             $ChromeImage.Source = $chromeBitmap
         }
-    }
-    catch {}
+    } catch {}
 }
 
 function Load-AppIcons {
@@ -360,8 +347,7 @@ function Load-AppIcons {
             $folderBitmap.Freeze()
             $FolderIcon.Source = $folderBitmap
         }
-    }
-    catch {}
+    } catch {}
 }
 
 function Check-BrowserAvailability {
@@ -395,55 +381,43 @@ function Trigger-Restart {
 
 function Check-LauncherUpdate {
     param([bool]$ShowCountdown = $true)
-
     Set-UIStatus "Verificando launcher..." $true
-
     try {
         $metadata = Get-Metadata
         if ($metadata -eq $null -or $metadata.scripts -eq $null -or $metadata.scripts.launcher -eq $null) {
             Set-UIStatus "Pronto! Selecione o navegador." $false
             return $false
         }
-
         $launcherInfo = $metadata.scripts.launcher
         $remoteVersion = $launcherInfo.version
         $remoteHash = $launcherInfo.hashes.sha256
-
         if ($remoteVersion -and $remoteVersion -eq $script:AppVersion) {
             Set-UIStatus "Launcher atualizado." $false
             return $false
         }
-
         $localHash = Calculate-FileHash $SELF_PATH
         if ($localHash -eq $remoteHash) {
             Set-UIStatus "Launcher atualizado." $false
             return $false
         }
-
-        Set-UIStatus "Atualizacao do launcher encontrada!" $false
-
+        Set-UIStatus "Atualizacao encontrada!" $false
         if ($ShowCountdown) {
-            for ($i = 5; $i -gt 0; $i--) {
-                Set-UIStatus "Reiniciando em $i..." $false
+            for ($i = 3; $i -gt 0; $i--) {
+                Set-UIStatus "Atualizando em $i..." $false
                 Start-Sleep -Seconds 1
             }
         }
-
-        Set-UIStatus "Baixando launcher..." $true
+        Set-UIStatus "Baixando atualizacao..." $true
         $tempPath = "$DATA_DIR\launcher_update.tmp"
         Invoke-WebRequest -Uri $LAUNCHER_DOWNLOAD_URL -OutFile $tempPath -UseBasicParsing
-
         $downloadedHash = Calculate-FileHash $tempPath
         if ($downloadedHash -ne $remoteHash) {
             Set-UIStatus "Erro: Hash invalido." $false
             Remove-Item $tempPath -Force -ErrorAction SilentlyContinue
             return $false
         }
-
-        Set-UIStatus "Instalando atualizacao..." $true
         Copy-Item $tempPath $SELF_PATH -Force
         Remove-Item $tempPath -Force -ErrorAction SilentlyContinue
-
         Set-UIStatus "Reiniciando..." $true
         Trigger-Restart
         return $true
@@ -456,69 +430,46 @@ function Check-LauncherUpdate {
 
 function Download-Extensions {
     param([bool]$Silent = $false)
-
-    if (-not $Silent) { Set-UIStatus "Verificando extensoes..." $true }
-
+    if (-not $Silent) { Set-UIStatus "Sincronizando extensoes..." $true }
     $metadata = Get-Metadata
-    if ($metadata -eq $null -or $metadata.extensions -eq $null) {
-        if (-not $Silent) { Set-UIStatus "Erro ao verificar extensoes." $false }
-        return $false
-    }
-
+    if ($metadata -eq $null -or $metadata.extensions -eq $null) { return $false }
     $allSuccess = $true
     $extensionNames = $metadata.extensions.PSObject.Properties.Name
-
     foreach ($extName in $extensionNames) {
         $extInfo = $metadata.extensions.$extName
         if ($extInfo -eq $null) { continue }
-
         $localVersionFile = "$DATA_DIR\extension_$extName.json"
         $localVersion = $null
         if (Test-Path $localVersionFile) {
             try { $localVersion = (Get-Content $localVersionFile -Raw | ConvertFrom-Json).version } catch {}
         }
-
         $remoteVersion = $extInfo.version
         $remoteHash = $extInfo.hashes.sha256
-
-        if ($remoteVersion -and $localVersion -eq $remoteVersion -and (Test-Path "$EXTENSIONS_DIR\$extName")) {
-            continue
-        }
-
-        if (-not $Silent) { Set-UIStatus "Baixando $extName..." $true }
-
+        if ($remoteVersion -and $localVersion -eq $remoteVersion -and (Test-Path "$EXTENSIONS_DIR\$extName")) { continue }
+        if (-not $Silent) { Set-UIStatus "Atualizando $extName..." $true }
         $downloadUrl = "https://github.com/henrique-coder/correios-tools/releases/download/assets/extension-$extName.zip"
         $tempZip = "$DATA_DIR\extension_$extName.zip"
-
         try {
             Invoke-WebRequest -Uri $downloadUrl -OutFile $tempZip -UseBasicParsing
-
             $downloadedHash = Calculate-FileHash $tempZip
             if ($downloadedHash -ne $remoteHash) {
-                if (-not $Silent) { Set-UIStatus "Erro: Hash de $extName invalido." $false }
                 Remove-Item $tempZip -Force -ErrorAction SilentlyContinue
                 $allSuccess = $false
                 continue
             }
-
             $extDir = "$EXTENSIONS_DIR\$extName"
             if (Test-Path $extDir) { Remove-Item $extDir -Recurse -Force -ErrorAction SilentlyContinue }
             New-Item -ItemType Directory -Path $extDir -Force | Out-Null
-
             Expand-Archive -Path $tempZip -DestinationPath $extDir -Force
             Remove-Item $tempZip -Force -ErrorAction SilentlyContinue
-
             $versionJson = @{ version = $remoteVersion } | ConvertTo-Json -Compress
             $versionJson | Set-Content $localVersionFile -Encoding UTF8
         }
         catch {
-            if (-not $Silent) { Set-UIStatus "Erro ao baixar $extName." $false }
             Remove-Item $tempZip -Force -ErrorAction SilentlyContinue
             $allSuccess = $false
         }
     }
-
-    if ($allSuccess -and -not $Silent) { Set-UIStatus "Extensoes atualizadas!" $false }
     return $allSuccess
 }
 
@@ -535,16 +486,13 @@ function Get-ExtensionPaths {
 
 function Wait-ProcessExit {
     param([string]$ProcessName)
-    $timeout = 15
-    $elapsed = 0
-    while ($elapsed -lt $timeout) {
+    $timeout = 0
+    while ($timeout -lt 20) {
         $proc = Get-Process -Name $ProcessName -ErrorAction SilentlyContinue
-        if ($proc -eq $null) { return $true }
-        Start-Sleep -Milliseconds 200
-        $elapsed += 0.2
-        [System.Windows.Threading.Dispatcher]::CurrentDispatcher.Invoke([Action] {}, [System.Windows.Threading.DispatcherPriority]::Background)
+        if ($proc -eq $null) { return }
+        Start-Sleep -Milliseconds 500
+        $timeout++
     }
-    return $false
 }
 
 function Configure-PreferencesFile {
@@ -553,14 +501,11 @@ function Configure-PreferencesFile {
     try {
         $prefs = Get-Content $PrefPath -Raw -Encoding UTF8 | ConvertFrom-Json
         $modified = $false
-
         if ($prefs.session -eq $null) { $prefs | Add-Member -NotePropertyName "session" -NotePropertyValue @{} -Force }
         if ($prefs.session.restore_on_startup -ne 1) { $prefs.session.restore_on_startup = 1; $modified = $true }
-
         if ($prefs.extensions -eq $null) { $prefs | Add-Member -NotePropertyName "extensions" -NotePropertyValue @{} -Force }
         if ($prefs.extensions.ui -eq $null) { $prefs.extensions | Add-Member -NotePropertyName "ui" -NotePropertyValue @{} -Force }
         if ($prefs.extensions.ui.developer_mode -ne $true) { $prefs.extensions.ui.developer_mode = $true; $modified = $true }
-
         if ($modified) { $prefs | ConvertTo-Json -Depth 100 -Compress | Set-Content $PrefPath -Encoding UTF8 }
     }
     catch {}
@@ -571,12 +516,9 @@ function Configure-BrowserPreferences {
     $userDataPath = ""
     if ($BrowserName -eq "Edge") { $userDataPath = "$env:LOCALAPPDATA\Microsoft\Edge\User Data" }
     elseif ($BrowserName -eq "Chrome") { $userDataPath = "$env:LOCALAPPDATA\Google\Chrome\User Data" }
-
     if (-not (Test-Path $userDataPath)) { return }
-
     $defaultPref = "$userDataPath\Default\Preferences"
     if (Test-Path $defaultPref) { Configure-PreferencesFile $defaultPref }
-
     $profiles = Get-ChildItem -Path $userDataPath -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -match "^Profile \d+$" }
     foreach ($profile in $profiles) {
         $profilePref = "$($profile.FullName)\Preferences"
@@ -586,37 +528,24 @@ function Configure-BrowserPreferences {
 
 function Launch-Browser {
     param([string]$BrowserName, [string]$ProcessName)
-
-    $existingProcess = Get-Process -Name $ProcessName -ErrorAction SilentlyContinue
-    if ($existingProcess) {
-        Set-UIStatus "Fechando $BrowserName para atualizar..." $true
-        Stop-Process -Name $ProcessName -Force -ErrorAction SilentlyContinue
-        Wait-ProcessExit $ProcessName
-    }
-
-    $downloadOk = Download-Extensions
-    if (-not $downloadOk) {
-        $ext = Get-ExtensionPaths
-        if ([string]::IsNullOrEmpty($ext)) {
-            Set-UIStatus "Sem extensoes disponiveis." $false
-            return
-        }
-    }
-
+    Set-UIStatus "Fechando $BrowserName..." $true
+    Stop-Process -Name $ProcessName -Force -ErrorAction SilentlyContinue
+    Wait-ProcessExit $ProcessName
+    
+    Set-UIStatus "Verificando extensoes..." $true
+    Download-Extensions -Silent $false
+    
     Set-UIStatus "Configurando $BrowserName..." $true
     Configure-BrowserPreferences $BrowserName
-
+    
     Set-UIStatus "Iniciando $BrowserName..." $true
-    
-    $extensionPaths = Get-ExtensionPaths
-    $browserArgs = @("--restore-last-session", "--no-first-run", "--no-default-browser-check", $START_URL)
-    
-    if (-not [string]::IsNullOrEmpty($extensionPaths)) {
-        $browserArgs += "--load-extension=$extensionPaths"
+    $extPaths = Get-ExtensionPaths
+    $args = @("--restore-last-session", "--no-first-run", "--no-default-browser-check", $START_URL)
+    if (-not [string]::IsNullOrEmpty($extPaths)) {
+        $args += "--load-extension=$extPaths"
     }
-
     try {
-        Start-Process -FilePath $ProcessName -ArgumentList $browserArgs -ErrorAction Stop
+        Start-Process -FilePath $ProcessName -ArgumentList $args -ErrorAction Stop
         Set-UIStatus "$BrowserName iniciado!" $false
     }
     catch {
@@ -630,65 +559,19 @@ function Invoke-AutoUpdateCheck {
         $script:IsProcessing = $true
         Set-ButtonsEnabled $false
         $script:CachedMetadata = $null
-
-        $metadata = Get-Metadata
-        if ($metadata -eq $null -or $metadata.scripts -eq $null -or $metadata.scripts.launcher -eq $null) {
-            return
-        }
-
-        $launcherInfo = $metadata.scripts.launcher
-        $remoteVersion = $launcherInfo.version
-        $remoteHash = $launcherInfo.hashes.sha256
-
-        if ($remoteVersion -and $remoteVersion -eq $script:AppVersion) {
-            return
-        }
-
-        $localHash = Calculate-FileHash $SELF_PATH
-        if ($localHash -eq $remoteHash) {
-            return
-        }
-
-        for ($i = 5; $i -gt 0; $i--) {
-            Set-UIStatus "Atualizacao encontrada! Reiniciando em $i..." $false
-            Start-Sleep -Seconds 1
-        }
-
-        Set-UIStatus "Baixando atualizacao..." $true
-        $tempPath = "$DATA_DIR\launcher_update.tmp"
-        Invoke-WebRequest -Uri $LAUNCHER_DOWNLOAD_URL -OutFile $tempPath -UseBasicParsing
-
-        $downloadedHash = Calculate-FileHash $tempPath
-        if ($downloadedHash -ne $remoteHash) {
-            Set-UIStatus "Erro: Hash invalido." $false
-            Remove-Item $tempPath -Force -ErrorAction SilentlyContinue
-            return
-        }
-
-        Copy-Item $tempPath $SELF_PATH -Force
-        Remove-Item $tempPath -Force -ErrorAction SilentlyContinue
-
-        Set-UIStatus "Reiniciando..." $true
-        Trigger-Restart
+        Check-LauncherUpdate -ShowCountdown $false
     }
-    catch {
-        Set-UIStatus "Pronto! Selecione o navegador." $false
-    }
+    catch {}
     finally {
         $script:IsProcessing = $false
         Set-ButtonsEnabled $true
-        Reset-UpdateTimer
     }
 }
 
-
 function Initialize-UpdateTimer {
-    $script:NextCheckTime = (Get-Date).AddHours($UPDATE_INTERVAL_HOURS)
     $script:UpdateTimer = New-Object System.Windows.Threading.DispatcherTimer
     $script:UpdateTimer.Interval = [TimeSpan]::FromHours($UPDATE_INTERVAL_HOURS)
-    $script:UpdateTimer.Add_Tick({ 
-        try { Invoke-AutoUpdateCheck } catch {}
-    })
+    $script:UpdateTimer.Add_Tick({ Invoke-AutoUpdateCheck })
     $script:UpdateTimer.Start()
 }
 
@@ -696,82 +579,48 @@ function Start-Application {
     Set-ButtonsEnabled $false
     $script:IsProcessing = $true
     Show-LoadingOverlay "Iniciando..."
-
     Load-WindowIcon
     Load-AppIcons
     Load-BrowserIcons
     Check-BrowserAvailability
     Create-DesktopShortcuts
-
     Hide-LoadingOverlay
-    Show-LoadingOverlay "Verificando atualizacoes..."
-
     Check-LauncherUpdate -ShowCountdown $true
-    Download-Extensions
-
-    $script:LastUpdateCheck = Get-Date
     Initialize-UpdateTimer
     Update-InfoPanel
-
-    Hide-LoadingOverlay
     Set-UIStatus "Pronto! Selecione o navegador." $false
     $script:IsProcessing = $false
     Set-ButtonsEnabled $true
 }
 
 $CloseButton.Add_Click({ $window.Close() })
-
 $UpdateButton.Add_Click({
-        Invoke-SafeAction {
-            Show-LoadingOverlay "Verificando atualizacoes..."
-            $script:CachedMetadata = $null
-            $needsRestart = Check-LauncherUpdate -ShowCountdown $true
-            if ($needsRestart) { return }
-            Download-Extensions
-            $script:LastUpdateCheck = Get-Date
-            Reset-UpdateTimer
-            Update-InfoPanel
-            Hide-LoadingOverlay
-            Set-UIStatus "Pronto! Selecione o navegador." $false
-        }
-    })
-
-$EdgeButton.Add_Click({
-        Invoke-SafeAction { Launch-Browser "Edge" "msedge" }
-    })
-
-$ChromeButton.Add_Click({
-        Invoke-SafeAction { Launch-Browser "Chrome" "chrome" }
-    })
-
-$RepoLink.Add_MouseLeftButtonDown({
-        Start-Process "https://github.com/henrique-coder/correios-tools"
-    })
-
-$FolderButton.Add_Click({
-        Start-Process "explorer.exe" -ArgumentList $INSTALL_DIR
-    })
-
+    Invoke-SafeAction {
+        Show-LoadingOverlay "Verificando..."
+        $script:CachedMetadata = $null
+        Check-LauncherUpdate -ShowCountdown $true
+        Hide-LoadingOverlay
+        Set-UIStatus "Pronto! Selecione o navegador." $false
+    }
+})
+$EdgeButton.Add_Click({ Invoke-SafeAction { Launch-Browser "Edge" "msedge" } })
+$ChromeButton.Add_Click({ Invoke-SafeAction { Launch-Browser "Chrome" "chrome" } })
+$RepoLink.Add_MouseLeftButtonDown({ Start-Process "https://github.com/henrique-coder/correios-tools" })
+$FolderButton.Add_Click({ Start-Process "explorer.exe" -ArgumentList $INSTALL_DIR })
 $window.Add_Loaded({
-        $window.Topmost = $true
-        $window.Activate()
-        $window.Focus()
-        $window.Topmost = $false
-        Start-Application
-    })
+    $window.Topmost = $true
+    $window.Activate()
+    $window.Focus()
+    $window.Topmost = $false
+    Start-Application
+})
 $window.Add_MouseLeftButtonDown({ $window.DragMove() })
-
 $window.Add_Closed({
-        if ($script:NeedsRestart) {
-            Start-Sleep -Milliseconds 1000
-            $shortcutPath = "$([Environment]::GetFolderPath('Desktop'))\Correios Tools.lnk"
-            if (Test-Path $shortcutPath) {
-                Start-Process -FilePath $shortcutPath
-            }
-            else {
-                Start-Process -FilePath "powershell.exe" -ArgumentList "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$SELF_PATH`"" -WindowStyle Hidden
-            }
-        }
-    })
-
+    if ($script:NeedsRestart) {
+        Start-Sleep -Milliseconds 1000
+        $shortcutPath = "$([Environment]::GetFolderPath('Desktop'))\Correios Tools.lnk"
+        if (Test-Path $shortcutPath) { Start-Process -FilePath $shortcutPath }
+        else { Start-Process -FilePath "powershell.exe" -ArgumentList "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$SELF_PATH`"" -WindowStyle Hidden }
+    }
+})
 [void]$window.ShowDialog()
