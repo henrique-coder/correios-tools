@@ -6,12 +6,12 @@ function Log-Activity {
 }
 
 Log-Activity "----------------------------------------"
-Log-Activity "Iniciando Launcher v3.2 (Stable)"
+Log-Activity "Iniciando Launcher v3.3 (Stable Fix)"
 
 $MUTEX_NAME = "Global\CorreiosToolsLauncherUI"
 $mutex = New-Object System.Threading.Mutex($false, $MUTEX_NAME)
 if (-not $mutex.WaitOne(0, $false)) { 
-    Log-Activity "App ja esta rodando. Encerrando."
+    Log-Activity "App duplicado. Encerrando."
     exit 
 }
 
@@ -37,6 +37,7 @@ Add-Type -AssemblyName PresentationFramework, System.Windows.Forms, System.Drawi
 
 $script:IsProcessing = $false
 $script:AppVersion = "{{VERSION}}"
+$script:CachedMetadata = $null
 
 $INSTALL_DIR = "C:\Users\Public\correios-tools"
 $DATA_DIR = "$INSTALL_DIR\data"
@@ -63,9 +64,15 @@ $LAUNCHER_DOWNLOAD_URL = "https://github.com/henrique-coder/correios-tools/relea
 Log-Activity "Variaveis carregadas."
 
 function Get-Metadata {
+    if ($script:CachedMetadata -ne $null) {
+        return $script:CachedMetadata
+    }
+    
     Log-Activity "Baixando metadados..."
     try {
-        return Invoke-RestMethod -Uri $METADATA_URL -Method Get -TimeoutSec 10
+        $data = Invoke-RestMethod -Uri $METADATA_URL -Method Get -TimeoutSec 10
+        $script:CachedMetadata = $data
+        return $data
     }
     catch { 
         Log-Activity "Erro rede: $($_.Exception.Message)"
@@ -211,7 +218,7 @@ function Create-DesktopShortcuts {
 </Window>
 "@
 
-Log-Activity "Carregando UI..."
+Log-Activity "Carregando XAML..."
 $window = [Windows.Markup.XamlReader]::Load((New-Object System.Xml.XmlNodeReader $xamlContent))
 
 $CloseButton = $window.FindName("CloseButton")
@@ -242,22 +249,26 @@ function Set-ButtonsEnabled {
 function Set-UIStatus {
     param([string]$Message, [bool]$IsLoading = $false)
     Log-Activity "UI Status: $Message"
-    $StatusText.Text = $Message
-    $MainProgressBar.IsIndeterminate = $IsLoading
-    $MainProgressBar.Opacity = if ($IsLoading) { 1 } else { 0 }
-    [System.Windows.Threading.Dispatcher]::CurrentDispatcher.Invoke([Action] {}, [System.Windows.Threading.DispatcherPriority]::Background)
+    
+    $window.Dispatcher.Invoke([Action]{
+        $StatusText.Text = $Message
+        $MainProgressBar.IsIndeterminate = $IsLoading
+        $MainProgressBar.Opacity = if ($IsLoading) { 1 } else { 0 }
+    })
 }
 
 function Show-LoadingOverlay {
     param([string]$Message = "Carregando...")
-    $LoadingText.Text = $Message
-    $LoadingOverlay.Visibility = [System.Windows.Visibility]::Visible
-    [System.Windows.Threading.Dispatcher]::CurrentDispatcher.Invoke([Action] {}, [System.Windows.Threading.DispatcherPriority]::Background)
+    $window.Dispatcher.Invoke([Action]{
+        $LoadingText.Text = $Message
+        $LoadingOverlay.Visibility = [System.Windows.Visibility]::Visible
+    })
 }
 
 function Hide-LoadingOverlay {
-    $LoadingOverlay.Visibility = [System.Windows.Visibility]::Collapsed
-    [System.Windows.Threading.Dispatcher]::CurrentDispatcher.Invoke([Action] {}, [System.Windows.Threading.DispatcherPriority]::Background)
+    $window.Dispatcher.Invoke([Action]{
+        $LoadingOverlay.Visibility = [System.Windows.Visibility]::Collapsed
+    })
 }
 
 function Update-InfoPanel {
@@ -304,7 +315,6 @@ function Load-Icons {
 }
 
 function Check-BrowserAvailability {
-    Log-Activity "Verificando navegadores..."
     $edgePath = "${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe"
     $edgePathAlt = "$env:ProgramFiles\Microsoft\Edge\Application\msedge.exe"
     $chromePath = "${env:ProgramFiles(x86)}\Google\Chrome\Application\chrome.exe"
@@ -327,7 +337,7 @@ function Check-BrowserAvailability {
 
 function Force-CloseBrowser {
     param([string]$ProcessName)
-    Log-Activity "Tentando fechar $ProcessName..."
+    Log-Activity "Fechando $ProcessName..."
     $attempts = 0
     while ($attempts -lt 10) {
         $proc = Get-Process -Name $ProcessName -ErrorAction SilentlyContinue
@@ -378,7 +388,7 @@ function Sync-Extensions {
             Remove-Item $tempZip -Force -ErrorAction SilentlyContinue
             Log-Activity "$extName OK."
         } catch {
-            Log-Activity "FALHA ao baixar $extName - $($_.Exception.Message)"
+            Log-Activity "FALHA $extName: $($_.Exception.Message)"
             Set-UIStatus "Erro download $extName" $false
             Start-Sleep -Seconds 1
         }
@@ -476,6 +486,7 @@ $FolderButton.Add_Click({ Start-Process "explorer.exe" -ArgumentList $INSTALL_DI
 
 $UpdateButton.Add_Click({
     Invoke-SafeAction {
+        $script:CachedMetadata = $null
         Show-LoadingOverlay "Verificando..."
         Check-LauncherUpdate
         Hide-LoadingOverlay
