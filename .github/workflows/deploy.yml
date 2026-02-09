@@ -48,6 +48,17 @@ jobs:
       - name: Install minification tools
         run: npm install -g terser@latest csso-cli@latest html-minifier-terser@latest
 
+      - name: Generate dynamic version
+        run: |
+          VERSION=$(TZ=America/Sao_Paulo date +'%Y.%-m.%-d.%H%M%S')
+          echo "Generated version: $VERSION"
+          node -e "
+            const fs = require('fs');
+            const manifest = JSON.parse(fs.readFileSync('src/manifest.json'));
+            manifest.version = '$VERSION';
+            fs.writeFileSync('src/manifest.json', JSON.stringify(manifest, null, 2));
+          "
+
       - name: Minify extension files
         run: |
           mkdir -p dist
