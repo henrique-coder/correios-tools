@@ -57,11 +57,12 @@ jobs:
             terser "$file" --compress --mangle --output "dist/$filename"
           done
 
-          for file in src/*.css 2>/dev/null; do
-            [ -f "$file" ] || continue
+          shopt -s nullglob
+          for file in src/*.css; do
             filename=$(basename "$file")
             csso "$file" --output "dist/$filename"
           done
+          shopt -u nullglob
 
           for file in src/*.json; do
             filename=$(basename "$file")
