@@ -1,506 +1,199 @@
-$MUTEX_NAME = "Global\CorreiosToolsLauncherUI"
-$mutex = New-Object System.Threading.Mutex($false, $MUTEX_NAME)
-if (-not $mutex.WaitOne(0, $false)) { exit }
+Add-Type -AssemblyName PresentationFramework
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
 
-$windowHelperCode = @"
-using System;
-using System.Runtime.InteropServices;
-public class WindowHelper {
-    [DllImport("kernel32.dll")]
+$code = @"
+   
+    public static extern bool ShowWindowAsync(IntPtr hWnd, int nCmdShow);
+   
     public static extern IntPtr GetConsoleWindow();
-    [DllImport("user32.dll")]
-    public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
-    private const int SW_HIDE = 0;
-    public static void HideConsole() {
-        IntPtr handle = GetConsoleWindow();
-        if (handle != IntPtr.Zero) { ShowWindow(handle, SW_HIDE); }
-    }
-}
 "@
-try { Add-Type -TypeDefinition $windowHelperCode -Language CSharp -ErrorAction SilentlyContinue } catch {}
-try { [WindowHelper]::HideConsole() } catch {}
+$win32 = Add-Type -MemberDefinition $code -Name "Win32" -Namespace Win32 -PassThru
+$hwnd = $win32::GetConsoleWindow()
+$win32::ShowWindowAsync($hwnd, 0)
 
-Add-Type -AssemblyName PresentationFramework, System.Windows.Forms, System.Drawing
+$BASE_DIR = "$env:PUBLIC\correios-tools"
+$DATA_DIR = "$BASE_DIR\data"
+$EXT_DIR = "$BASE_DIR\extensions"
+$ASSETS_DIR = "$BASE_DIR\assets"
 
-$script:IsProcessing = $false
-$script:UpdateTimer = $null
-$script:NeedsRestart = $false
-$script:AppVersion = "{{VERSION}}"
+if (!(Test-Path $DATA_DIR)) { New-Item -ItemType Directory -Path $DATA_DIR -Force | Out-Null }
+if (!(Test-Path $EXT_DIR)) { New-Item -ItemType Directory -Path $EXT_DIR -Force | Out-Null }
 
-$INSTALL_DIR = "C:\Users\Public\correios-tools"
-$DATA_DIR = "$INSTALL_DIR\data"
-$EXTENSIONS_DIR = "$DATA_DIR\extensions"
-$RESOURCES_DIR = "$INSTALL_DIR\resources"
-$ASSETS_DIR = "$RESOURCES_DIR\assets"
-$SELF_PATH = $MyInvocation.MyCommand.Path
-
-$ICON_URL = "https://cdn.jsdelivr.net/gh/henrique-coder/correios-tools/resources/assets/app/icon.ico"
-$ICON_PNG_URL = "https://cdn.jsdelivr.net/gh/henrique-coder/correios-tools/resources/assets/app/icon.png"
-$FOLDER_ICON_URL = "https://cdn.jsdelivr.net/gh/henrique-coder/correios-tools/resources/assets/app/open_folder_icon.png"
-$ICON_PATH = "$ASSETS_DIR\icon.ico"
-$ICON_PNG_PATH = "$ASSETS_DIR\icon.png"
-$FOLDER_ICON_PATH = "$ASSETS_DIR\folder.png"
-$EDGE_ICON_URL = "https://cdn.jsdelivr.net/gh/henrique-coder/correios-tools/resources/assets/browsers/edge_logo.png"
-$CHROME_ICON_URL = "https://cdn.jsdelivr.net/gh/henrique-coder/correios-tools/resources/assets/browsers/chrome_logo.png"
-$EDGE_ICON_PATH = "$ASSETS_DIR\edge.png"
-$CHROME_ICON_PATH = "$ASSETS_DIR\chrome.png"
-
-$START_URL = "https://sroweb.correios.com.br/app/index.php"
-$METADATA_URL = "https://github.com/henrique-coder/correios-tools/releases/download/assets/metadata.json"
-$LAUNCHER_DOWNLOAD_URL = "https://github.com/henrique-coder/correios-tools/releases/download/assets/script-launcher.ps1"
-
-$script:CachedMetadata = $null
-
-function Get-Metadata {
-    try {
-        return Invoke-RestMethod -Uri $METADATA_URL -Method Get -TimeoutSec 15
-    }
-    catch { return $null }
-}
-
-function Create-DesktopShortcuts {
-    try {
-        $desktopDir = [Environment]::GetFolderPath("Desktop")
-        $shortcutPath = "$desktopDir\Correios Tools.lnk"
-        $wshShell = New-Object -ComObject WScript.Shell
-        if (-not (Test-Path $shortcutPath)) {
-            $shortcut = $wshShell.CreateShortcut($shortcutPath)
-            $shortcut.TargetPath = "powershell.exe"
-            $shortcut.Arguments = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$SELF_PATH`""
-            $shortcut.IconLocation = $ICON_PATH
-            $shortcut.Description = "Correios Tools Launcher"
-            $shortcut.Save()
-        }
-    } catch {}
-}
-
-[xml]$xamlContent = @"
+$xaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Correios Tools Launcher" Height="530" Width="420"
-        WindowStartupLocation="CenterScreen" ResizeMode="CanMinimize"
-        Background="#1E1E1E" WindowStyle="None" AllowsTransparency="True">
-    <Window.Resources>
-        <Style TargetType="Button">
-            <Setter Property="Background" Value="#2D2D30"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="Padding" Value="10,5"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border Name="border" Background="{TemplateBinding Background}" CornerRadius="5">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#3E3E42"/>
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#007ACC"/>
-                            </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter TargetName="border" Property="Background" Value="#1A1A1A"/>
-                                <Setter Property="Foreground" Value="#555555"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-    </Window.Resources>
-    <Grid>
-        <Border BorderBrush="#333337" BorderThickness="1" CornerRadius="0">
-            <Grid Margin="15">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
-                <Grid Grid.Row="0">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                        <Image Name="AppIcon" Width="22" Height="22" Margin="0,0,8,0" RenderOptions.BitmapScalingMode="HighQuality"/>
-                        <TextBlock Text="CORREIOS TOOLS" Foreground="White" FontSize="18" FontWeight="Bold"/>
-                        <TextBlock Name="VersionText" Text="" Foreground="#666666" FontSize="10" VerticalAlignment="Bottom" Margin="8,0,0,2"/>
-                    </StackPanel>
-                    <Button Name="CloseButton" Content="X" Grid.Column="1" Background="Transparent" Foreground="#FF5555" FontWeight="Bold" Width="30"/>
-                </Grid>
-                <TextBlock Name="StatusText" Grid.Row="1" Text="Iniciando..." Foreground="#AAAAAA" Margin="0,20,0,10" HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center"/>
-                <StackPanel Grid.Row="2" VerticalAlignment="Center" HorizontalAlignment="Center">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="30"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <Button Name="EdgeButton" Width="130" Height="130" Background="Transparent">
-                            <StackPanel>
-                                <Image Name="EdgeImage" Width="90" Height="90" RenderOptions.BitmapScalingMode="HighQuality"/>
-                                <TextBlock Name="EdgeLabel" Text="Microsoft Edge" Foreground="White" HorizontalAlignment="Center" Margin="0,10,0,0"/>
-                            </StackPanel>
-                        </Button>
-                        <Button Name="ChromeButton" Grid.Column="2" Width="130" Height="130" Background="Transparent">
-                            <StackPanel>
-                                <Image Name="ChromeImage" Width="90" Height="90" RenderOptions.BitmapScalingMode="HighQuality"/>
-                                <TextBlock Name="ChromeLabel" Text="Google Chrome" Foreground="White" HorizontalAlignment="Center" Margin="0,10,0,0"/>
-                            </StackPanel>
-                        </Button>
-                    </Grid>
-                </StackPanel>
-                <StackPanel Grid.Row="3" Margin="0,15">
-                    <ProgressBar Name="MainProgressBar" Height="3" Background="#2D2D30" Foreground="#007ACC" IsIndeterminate="False" Opacity="0"/>
-                </StackPanel>
-                <Grid Grid.Row="4" Margin="0,5,0,0">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="5"/>
-                        <ColumnDefinition Width="35"/>
-                    </Grid.ColumnDefinitions>
-                    <Button Name="UpdateButton" Content="Verificar Atualizacoes" Height="35" FontSize="11"/>
-                    <Button Name="FolderButton" Grid.Column="2" Height="35" Width="35" ToolTip="Abrir Pasta">
-                        <Image Name="FolderIcon" Width="18" Height="18" RenderOptions.BitmapScalingMode="HighQuality"/>
-                    </Button>
-                </Grid>
-                <TextBlock Name="RepoLink" Grid.Row="6" Text="GitHub: henrique-coder/correios-tools" Foreground="#555555" FontSize="10" HorizontalAlignment="Center" Margin="0,15,0,0" Cursor="Hand">
-                    <TextBlock.Style>
-                        <Style TargetType="TextBlock">
-                            <Style.Triggers>
-                                <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter Property="Foreground" Value="#007ACC"/>
-                                    <Setter Property="TextDecorations" Value="Underline"/>
-                                </Trigger>
-                            </Style.Triggers>
-                        </Style>
-                    </TextBlock.Style>
-                </TextBlock>
-            </Grid>
-        </Border>
-        <Border Name="LoadingOverlay" Background="#EE1E1E1E" Visibility="Collapsed">
-            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                <TextBlock Name="LoadingText" Text="Carregando..." Foreground="#007ACC" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center"/>
-                <ProgressBar IsIndeterminate="True" Width="200" Height="4" Margin="0,15,0,0" Background="#2D2D30" Foreground="#007ACC"/>
-            </StackPanel>
-        </Border>
+        Title="Correios Tools Launcher" Height="250" Width="400" 
+        WindowStartupLocation="CenterScreen" ResizeMode="CanMinimize" Background="#F0F0F0">
+    <Grid Margin="20">
+        <StackPanel VerticalAlignment="Center">
+            <TextBlock Text="Selecione o Navegador" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,20"/>
+            
+            <Button Name="BtnChrome" Content="Google Chrome" Height="40" Margin="0,5,0,5" Background="#FFFFFF" BorderBrush="#CCCCCC"/>
+            <Button Name="BtnEdge" Content="Microsoft Edge" Height="40" Margin="0,5,0,5" Background="#FFFFFF" BorderBrush="#CCCCCC"/>
+            
+            <TextBlock Name="txtStatus" Text="Aguardando acao..." Foreground="#666666" HorizontalAlignment="Center" Margin="0,20,0,0"/>
+            <ProgressBar Name="pbStatus" Height="4" Margin="0,5,0,0" Visibility="Hidden"/>
+        </StackPanel>
     </Grid>
 </Window>
 "@
 
-$window = [Windows.Markup.XamlReader]::Load((New-Object System.Xml.XmlNodeReader $xamlContent))
+$reader =::Create(::new($xaml))
+$window =::Load($reader)
 
-$CloseButton = $window.FindName("CloseButton")
-$EdgeButton = $window.FindName("EdgeButton")
-$ChromeButton = $window.FindName("ChromeButton")
-$UpdateButton = $window.FindName("UpdateButton")
-$FolderButton = $window.FindName("FolderButton")
-$StatusText = $window.FindName("StatusText")
-$VersionText = $window.FindName("VersionText")
-$LoadingText = $window.FindName("LoadingText")
-$LoadingOverlay = $window.FindName("LoadingOverlay")
-$AppIcon = $window.FindName("AppIcon")
-$FolderIcon = $window.FindName("FolderIcon")
-$EdgeImage = $window.FindName("EdgeImage")
-$ChromeImage = $window.FindName("ChromeImage")
-$EdgeLabel = $window.FindName("EdgeLabel")
-$ChromeLabel = $window.FindName("ChromeLabel")
-$MainProgressBar = $window.FindName("MainProgressBar")
-$RepoLink = $window.FindName("RepoLink")
+$btnChrome = $window.FindName("BtnChrome")
+$btnEdge = $window.FindName("BtnEdge")
+$txtStatus = $window.FindName("txtStatus")
+$pbStatus = $window.FindName("pbStatus")
 
-$BrowserButtons = @($EdgeButton, $ChromeButton, $UpdateButton)
-
-function Set-ButtonsEnabled {
-    param([bool]$Enabled)
-    foreach ($btn in $BrowserButtons) { $btn.IsEnabled = $Enabled }
-}
-
-function Set-UIStatus {
-    param([string]$Message, [bool]$IsLoading = $false)
-    $StatusText.Text = $Message
-    $MainProgressBar.IsIndeterminate = $IsLoading
-    $MainProgressBar.Opacity = if ($IsLoading) { 1 } else { 0 }
-    [System.Windows.Threading.Dispatcher]::CurrentDispatcher.Invoke([Action] {}, [System.Windows.Threading.DispatcherPriority]::Background)
-}
-
-function Show-LoadingOverlay {
-    param([string]$Message = "Carregando...")
-    $LoadingText.Text = $Message
-    $LoadingOverlay.Visibility = [System.Windows.Visibility]::Visible
-    [System.Windows.Threading.Dispatcher]::CurrentDispatcher.Invoke([Action] {}, [System.Windows.Threading.DispatcherPriority]::Background)
-}
-
-function Hide-LoadingOverlay {
-    $LoadingOverlay.Visibility = [System.Windows.Visibility]::Collapsed
-    [System.Windows.Threading.Dispatcher]::CurrentDispatcher.Invoke([Action] {}, [System.Windows.Threading.DispatcherPriority]::Background)
-}
-
-function Update-InfoPanel {
-    $VersionText.Text = "v$($script:AppVersion)"
-}
-
-function Invoke-SafeAction {
-    param([scriptblock]$Action)
-    if ($script:IsProcessing) { return }
-    $script:IsProcessing = $true
-    Set-ButtonsEnabled $false
-    try { & $Action } catch {}
-    finally {
-        $script:IsProcessing = $false
-        Set-ButtonsEnabled $true
-    }
-}
-
-function Load-Icons {
-    try {
-        if (-not (Test-Path $ASSETS_DIR)) { New-Item -ItemType Directory -Path $ASSETS_DIR -Force | Out-Null }
-        
-        $icons = @{
-            $ICON_PATH = $ICON_URL
-            $ICON_PNG_PATH = $ICON_PNG_URL
-            $FOLDER_ICON_PATH = $FOLDER_ICON_URL
-            $EDGE_ICON_PATH = $EDGE_ICON_URL
-            $CHROME_ICON_PATH = $CHROME_ICON_URL
+function Update-UIStatus {
+    param($message, $loading)
+    $window.Dispatcher.Invoke({
+        $txtStatus.Text = $message
+        if ($loading) {
+            $pbStatus.Visibility = "Visible"
+            $pbStatus.IsIndeterminate = $true
+            $btnChrome.IsEnabled = $false
+            $btnEdge.IsEnabled = $false
+        } else {
+            $pbStatus.Visibility = "Hidden"
+            $btnChrome.IsEnabled = $true
+            $btnEdge.IsEnabled = $true
         }
-
-        foreach ($path in $icons.Keys) {
-            if (-not (Test-Path $path)) { Invoke-WebRequest -Uri $icons[$path] -OutFile $path -UseBasicParsing }
-        }
-
-        $window.Icon = [System.Windows.Media.Imaging.BitmapFrame]::Create([System.Uri]$ICON_PATH)
-        $AppIcon.Source = [System.Windows.Media.Imaging.BitmapFrame]::Create([System.Uri]$ICON_PNG_PATH)
-        $FolderIcon.Source = [System.Windows.Media.Imaging.BitmapFrame]::Create([System.Uri]$FOLDER_ICON_PATH)
-        $EdgeImage.Source = [System.Windows.Media.Imaging.BitmapFrame]::Create([System.Uri]$EDGE_ICON_PATH)
-        $ChromeImage.Source = [System.Windows.Media.Imaging.BitmapFrame]::Create([System.Uri]$CHROME_ICON_PATH)
-    } catch {}
-}
-
-function Check-BrowserAvailability {
-    $edgePath = "${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe"
-    $edgePathAlt = "$env:ProgramFiles\Microsoft\Edge\Application\msedge.exe"
-    $chromePath = "${env:ProgramFiles(x86)}\Google\Chrome\Application\chrome.exe"
-    $chromePathAlt = "$env:ProgramFiles\Google\Chrome\Application\chrome.exe"
-
-    $script:EdgeAvailable = (Test-Path $edgePath) -or (Test-Path $edgePathAlt)
-    $script:ChromeAvailable = (Test-Path $chromePath) -or (Test-Path $chromePathAlt)
-
-    if (-not $script:EdgeAvailable) {
-        $EdgeButton.IsEnabled = $false
-        $EdgeButton.Opacity = 0.4
-        $EdgeLabel.Text = "Nao instalado"
-    }
-    if (-not $script:ChromeAvailable) {
-        $ChromeButton.IsEnabled = $false
-        $ChromeButton.Opacity = 0.4
-        $ChromeLabel.Text = "Nao instalado"
-    }
+    })
 }
 
 function Force-CloseBrowser {
-    param([string]$ProcessName)
+    param($procName)
     $attempts = 0
-    while ($attempts -lt 20) {
-        $proc = Get-Process -Name $ProcessName -ErrorAction SilentlyContinue
-        if ($proc) {
-            Set-UIStatus "Fechando navegador..." $true
-            Stop-Process -Name $ProcessName -Force -ErrorAction SilentlyContinue
-            Start-Sleep -Milliseconds 800
-        } else {
-            return
+    do {
+        $procs = Get-Process -Name $procName -ErrorAction SilentlyContinue
+        if ($procs) {
+            Update-UIStatus "Fechando $procName..." $true
+            foreach ($p in $procs) {
+                try { $p.Kill(); $p.WaitForExit(1000) } catch {}
+            }
+            Start-Sleep -Milliseconds 500
         }
         $attempts++
-    }
+    } while ((Get-Process -Name $procName -ErrorAction SilentlyContinue) -and ($attempts -lt 10))
+}
+
+function Update-Preferences {
+    param($path)
+    try {
+        if (Test-Path $path) {
+            $content = Get-Content -Path $path -Raw
+            $json = $content | ConvertFrom-Json
+            
+            if (-not $json.extensions) { $json | Add-Member -Name "extensions" -Value @{} -MemberType NoteProperty }
+            if (-not $json.extensions.ui) { $json.extensions | Add-Member -Name "ui" -Value @{} -MemberType NoteProperty }
+            
+            $json.extensions.ui.developer_mode = $true
+            
+            $newContent = $json | ConvertTo-Json -Depth 100 -Compress
+            $utf8NoBom = New-Object System.Text.UTF8Encoding $false
+           ::WriteAllText($path, $newContent, $utf8NoBom)
+        }
+    } catch {}
 }
 
 function Sync-Extensions {
-    Set-UIStatus "Buscando informacoes..." $true
-    $metadata = Get-Metadata
-    if ($metadata -eq $null -or $metadata.extensions -eq $null) { 
-        Set-UIStatus "Sem rede. Usando local." $false
-        Start-Sleep -Seconds 1
-        return 
-    }
-
-    $extNames = $metadata.extensions.PSObject.Properties.Name
-    $total = $extNames.Count
-    $current = 0
-
-    foreach ($extName in $extNames) {
-        $current++
-        Set-UIStatus "Baixando extensao $current / $total..." $true
+    Update-UIStatus "Verificando extensoes..." $true
+    
+    try {
+       ::SecurityProtocol =::Tls12
+        $metaUrl = "https://github.com/henrique-coder/correios-tools/releases/download/assets/metadata.json"
+        $metaJson = Invoke-RestMethod -Uri $metaUrl -UseBasicParsing
         
-        $downloadUrl = "https://github.com/henrique-coder/correios-tools/releases/download/assets/extension-$extName.zip"
-        $tempZip = "$DATA_DIR\extension_$extName.zip"
-        $extDir = "$EXTENSIONS_DIR\$extName"
-
-        try {
-            Invoke-WebRequest -Uri $downloadUrl -OutFile $tempZip -UseBasicParsing
-            Start-Sleep -Milliseconds 300
+        foreach ($extName in $metaJson.extensions) {
+            Update-UIStatus "Baixando $extName..." $true
+            $zipPath = "$DATA_DIR\$extName.zip"
+            $destPath = "$EXT_DIR\$extName"
+            $url = "https://github.com/henrique-coder/correios-tools/releases/download/assets/extension-$extName.zip"
             
-            if (Test-Path $extDir) { Remove-Item $extDir -Recurse -Force -ErrorAction SilentlyContinue }
-            New-Item -ItemType Directory -Path $extDir -Force | Out-Null
+            Invoke-WebRequest -Uri $url -OutFile $zipPath -UseBasicParsing
             
-            Expand-Archive -Path $tempZip -DestinationPath $extDir -Force
-            Remove-Item $tempZip -Force -ErrorAction SilentlyContinue
-        } catch {
-            Set-UIStatus "Erro ao baixar $extName" $false
-            Start-Sleep -Seconds 1
+            if (Test-Path $destPath) { Remove-Item -Path $destPath -Recurse -Force }
+            New-Item -ItemType Directory -Path $destPath -Force | Out-Null
+            
+            Expand-Archive -Path $zipPath -DestinationPath $destPath -Force
+            Remove-Item -Path $zipPath -Force
         }
-    }
-    Set-UIStatus "Extensoes atualizadas!" $false
-    Start-Sleep -Milliseconds 800
-}
-
-function Configure-BrowserPrefs {
-    param([string]$BrowserName)
-    $path = if ($BrowserName -eq "Edge") { "$env:LOCALAPPDATA\Microsoft\Edge\User Data" } else { "$env:LOCALAPPDATA\Google\Chrome\User Data" }
-    if (-not (Test-Path $path)) { return }
-
-    $files = @("$path\Default\Preferences")
-    $files += Get-ChildItem -Path $path -Filter "Preferences" -Recurse -Depth 2 -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName
-
-    foreach ($file in $files) {
-        if (Test-Path $file) {
-            try {
-                $json = Get-Content $file -Raw -Encoding UTF8 | ConvertFrom-Json
-                $modified = $false
-                
-                if ($json.extensions -eq $null) { $json | Add-Member "extensions" @{} }
-                if ($json.extensions.ui -eq $null) { $json.extensions | Add-Member "ui" @{} }
-                
-                if ($json.extensions.ui.developer_mode -ne $true) {
-                    $json.extensions.ui.developer_mode = $true
-                    $modified = $true
-                }
-
-                if ($modified) {
-                    $json | ConvertTo-Json -Depth 100 -Compress | Set-Content $file -Encoding UTF8
-                }
-            } catch {}
-        }
+    } catch {
+        Update-UIStatus "Erro ao baixar extensoes." $false
+        Start-Sleep -Seconds 2
     }
 }
 
-function Get-ExtensionString {
+function Get-ExtensionsPaths {
     $paths = @()
-    if (Test-Path $EXTENSIONS_DIR) {
-        $items = Get-ChildItem -Path $EXTENSIONS_DIR -Directory
+    if (Test-Path $EXT_DIR) {
+        $items = Get-ChildItem -Path $EXT_DIR -Directory
         foreach ($item in $items) { $paths += $item.FullName }
     }
     return $paths -join ","
 }
 
-function Start-Browser {
-    param([string]$BrowserName, [string]$ProcessName)
+function Launch-Browser {
+    param($type)
     
-    Force-CloseBrowser $ProcessName
-    
-    Sync-Extensions
-    Configure-BrowserPrefs $BrowserName
-    
-    Set-UIStatus "Abrindo $BrowserName..." $true
-    Start-Sleep -Milliseconds 500
-    
-    $extArgs = ""
-    $extPaths = Get-ExtensionString
-    if (-not [string]::IsNullOrEmpty($extPaths)) {
-        $extArgs = "--load-extension=`"$extPaths`""
+    if ($type -eq "chrome") {
+        $procName = "chrome"
+        $exePath = "${env:ProgramFiles}\Google\Chrome\Application\chrome.exe"
+        if (-not (Test-Path $exePath)) { $exePath = "${env:ProgramFiles(x86)}\Google\Chrome\Application\chrome.exe" }
+        $prefPath = "$env:LOCALAPPDATA\Google\Chrome\User Data\Default\Preferences"
+    } else {
+        $procName = "msedge"
+        $exePath = "${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe"
+        $prefPath = "$env:LOCALAPPDATA\Microsoft\Edge\User Data\Default\Preferences"
     }
 
-    $args = @(
-        "--restore-last-session",
-        "--no-first-run",
-        "--no-default-browser-check",
-        $extArgs,
-        $START_URL
-    )
-
-    try {
-        Start-Process -FilePath $ProcessName -ArgumentList $args
-        Set-UIStatus "$BrowserName aberto!" $false
-        Start-Sleep -Seconds 1
-        Set-UIStatus "Pronto." $false
-    } catch {
-        Set-UIStatus "Erro ao abrir $BrowserName" $false
+    if (-not (Test-Path $exePath)) {
+       ::Show("Navegador nao encontrado.", "Erro", 0, 16)
+        return
     }
-}
 
-function Check-LauncherUpdate {
-    try {
-        $meta = Get-Metadata
-        if ($meta -eq $null) { return }
+    Start-ThreadJob -ScriptBlock {
+        param($procName, $exePath, $prefPath, $window, $BtnChrome, $BtnEdge, $TxtStatus, $PbStatus, $funcClose, $funcSync, $funcPref, $funcExtPath)
         
-        $remoteVer = $meta.scripts.launcher.version
-        if ($remoteVer -eq $null -or $remoteVer -eq $script:AppVersion) { return }
-
-        $selfHash = (Get-FileHash -Path $SELF_PATH -Algorithm SHA256).Hash.ToLower()
-        $remoteHash = $meta.scripts.launcher.hashes.sha256.ToLower()
-        
-        if ($selfHash -eq $remoteHash) { return }
-
-        Set-UIStatus "Atualizando aplicativo..." $true
-        $temp = "$DATA_DIR\launcher_new.ps1"
-        Invoke-WebRequest -Uri $LAUNCHER_DOWNLOAD_URL -OutFile $temp -UseBasicParsing
-        
-        if ((Get-FileHash $temp -Algorithm SHA256).Hash.ToLower() -eq $remoteHash) {
-            Copy-Item $temp $SELF_PATH -Force
-            Remove-Item $temp -Force
-            $script:NeedsRestart = $true
-            $window.Close()
+        # Funcoes injetadas no Job
+        ${function:Force-CloseBrowser} = $funcClose
+        ${function:Sync-Extensions} = $funcSync
+        ${function:Update-Preferences} = $funcPref
+        ${function:Get-ExtensionsPaths} = $funcExtPath
+        ${function:Update-UIStatus} = {
+            param($m, $l) 
+            $args.Dispatcher.Invoke({
+                $args.[1]Text = $m
+                if ($l) { $args.[2]Visibility = "Visible"; $args.[2]IsIndeterminate = $true; $args.[3]IsEnabled = $false; $args.[4]IsEnabled = $false }
+                else { $args.[2]Visibility = "Hidden"; $args.[3]IsEnabled = $true; $args.[4]IsEnabled = $true }
+            })
         }
-    } catch {}
+
+        Force-CloseBrowser $procName
+        Sync-Extensions
+        Update-Preferences $prefPath
+        
+        $extPaths = Get-ExtensionsPaths
+        $targetUrl = "https://sroweb.correios.com.br/app/index.php"
+        
+        $procArgs = @(
+            "--load-extension=`"$extPaths`"",
+            $targetUrl
+        )
+
+        Update-UIStatus "Iniciando..." $true $window $BtnChrome $TxtStatus $PbStatus $BtnEdge
+        Start-Process -FilePath $exePath -ArgumentList $procArgs
+        
+        Start-Sleep -Seconds 3
+        Update-UIStatus "Pronto" $false $window $BtnChrome $TxtStatus $PbStatus $BtnEdge
+        
+    } -ArgumentList $procName, $exePath, $prefPath, $window, $btnChrome, $btnEdge, $txtStatus, $pbStatus, ${function:Force-CloseBrowser}, ${function:Sync-Extensions}, ${function:Update-Preferences}, ${function:Get-ExtensionsPaths} | Out-Null
 }
 
-$CloseButton.Add_Click({ $window.Close() })
-$RepoLink.Add_MouseLeftButtonDown({ Start-Process "https://github.com/henrique-coder/correios-tools" })
-$FolderButton.Add_Click({ Start-Process "explorer.exe" -ArgumentList $INSTALL_DIR })
+$btnChrome.Add_Click({ Launch-Browser "chrome" })
+$btnEdge.Add_Click({ Launch-Browser "edge" })
 
-$UpdateButton.Add_Click({
-    Invoke-SafeAction {
-        Show-LoadingOverlay "Verificando..."
-        Check-LauncherUpdate
-        Hide-LoadingOverlay
-        Set-UIStatus "Aplicativo atualizado." $false
-    }
-})
-
-$EdgeButton.Add_Click({ Invoke-SafeAction { Start-Browser "Edge" "msedge" } })
-$ChromeButton.Add_Click({ Invoke-SafeAction { Start-Browser "Chrome" "chrome" } })
-
-$window.Add_Loaded({
-    $window.Topmost = $true
-    $window.Activate()
-    $window.Topmost = $false
-    
-    Set-UIStatus "Iniciando..." $true
-    Load-Icons
-    Check-BrowserAvailability
-    Create-DesktopShortcuts
-    Update-InfoPanel
-    
-    $timer = New-Object System.Windows.Threading.DispatcherTimer
-    $timer.Interval = [TimeSpan]::FromSeconds(2)
-    $timer.Add_Tick({ 
-        $timer.Stop()
-        Check-LauncherUpdate 
-        Set-UIStatus "Pronto." $false
-    })
-    $timer.Start()
-})
-
-$window.Add_MouseLeftButtonDown({ $window.DragMove() })
-
-$window.Add_Closed({
-    if ($script:NeedsRestart) {
-        Start-Process -FilePath "powershell.exe" -ArgumentList "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$SELF_PATH`""
-    }
-})
-
-[void]$window.ShowDialog()
+$window.ShowDialog() | Out-Null
