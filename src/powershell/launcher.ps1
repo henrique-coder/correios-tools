@@ -2,10 +2,6 @@ $MUTEX_NAME = "Global\CorreiosToolsLauncherUI"
 $mutex = New-Object System.Threading.Mutex($false, $MUTEX_NAME)
 if (-not $mutex.WaitOne(0, $false)) { exit }
 
-Write-Host "`n  [Correios Tools] " -NoNewline -ForegroundColor Cyan
-Write-Host "Nao feche esta janela, ela sera fechada automaticamente ou junto com o aplicativo!" -ForegroundColor Yellow
-Write-Host ""
-
 $windowHelperCode = @"
 using System;
 using System.Runtime.InteropServices;
@@ -620,11 +616,14 @@ function Launch-Browser {
     Configure-BrowserPreferences $BrowserName
 
     Set-UIStatus "Iniciando $BrowserName..." $true
-    $browserArgs = @("--restore-last-session", "--no-first-run", "--no-default-browser-check", $START_URL)
-    if (-not [string]::IsNullOrEmpty($extensionPaths)) { $browserArgs += "--load-extension=`"$extensionPaths`"" }
+    
+    $argString = "--restore-last-session --no-first-run --no-default-browser-check $START_URL"
+    if (-not [string]::IsNullOrEmpty($extensionPaths)) {
+        $argString += " --load-extension=`"$extensionPaths`""
+    }
 
     try {
-        Start-Process $ProcessName -ArgumentList $browserArgs
+        Start-Process -FilePath $ProcessName -ArgumentList $argString -ErrorAction Stop
         Set-UIStatus "$BrowserName iniciado!" $false
     }
     catch {
@@ -633,16 +632,12 @@ function Launch-Browser {
 }
 
 function Invoke-AutoUpdateCheck {
-    while ($script:IsProcessing) {
-        Start-Sleep -Seconds 1
-        [System.Windows.Threading.Dispatcher]::CurrentDispatcher.Invoke([Action] {}, [System.Windows.Threading.DispatcherPriority]::Background)
-    }
-
-    $script:IsProcessing = $true
-    Set-ButtonsEnabled $false
-    $script:CachedMetadata = $null
-
     try {
+        if ($script:IsProcessing) { return }
+        $script:IsProcessing = $true
+        Set-ButtonsEnabled $false
+        $script:CachedMetadata = $null
+
         $metadata = Get-Metadata
         if ($metadata -eq $null -or $metadata.scripts -eq $null -or $metadata.scripts.launcher -eq $null) {
             return
@@ -699,7 +694,9 @@ function Initialize-UpdateTimer {
     $script:NextCheckTime = (Get-Date).AddHours($UPDATE_INTERVAL_HOURS)
     $script:UpdateTimer = New-Object System.Windows.Threading.DispatcherTimer
     $script:UpdateTimer.Interval = [TimeSpan]::FromHours($UPDATE_INTERVAL_HOURS)
-    $script:UpdateTimer.Add_Tick({ Invoke-AutoUpdateCheck })
+    $script:UpdateTimer.Add_Tick({ 
+        try { Invoke-AutoUpdateCheck } catch {}
+    })
     $script:UpdateTimer.Start()
 
     $script:CountdownTimer = New-Object System.Windows.Threading.DispatcherTimer
