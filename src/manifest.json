@@ -14,7 +14,7 @@
   "permissions": [],
   "background": {
     "service_worker": "background.js",
-    "type": "module"
+    "scripts": ["background.js"]
   },
   "action": {
     "default_icon": {
@@ -30,10 +30,7 @@
         "https://sroweb.correios.com.br/app/entregaexternaautomatica/lancamentoautomatico/*",
         "https://sroweb.correios.com.br/app/entregaexternaautomatica/loecsuspensa/*"
       ],
-      "js": [
-        "browser-polyfill.min.js",
-        "content.js"
-      ],
+      "js": ["browser-polyfill.min.js", "content.js"],
       "run_at": "document_start",
       "all_frames": false
     }
@@ -49,7 +46,7 @@
   "browser_specific_settings": {
     "gecko": {
       "id": "correios-wizard@henriquecoder.com",
-      "strict_min_version": "109.0"
+      "strict_min_version": "121.0"
     }
   }
 }

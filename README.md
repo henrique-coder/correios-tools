@@ -1,14 +1,14 @@
 # Correios Wizard
 
-Extensão para Chrome que otimiza tarefas operacionais nos Correios.
+Extensão para Chrome, Edge e Firefox que otimiza tarefas operacionais nos Correios.
 
 ## Instalação
 
-Disponível na [Chrome Web Store](https://chromewebstore.google.com).
+Disponível na [Chrome Web Store](https://chromewebstore.google.com/detail/correios-wizard/oogeamkmbaejmkigijcpbfcbkfeolkca) e [Edge Add-ons](https://microsoftedge.microsoft.com/addons/detail/correios-wizard/andcjlemogipmhmhedliljjcoogbcfcj).
 
 ## Download Direto
 
-Extensão compilada em: https://henrique-coder.github.io/correios-wizard/extension.zip
+Extensão compilada em: https://github.com/henrique-coder/correios-wizard/releases/download/assets/correios-wizard.zip
 
 ## Funcionalidades
 
@@ -23,6 +23,7 @@ src/
 ├── background.js
 ├── content.js
 ├── injected.js
+├── browser-polyfill.min.js
 └── icons/
 ```
 
