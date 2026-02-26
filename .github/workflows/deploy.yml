@@ -39,7 +39,7 @@ jobs:
           node -e "
             const fs = require('fs');
             const raw = fs.readFileSync('extension.config.jsonc', 'utf8');
-            const stripped = raw.replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '').replace(/,\s*([}\]])/g, '\$1');
+            const stripped = raw.replace(/^\s*\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '').replace(/,\s*([}\]])/g, '\$1');
             JSON.parse(stripped);
           "
 
@@ -85,7 +85,7 @@ jobs:
 
             // Parse JSONC (strip comments and trailing commas)
             const raw = fs.readFileSync('extension.config.jsonc', 'utf8');
-            const stripped = raw.replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '').replace(/,\s*([}\]])/g, '\$1');
+            const stripped = raw.replace(/^\s*\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '').replace(/,\s*([}\]])/g, '\$1');
             const config = JSON.parse(stripped);
 
             // Extract browser overrides and remove from base
