@@ -1,3 +1,5 @@
+import Chart from 'https://esm.sh/chart.js/auto';
+
 !(function () {
   'use strict';
   const PATH = window.location.pathname.toLowerCase();
@@ -633,6 +635,155 @@
       h.innerHTML = `<div class="hud-card border-info"><div class="hud-title">Carga Total Suspensa</div><div class="hud-value">${r.tO} <span style="font-size:0.8rem; color:#888;">objs</span></div><div class="hud-sub">📦 ${r.tD} distritos afetados</div></div><div class="hud-card ${cl}"><div class="hud-title">Backlog (Vencidos)</div><div class="hud-value text-danger">${r.tE}</div><div class="hud-sub">🔥 ${c.ci}% da carga total</div></div><div class="hud-card border-warning"><div class="hud-title">Urgência (Hoje+Breve)</div><div class="hud-value">${r.tT + r.tF}</div><div class="hud-sub">⚠️ Pressão Operacional: ${c.op}%</div></div><div class="hud-card border-info"><div class="hud-title">Complexidade (ARs)</div><div class="hud-value">${r.tA}</div><div class="hud-sub">📝 Fator de Retenção: ${c.af}%</div></div><div class="hud-full"><div class="metric-box"><div class="metric-lbl">DENSIDADE DO CLUSTER</div><div class="metric-val">${c.dd} objs/ponto</div></div><div class="metric-box"><div class="metric-lbl">TOTAL PONTOS FÍSICOS</div><div class="metric-val">📍 ${r.tP}</div></div><div class="metric-box"><div class="metric-lbl">STATUS TÁTICO</div><div class="metric-val" style="font-weight:900;">${st}</div></div><div class="metric-box"><div class="metric-lbl">MÉDIA OBJS/DISTRITO</div><div class="metric-val">📊 ${c.ad}</div></div></div><div class="hud-footer-time">Atualizado às: ${new Date().toLocaleTimeString('pt-BR')}</div>`;
       an.parentNode.insertBefore(h, an);
     }
+    function RCD(data) {
+      if (!Array.isArray(data) || data.length === 0) return;
+      let totalObjs = 0,
+        totalPts = 0,
+        totalVencidos = 0,
+        totalHoje = 0,
+        totalAVencer = 0,
+        totalARs = 0;
+      const distritosList = [];
+      data.forEach((item) => {
+        const qtde = PN(item.qtde);
+        const qtdePontos = PN(item.qtdePontos);
+        const qtdeVencido = PN(item.qtdeVencido);
+        const qtdeHoje = PN(item.qtdeHoje);
+        const qtdeAVencer = PN(item.qtdeAVencer);
+        const qtdeAR = PN(item.qtdeAR);
+        totalObjs += qtde;
+        totalPts += qtdePontos;
+        totalVencidos += qtdeVencido;
+        totalHoje += qtdeHoje;
+        totalAVencer += qtdeAVencer;
+        totalARs += qtdeAR;
+        distritosList.push({
+          distrito: item.numeroDistrito || 'N/A',
+          qtde: qtde
+        });
+      });
+      distritosList.sort((a, b) => b.qtde - a.qtde);
+      const topDistritos = distritosList.slice(0, 10);
+      const containerId = 'loec-pro-dashboard';
+      let container = document.getElementById(containerId);
+      if (container) container.remove();
+      const refNode = document.querySelector('.botoes');
+      if (!refNode) return;
+      container = document.createElement('div');
+      container.id = containerId;
+      container.style.cssText =
+        'width:100%;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:8px;padding:20px;margin-bottom:40px;clear:both;display:block;box-sizing:border-box;font-family:system-ui,-apple-system,sans-serif;';
+      container.innerHTML = `
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:24px;">
+          <div style="background:#fff;padding:20px;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,0.1);border-left:4px solid #3b82f6;">
+            <div style="font-size:11px;color:#64748b;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:8px;">Carga Total</div>
+            <div style="font-size:28px;font-weight:800;color:#0f172a;line-height:1;">${totalObjs} <span style="font-size:14px;color:#64748b;font-weight:500;">objs</span></div>
+            <div style="font-size:12px;color:#94a3b8;margin-top:8px;">📍 ${totalPts} pontos | 📝 ${totalARs} ARs</div>
+          </div>
+          <div style="background:#fff;padding:20px;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,0.1);border-left:4px solid #ef4444;">
+            <div style="font-size:11px;color:#64748b;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:8px;">Vencidos</div>
+            <div style="font-size:28px;font-weight:800;color:#ef4444;line-height:1;">${totalVencidos}</div>
+            <div style="font-size:12px;color:#94a3b8;margin-top:8px;">Prioridade Máxima</div>
+          </div>
+          <div style="background:#fff;padding:20px;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,0.1);border-left:4px solid #f97316;">
+            <div style="font-size:11px;color:#64748b;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:8px;">Vencem Hoje</div>
+            <div style="font-size:28px;font-weight:800;color:#f97316;line-height:1;">${totalHoje}</div>
+            <div style="font-size:12px;color:#94a3b8;margin-top:8px;">SLA Diário</div>
+          </div>
+          <div style="background:#fff;padding:20px;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,0.1);border-left:4px solid #10b981;">
+            <div style="font-size:11px;color:#64748b;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:8px;">A Vencer</div>
+            <div style="font-size:28px;font-weight:800;color:#10b981;line-height:1;">${totalAVencer}</div>
+            <div style="font-size:12px;color:#94a3b8;margin-top:8px;">Fluxo Controlado</div>
+          </div>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:16px;">
+          <div style="flex:1;min-width:300px;background:#fff;padding:20px;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,0.1);position:relative;height:320px;">
+            <h4 style="margin:0 0 16px 0;font-size:14px;color:#334155;">Distribuição de Status</h4>
+            <div style="position:relative;height:calc(100% - 35px);width:100%;"><canvas id="chartjs-status"></canvas></div>
+          </div>
+          <div style="flex:2;min-width:400px;background:#fff;padding:20px;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,0.1);position:relative;height:320px;">
+            <h4 style="margin:0 0 16px 0;font-size:14px;color:#334155;">Top 10 Distritos (Volume)</h4>
+            <div style="position:relative;height:calc(100% - 35px);width:100%;"><canvas id="chartjs-volume"></canvas></div>
+          </div>
+        </div>
+      `;
+      refNode.parentNode.insertBefore(container, refNode);
+      new Chart(document.getElementById('chartjs-status'), {
+        type: 'doughnut',
+        data: {
+          labels: ['Vencidos', 'Vencem Hoje', 'A Vencer'],
+          datasets: [
+            {
+              data: [totalVencidos, totalHoje, totalAVencer],
+              backgroundColor: ['#ef4444', '#f97316', '#10b981'],
+              borderWidth: 0,
+              hoverOffset: 4
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '50%',
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: {
+                padding: 20,
+                usePointStyle: true,
+                font: { family: 'system-ui' }
+              }
+            },
+            tooltip: {
+              backgroundColor: 'rgba(15,23,42,0.9)',
+              padding: 12,
+              cornerRadius: 8
+            }
+          }
+        }
+      });
+      new Chart(document.getElementById('chartjs-volume'), {
+        type: 'bar',
+        data: {
+          labels: topDistritos.map((d) => d.distrito),
+          datasets: [
+            {
+              label: 'Volume',
+              data: topDistritos.map((d) => d.qtde),
+              backgroundColor: '#3b82f6',
+              borderRadius: 4,
+              barPercentage: 0.85,
+              categoryPercentage: 0.9
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: 'rgba(15,23,42,0.9)',
+              padding: 12,
+              cornerRadius: 8
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              grid: { color: '#e2e8f0' },
+              border: { display: false },
+              ticks: { font: { family: 'system-ui' }, color: '#64748b' }
+            },
+            x: {
+              grid: { display: false },
+              border: { display: false },
+              ticks: { font: { family: 'system-ui' }, color: '#64748b' }
+            }
+          }
+        }
+      });
+    }
     function PRL(u, t) {
       if (u && u.includes('lancamentoController.php?acao=listar'))
         try {
@@ -641,6 +792,7 @@
             IHS();
             const m = CL(j);
             setTimeout(() => DHD(m), 300);
+            setTimeout(() => RCD(j), 350);
           }
         } catch (e) {}
     }
