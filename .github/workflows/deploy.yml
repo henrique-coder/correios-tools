@@ -88,15 +88,12 @@ jobs:
             const path = require('path');
             const { parse } = require('smol-toml');
 
-            // Parse TOML config
             const raw = fs.readFileSync('extension.config.toml', 'utf8');
             const config = parse(raw);
 
-            // Extract browser overrides and remove from base
             const overrides = config.browser_overrides || {};
             delete config.browser_overrides;
 
-            // Replace version placeholders
             const version = process.env.VERSION;
             config.version = version;
 
@@ -125,15 +122,12 @@ jobs:
             }
 
             for (const browser of browsers) {
-              // Deep clone base config
               const manifest = JSON.parse(JSON.stringify(config));
 
-              // Deep merge browser-specific overrides
               if (overrides[browser]) {
                 mergeDeep(manifest, overrides[browser]);
               }
 
-              // Write manifest
               const outDir = 'dist/' + browser;
               fs.mkdirSync(outDir, { recursive: true });
               fs.writeFileSync(

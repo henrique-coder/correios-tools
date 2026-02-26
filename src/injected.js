@@ -569,72 +569,12 @@ import Chart from 'https://esm.sh/chart.js/auto';
       document.addEventListener('DOMContentLoaded', IAP);
     else IAP();
   } else if (PATH.includes('/loecsuspensa/')) {
-    function IHS() {
-      if (document.getElementById('sro-hud-styles')) return;
-      const s = document.createElement('style');
-      s.id = 'sro-hud-styles';
-      s.innerHTML = `#sro-hud-dashboard { box-sizing: border-box; width: 100%; max-width: 100%; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border: 1px solid #dee2e6; border-radius: 8px; margin: 0 auto 20px auto; padding: 15px; font-family: 'Segoe UI', system-ui, sans-serif; box-shadow: 0 4px 6px rgba(0,0,0,0.05); display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; animation: slideDown 0.4s ease-out; position: relative; } #sro-hud-dashboard * { box-sizing: border-box; } @keyframes pulse-green { 0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); } 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); } } .hud-updated { animation: pulse-green 1s; } .hud-card { background: white; padding: 12px; border-radius: 6px; border-left: 4px solid #00416B; box-shadow: 0 2px 4px rgba(0,0,0,0.05); transition: transform 0.2s; min-width: 0; } .hud-card:hover { transform: translateY(-2px); } .hud-title { font-size: 0.75rem; text-transform: uppercase; color: #6b7280; font-weight: 700; letter-spacing: 0.5px; margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .hud-value { font-size: 1.5rem; font-weight: 800; color: #111827; } .hud-sub { font-size: 0.7rem; color: #9ca3af; margin-top: 2px; display: flex; align-items: center; gap: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .border-danger { border-left-color: #dc2626; } .border-warning { border-left-color: #f59e0b; } .border-success { border-left-color: #10b981; } .border-info { border-left-color: #3b82f6; } .text-danger { color: #dc2626; } .hud-full { grid-column: span 4; display: flex; justify-content: space-between; background: #fff; padding: 10px; border-radius: 4px; border: 1px dashed #ccc; align-items: center; flex-wrap: wrap; } .metric-box { text-align: center; flex: 1; border-right: 1px solid #eee; min-width: 80px; } .metric-box:last-child { border-right: none; } .metric-lbl { font-size: 0.65rem; color: #555; text-transform: uppercase; letter-spacing: 0.5px; } .metric-val { font-weight: bold; font-size: 0.9rem; color: #333; } .hud-footer-time { position: absolute; bottom: 2px; right: 5px; font-size: 0.6rem; color: #aaa; font-style: italic; } @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }`;
-      document.head.appendChild(s);
-    }
     const PN = (v) =>
       typeof v === 'number'
         ? v
         : v
           ? parseInt(v.toString().replace(/<[^>]*>/g, ''), 10) || 0
           : 0;
-    function CL(d) {
-      if (!Array.isArray(d) || d.length === 0) return null;
-      let tD = d.length,
-        tO = 0,
-        tP = 0,
-        tE = 0,
-        tT = 0,
-        tF = 0,
-        tA = 0;
-      d.forEach((i) => {
-        tO += PN(i.qtde);
-        tP += PN(i.qtdePontos);
-        tE += PN(i.qtdeVencido);
-        tT += PN(i.qtdeHoje);
-        tF += PN(i.qtdeAVencer);
-        tA += PN(i.qtdeAR);
-      });
-      return {
-        r: { tD, tO, tP, tE, tT, tF, tA },
-        c: {
-          dd: tO > 0 ? (tO / tP).toFixed(2) : 0,
-          ci: tO > 0 ? ((tE / tO) * 100).toFixed(1) : 0,
-          op: tO > 0 ? (((tT + tF) / tO) * 100).toFixed(1) : 0,
-          af: tO > 0 ? ((tA / tO) * 100).toFixed(1) : 0,
-          ad: (tO / tD).toFixed(1)
-        }
-      };
-    }
-    function DHD(m) {
-      const id = 'sro-hud-dashboard';
-      const od = document.getElementById(id);
-      if (od) od.remove();
-      if (!m) return;
-      const an = document.querySelector('.botoes');
-      if (!an) return;
-      const r = m.r,
-        c = m.c;
-      let cl = 'border-success',
-        st = 'CONTROLADO';
-      if (c.ci > 20) {
-        cl = 'border-warning';
-        st = 'ATENÇÃO';
-      }
-      if (c.ci > 50) {
-        cl = 'border-danger';
-        st = 'CRÍTICO';
-      }
-      const h = document.createElement('div');
-      h.id = id;
-      h.classList.add('hud-updated');
-      h.innerHTML = `<div class="hud-card border-info"><div class="hud-title">Carga Total Suspensa</div><div class="hud-value">${r.tO} <span style="font-size:0.8rem; color:#888;">objs</span></div><div class="hud-sub">📦 ${r.tD} distritos afetados</div></div><div class="hud-card ${cl}"><div class="hud-title">Backlog (Vencidos)</div><div class="hud-value text-danger">${r.tE}</div><div class="hud-sub">🔥 ${c.ci}% da carga total</div></div><div class="hud-card border-warning"><div class="hud-title">Urgência (Hoje+Breve)</div><div class="hud-value">${r.tT + r.tF}</div><div class="hud-sub">⚠️ Pressão Operacional: ${c.op}%</div></div><div class="hud-card border-info"><div class="hud-title">Complexidade (ARs)</div><div class="hud-value">${r.tA}</div><div class="hud-sub">📝 Fator de Retenção: ${c.af}%</div></div><div class="hud-full"><div class="metric-box"><div class="metric-lbl">DENSIDADE DO CLUSTER</div><div class="metric-val">${c.dd} objs/ponto</div></div><div class="metric-box"><div class="metric-lbl">TOTAL PONTOS FÍSICOS</div><div class="metric-val">📍 ${r.tP}</div></div><div class="metric-box"><div class="metric-lbl">STATUS TÁTICO</div><div class="metric-val" style="font-weight:900;">${st}</div></div><div class="metric-box"><div class="metric-lbl">MÉDIA OBJS/DISTRITO</div><div class="metric-val">📊 ${c.ad}</div></div></div><div class="hud-footer-time">Atualizado às: ${new Date().toLocaleTimeString('pt-BR')}</div>`;
-      an.parentNode.insertBefore(h, an);
-    }
     function RCD(data) {
       if (!Array.isArray(data) || data.length === 0) return;
       let totalObjs = 0,
@@ -789,9 +729,6 @@ import Chart from 'https://esm.sh/chart.js/auto';
         try {
           const j = typeof t === 'string' ? JSON.parse(t) : t;
           if (Array.isArray(j)) {
-            IHS();
-            const m = CL(j);
-            setTimeout(() => DHD(m), 300);
             setTimeout(() => RCD(j), 350);
           }
         } catch (e) {}
