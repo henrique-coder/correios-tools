@@ -32,11 +32,7 @@ version = "{{yyyy}}.{{m}}.{{d}}.{{n}}"
 
 [action]
 default_title = "Correios Wizard"
-
-[action.default_icon]
-"16" = "icons/icon16.png"
-"32" = "icons/icon32.png"
-"48" = "icons/icon48.png"
+default_icon = { "16" = "icons/icon16.png", "32" = "icons/icon32.png", "48" = "icons/icon48.png" }
 
 # ─── Permissions ───────────────────────────────────────────────────────────── #
 # API permissions required by the extension (shared across all browsers).

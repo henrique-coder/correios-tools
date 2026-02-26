@@ -75,7 +75,7 @@ jobs:
 
       - name: Download polyfill
         run: |
-          curl -fsSL "https://unpkg.com/webextension-polyfill@0.12/dist/browser-polyfill.min.js" \
+          curl -fsSL -L "https://unpkg.com/webextension-polyfill@0.12/dist/browser-polyfill.min.js" \
             -o /tmp/browser-polyfill.min.js
           echo "Polyfill downloaded ($(wc -c < /tmp/browser-polyfill.min.js) bytes)"
 
@@ -102,13 +102,35 @@ jobs:
 
             const browsers = ['chrome', 'edge', 'firefox'];
 
+            function isObject(item) {
+              return (item && typeof item === 'object' && !Array.isArray(item));
+            }
+
+            function mergeDeep(target, ...sources) {
+              if (!sources.length) return target;
+              const source = sources.shift();
+
+              if (isObject(target) && isObject(source)) {
+                for (const key in source) {
+                  if (isObject(source[key])) {
+                    if (!target[key]) Object.assign(target, { [key]: {} });
+                    mergeDeep(target[key], source[key]);
+                  } else {
+                    Object.assign(target, { [key]: source[key] });
+                  }
+                }
+              }
+
+              return mergeDeep(target, ...sources);
+            }
+
             for (const browser of browsers) {
               // Deep clone base config
               const manifest = JSON.parse(JSON.stringify(config));
 
-              // Merge browser-specific overrides
+              // Deep merge browser-specific overrides
               if (overrides[browser]) {
-                Object.assign(manifest, overrides[browser]);
+                mergeDeep(manifest, overrides[browser]);
               }
 
               // Write manifest
@@ -162,7 +184,7 @@ jobs:
       - name: Lint Firefox extension
         run: |
           echo "Linting Firefox extension..."
-          npx --yes web-ext lint --source-dir dist/firefox
+          npx --yes web-ext lint --source-dir dist/firefox --self-hosted
 
           echo "Firefox extension passed validation!"
 
