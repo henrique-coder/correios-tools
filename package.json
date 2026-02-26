@@ -1,10 +1,10 @@
 {
   "scripts": {
-    "lint": "prettier --check 'extension.config.jsonc' 'src/**'",
-    "format": "prettier --write 'extension.config.jsonc' 'src/**'"
+    "lint": "prettier --check 'extension.config.toml' 'src/**'",
+    "format": "prettier --write 'extension.config.toml' 'src/**'"
   },
   "devDependencies": {
-    "jsonc-parser": "^3.3.1",
-    "prettier": "^3.8.1"
+    "prettier": "^3.8.1",
+    "prettier-plugin-toml": "^2.0.6"
   }
 }
