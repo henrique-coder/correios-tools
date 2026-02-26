@@ -4,6 +4,7 @@ on:
   push:
     branches: [prod]
     paths:
+      - '.github/workflows/deploy.yml'
       - 'extension.config.jsonc'
       - 'src/**'
   workflow_dispatch:
@@ -35,12 +36,15 @@ jobs:
 
       - name: Validate source files
         run: |
+          npm i --no-save jsonc-parser
+
           echo "Validating extension.config.jsonc..."
           node -e "
             const fs = require('fs');
+            const { parse } = require('jsonc-parser');
             const raw = fs.readFileSync('extension.config.jsonc', 'utf8');
-            const stripped = raw.replace(/^\s*\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '').replace(/,\s*([}\]])/g, '\$1');
-            JSON.parse(stripped);
+            const config = parse(raw);
+            if (!config) throw new Error('Invalid JSONC format');
           "
 
           echo "Validating JavaScript files..."
@@ -82,11 +86,11 @@ jobs:
           node -e "
             const fs = require('fs');
             const path = require('path');
+            const { parse } = require('jsonc-parser');
 
-            // Parse JSONC (strip comments and trailing commas)
+            // Parse JSONC (built-in support for comments and trailing commas)
             const raw = fs.readFileSync('extension.config.jsonc', 'utf8');
-            const stripped = raw.replace(/^\s*\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '').replace(/,\s*([}\]])/g, '\$1');
-            const config = JSON.parse(stripped);
+            const config = parse(raw);
 
             // Extract browser overrides and remove from base
             const overrides = config.browser_overrides || {};
@@ -157,14 +161,14 @@ jobs:
 
       - name: Lint extensions
         run: |
-          echo "Linting Firefox extension..."
-          npx --yes web-ext lint --source-dir dist/firefox
-
           echo "Linting Chrome extension..."
           npx --yes addons-linter dist/chrome --min-manifest-version 3 --max-manifest-version 3
 
           echo "Linting Edge extension..."
           npx --yes addons-linter dist/edge --min-manifest-version 3 --max-manifest-version 3
+
+          echo "Linting Firefox extension..."
+          npx --yes web-ext lint --source-dir dist/firefox
 
           echo "All extensions passed validation!"
 
