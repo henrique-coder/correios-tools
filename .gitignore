@@ -9,7 +9,7 @@ build/
 .agent/
 
 # ─ ─── Files ─── ─ #
-# ..
+# ...
 
 # ─ ─── Extensions ─── ─ #
 *.env

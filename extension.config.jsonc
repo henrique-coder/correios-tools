@@ -1,0 +1,124 @@
+{
+  // ─── Extension Metadata ─────────────────────────────────────────────────── //
+  // Core identity fields shared by all browsers.
+
+  "manifest_version": 3,
+  "name": "Correios Wizard",
+  "description": "Conjunto de ferramentas internas para otimizar tarefas operacionais nos Correios",
+  "author": "Henrique Moreira",
+  "homepage_url": "https://github.com/henrique-coder/correios-wizard",
+
+  // ─── Version ─────────────────────────────────────────────────────────────── //
+  // Dynamic version injected at build time via regex placeholders.
+  //   {{yyyy}} → full year (e.g. 2026)
+  //   {{m}}    → month without leading zero (1–12)
+  //   {{d}}    → day without leading zero (1–31)
+  //   {{n}}    → daily build counter, starts at 0
+  // Example: first build on Mar 15 2026 → "2026.3.15.0"
+
+  "version": "{{yyyy}}.{{m}}.{{d}}.{{n}}",
+
+  // ─── Icons ───────────────────────────────────────────────────────────────── //
+  // Paths are relative to the extension root directory.
+  // Each key is the icon size in pixels.
+
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+
+  // ─── Action (Toolbar Button) ─────────────────────────────────────────────── //
+  // Defines the browser action button appearance.
+
+  "action": {
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png"
+    },
+    "default_title": "Correios Wizard"
+  },
+
+  // ─── Permissions ─────────────────────────────────────────────────────────── //
+  // API permissions required by the extension (shared across all browsers).
+  // Add items like "storage", "tabs", "activeTab", etc. as needed.
+
+  "permissions": [],
+
+  // ─── Host Permissions ────────────────────────────────────────────────────── //
+  // URL patterns the extension needs access to (shared across all browsers).
+
+  "host_permissions": ["https://sroweb.correios.com.br/*"],
+
+  // ─── Content Scripts ─────────────────────────────────────────────────────── //
+  // Scripts injected into matching web pages.
+  //   matches  → URL patterns to inject into
+  //   js       → scripts to inject (in order)
+  //   run_at   → when to inject: "document_start", "document_end", or "document_idle"
+
+  "content_scripts": [
+    {
+      "matches": [
+        "https://sroweb.correios.com.br/app/entregaexternaautomatica/lancamentoautomatico/*",
+        "https://sroweb.correios.com.br/app/entregaexternaautomatica/loecsuspensa/*"
+      ],
+      "js": ["browser-polyfill.min.js", "content.js"],
+      "run_at": "document_start",
+      "all_frames": false
+    }
+  ],
+
+  // ─── Web Accessible Resources ────────────────────────────────────────────── //
+  // Files accessible from web pages via the extension's URL.
+
+  "web_accessible_resources": [
+    {
+      "resources": ["injected.js"],
+      "matches": ["https://sroweb.correios.com.br/*"]
+    }
+  ],
+
+  // ─── Browser-Specific Overrides ──────────────────────────────────────────── //
+  // Fields that differ per browser go here. These are MERGED into the manifest,
+  // overriding any shared field with the same key.
+  //
+  // Supported targets: "chrome", "edge", "firefox"
+  //
+  // Chrome/Edge: use "background.service_worker" for MV3 background scripts.
+  // Firefox:     use "background.scripts" (array) for MV3 background scripts.
+  //
+  // Permissions and host_permissions can be overridden per browser if needed.
+  // If a browser needs extra permissions, add them here — they will REPLACE
+  // the shared value, not merge with it.
+
+  "browser_overrides": {
+    "chrome": {
+      "background": {
+        "service_worker": "background.js"
+      },
+      "minimum_chrome_version": "102"
+    },
+
+    "edge": {
+      "background": {
+        "service_worker": "background.js"
+      },
+      "minimum_chrome_version": "102"
+    },
+
+    "firefox": {
+      "background": {
+        "scripts": ["background.js"]
+      },
+      "browser_specific_settings": {
+        "gecko": {
+          "id": "@correios-wizard.henriquecoder",
+          "strict_min_version": "121.0",
+          "update_url": "https://github.com/henrique-coder/correios-wizard/releases/latest/download/updates.json"
+        }
+      }
+    }
+  }
+}

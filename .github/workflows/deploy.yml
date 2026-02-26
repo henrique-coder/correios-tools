@@ -4,8 +4,8 @@ on:
   push:
     branches: [prod]
     paths:
-      - "src/**"
-      - ".github/workflows/deploy.yml"
+      - 'extension.config.jsonc'
+      - 'src/**'
   workflow_dispatch:
 
 permissions:
@@ -27,16 +27,21 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "24"
-          cache: "npm"
+          node-version: '24'
+          cache: 'npm'
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Validate extension files
+      - name: Validate source files
         run: |
-          echo "Validating manifest.json..."
-          node -e "JSON.parse(require('fs').readFileSync('src/manifest.json'))"
+          echo "Validating extension.config.jsonc..."
+          node -e "
+            const fs = require('fs');
+            const raw = fs.readFileSync('extension.config.jsonc', 'utf8');
+            const stripped = raw.replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '').replace(/,\s*([}\]])/g, '\$1');
+            JSON.parse(stripped);
+          "
 
           echo "Validating JavaScript files..."
           for file in src/*.js; do
@@ -45,10 +50,10 @@ jobs:
 
           echo "All files valid!"
 
-      - name: Install minification tools
-        run: npm install -g terser@latest csso-cli@latest html-minifier-terser@latest
+      - name: Install build tools
+        run: npm install -g terser@latest csso-cli@latest
 
-      - name: Generate dynamic version
+      - name: Generate version
         id: version
         run: |
           SP_DATE=$(TZ=America/Sao_Paulo date +'%Y-%-m-%-d')
@@ -58,58 +63,148 @@ jobs:
 
           TODAY_START=$(TZ=America/Sao_Paulo date -d "$(TZ=America/Sao_Paulo date +%Y-%m-%d) 00:00:00" -u +%Y-%m-%dT%H:%M:%SZ)
           COMMIT_COUNT=$(git log --oneline --after="$TODAY_START" | wc -l)
+          BUILD_NUMBER=$((COMMIT_COUNT > 0 ? COMMIT_COUNT - 1 : 0))
 
-          VERSION="${SP_YEAR}.${SP_MONTH}.${SP_DAY}.${COMMIT_COUNT}"
+          VERSION="${SP_YEAR}.${SP_MONTH}.${SP_DAY}.${BUILD_NUMBER}"
           echo "Generated version: $VERSION"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Download polyfill
+        run: |
+          curl -fsSL "https://unpkg.com/webextension-polyfill@0.12/dist/browser-polyfill.min.js" \
+            -o /tmp/browser-polyfill.min.js
+          echo "Polyfill downloaded ($(wc -c < /tmp/browser-polyfill.min.js) bytes)"
+
+      - name: Build and package extensions
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
           node -e "
             const fs = require('fs');
-            const manifest = JSON.parse(fs.readFileSync('src/manifest.json'));
-            manifest.version = '$VERSION';
-            fs.writeFileSync('src/manifest.json', JSON.stringify(manifest, null, 2));
+            const path = require('path');
+
+            // Parse JSONC (strip comments and trailing commas)
+            const raw = fs.readFileSync('extension.config.jsonc', 'utf8');
+            const stripped = raw.replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '').replace(/,\s*([}\]])/g, '\$1');
+            const config = JSON.parse(stripped);
+
+            // Extract browser overrides and remove from base
+            const overrides = config.browser_overrides || {};
+            delete config.browser_overrides;
+
+            // Replace version placeholders
+            const version = process.env.VERSION;
+            config.version = version;
+
+            const browsers = ['chrome', 'edge', 'firefox'];
+
+            for (const browser of browsers) {
+              // Deep clone base config
+              const manifest = JSON.parse(JSON.stringify(config));
+
+              // Merge browser-specific overrides
+              if (overrides[browser]) {
+                Object.assign(manifest, overrides[browser]);
+              }
+
+              // Write manifest
+              const outDir = 'dist/' + browser;
+              fs.mkdirSync(outDir, { recursive: true });
+              fs.writeFileSync(
+                path.join(outDir, 'manifest.json'),
+                JSON.stringify(manifest)
+              );
+            }
+
+            console.log('Manifests generated for: ' + browsers.join(', '));
           "
 
-      - name: Minify extension files
-        run: |
-          mkdir -p dist
+          # Minify and copy files for each browser
+          for browser in chrome edge firefox; do
+            dist="dist/$browser"
 
-          for file in src/*.js; do
-            filename=$(basename "$file")
-            if [ "$filename" = "browser-polyfill.min.js" ]; then
-              cp "$file" "dist/$filename"
-            else
-              terser "$file" --compress --mangle --output "dist/$filename"
-            fi
+            # Copy polyfill
+            cp /tmp/browser-polyfill.min.js "$dist/"
+
+            # Minify JS files
+            for file in src/*.js; do
+              filename=$(basename "$file")
+              terser "$file" --compress --mangle --output "$dist/$filename"
+            done
+
+            # Minify CSS (if any)
+            shopt -s nullglob
+            for file in src/*.css; do
+              filename=$(basename "$file")
+              csso "$file" --output "$dist/$filename"
+            done
+            shopt -u nullglob
+
+            # Copy icons
+            cp -r src/icons "$dist/"
           done
 
-          shopt -s nullglob
-          for file in src/*.css; do
-            filename=$(basename "$file")
-            csso "$file" --output "dist/$filename"
-          done
-          shopt -u nullglob
-
-          for file in src/*.json; do
-            filename=$(basename "$file")
-            node -e "const fs=require('fs');fs.writeFileSync('dist/$filename',JSON.stringify(JSON.parse(fs.readFileSync('$file'))))"
-          done
-
-          cp -r src/icons dist/
+          echo "All browser builds ready!"
 
       - name: Compress with 7z
         run: |
-          sudo apt-get install -y p7zip-full
-          cd dist
-          7z a -tzip -mx=9 -mfb=258 -mpass=15 ../correios-wizard.zip .
+          sudo apt-get install -y p7zip-full > /dev/null 2>&1
+          for browser in chrome edge firefox; do
+            cd "dist/$browser"
+            7z a -tzip -mx=9 -mfb=258 -mpass=15 "../../correios-wizard-${browser}.zip" .
+            cd ../..
+          done
 
-      - name: Update release
+      - name: Lint extensions
+        run: |
+          echo "Linting Firefox extension..."
+          npx --yes web-ext lint --source-dir dist/firefox
+
+          echo "Linting Chrome extension..."
+          npx --yes addons-linter dist/chrome --min-manifest-version 3 --max-manifest-version 3
+
+          echo "Linting Edge extension..."
+          npx --yes addons-linter dist/edge --min-manifest-version 3 --max-manifest-version 3
+
+          echo "All extensions passed validation!"
+
+      - name: Generate Firefox update manifest
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          node -e "
+            const fs = require('fs');
+            const manifest = {
+              addons: {
+                '@correios-wizard.henriquecoder': {
+                  updates: [{
+                    version: process.env.VERSION,
+                    update_link: 'https://github.com/henrique-coder/correios-wizard/releases/latest/download/correios-wizard-firefox.zip'
+                  }]
+                }
+              }
+            };
+            fs.writeFileSync('updates.json', JSON.stringify(manifest));
+          "
+
+      - name: Create release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: assets
-          name: "Correios Wizard v${{ steps.version.outputs.version }}"
+          tag_name: 'v${{ steps.version.outputs.version }}'
+          name: 'Correios Wizard v${{ steps.version.outputs.version }}'
           body: |
             **Versão:** `${{ steps.version.outputs.version }}`
 
-            Extensão compilada e minificada, pronta para instalação manual em Chrome, Edge ou Firefox.
-          files: correios-wizard.zip
+            Extensão compilada e minificada para cada navegador.
+
+            | Arquivo | Navegador |
+            |---|---|
+            | `correios-wizard-chrome.zip` | Google Chrome |
+            | `correios-wizard-edge.zip` | Microsoft Edge |
+            | `correios-wizard-firefox.zip` | Mozilla Firefox |
+          files: |
+            correios-wizard-chrome.zip
+            correios-wizard-edge.zip
+            correios-wizard-firefox.zip
+            updates.json
           make_latest: true

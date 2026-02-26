@@ -1,7 +1,7 @@
-const script = document.createElement("script");
+const script = document.createElement('script');
 
-script.src = browser.runtime.getURL("injected.js");
-script.type = "module";
+script.src = browser.runtime.getURL('injected.js');
+script.type = 'module';
 script.onload = function () {
   this.remove();
 };
