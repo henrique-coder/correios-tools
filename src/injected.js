@@ -1,8 +1,7 @@
-import Chart from 'https://esm.sh/chart.js/auto';
-
 !(function () {
   'use strict';
   const PATH = window.location.pathname.toLowerCase();
+
   if (PATH.includes('/lancamentoautomatico/')) {
     const ACTIONS = {
       'CT-INDUZIROBJETO': () => {
@@ -575,8 +574,20 @@ import Chart from 'https://esm.sh/chart.js/auto';
         : v
           ? parseInt(v.toString().replace(/<[^>]*>/g, ''), 10) || 0
           : 0;
-    function RCD(data) {
+
+    async function RCD(data) {
       if (!Array.isArray(data) || data.length === 0) return;
+
+      if (!window.Chart) {
+        await new Promise((resolve, reject) => {
+          const script = document.createElement('script');
+          script.src = 'https://unpkg.com/chart.js@4.5.1/dist/chart.umd.min.js';
+          script.onload = resolve;
+          script.onerror = reject;
+          document.head.appendChild(script);
+        });
+      }
+
       let totalObjs = 0,
         totalPts = 0,
         totalVencidos = 0,
@@ -584,6 +595,7 @@ import Chart from 'https://esm.sh/chart.js/auto';
         totalAVencer = 0,
         totalARs = 0;
       const distritosList = [];
+
       data.forEach((item) => {
         const qtde = PN(item.qtde);
         const qtdePontos = PN(item.qtdePontos);
@@ -602,13 +614,16 @@ import Chart from 'https://esm.sh/chart.js/auto';
           qtde: qtde
         });
       });
+
       distritosList.sort((a, b) => b.qtde - a.qtde);
       const topDistritos = distritosList.slice(0, 10);
       const containerId = 'loec-pro-dashboard';
       let container = document.getElementById(containerId);
+
       if (container) container.remove();
       const refNode = document.querySelector('.botoes');
       if (!refNode) return;
+
       container = document.createElement('div');
       container.id = containerId;
       container.style.cssText =
@@ -648,7 +663,8 @@ import Chart from 'https://esm.sh/chart.js/auto';
         </div>
       `;
       refNode.parentNode.insertBefore(container, refNode);
-      new Chart(document.getElementById('chartjs-status'), {
+
+      new window.Chart(document.getElementById('chartjs-status'), {
         type: 'doughnut',
         data: {
           labels: ['Vencidos', 'Vencem Hoje', 'A Vencer'],
@@ -682,7 +698,8 @@ import Chart from 'https://esm.sh/chart.js/auto';
           }
         }
       });
-      new Chart(document.getElementById('chartjs-volume'), {
+
+      new window.Chart(document.getElementById('chartjs-volume'), {
         type: 'bar',
         data: {
           labels: topDistritos.map((d) => d.distrito),
@@ -724,6 +741,7 @@ import Chart from 'https://esm.sh/chart.js/auto';
         }
       });
     }
+
     function PRL(u, t) {
       if (u && u.includes('lancamentoController.php?acao=listar'))
         try {
@@ -733,6 +751,7 @@ import Chart from 'https://esm.sh/chart.js/auto';
           }
         } catch (e) {}
     }
+
     const oF = window.fetch;
     window.fetch = async function (...a) {
       const r = await oF.apply(this, a);
@@ -746,6 +765,7 @@ import Chart from 'https://esm.sh/chart.js/auto';
       } catch (e) {}
       return r;
     };
+
     const oO = XMLHttpRequest.prototype.open;
     const oS = XMLHttpRequest.prototype.send;
     XMLHttpRequest.prototype.open = function (m, u) {
