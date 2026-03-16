@@ -533,19 +533,15 @@
         }).observe(p, { childList: true, subtree: true, characterData: true });
       }
     }
+
     function RFC(i) {
       if (document.activeElement !== document.getElementById('selDistrito')) {
         i.click();
         i.focus();
         LIV = i.value;
-        S.code = '--';
-        S.district = '--';
-        S.domDist = null;
-        S.status = 'AGUARDANDO...';
-        S.mode = 'loading';
-        RDP();
       }
     }
+
     function WSE() {
       const s = document.getElementById('selDistrito');
       if (!s) return setTimeout(WSE, 1000);
