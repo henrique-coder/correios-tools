@@ -5,43 +5,58 @@
   if (PATH.includes('/lancamentoautomatico/')) {
     const ACTIONS = {
       'CT-INDUZIROBJETO': () => {
+        const btnInc = document.getElementById('btnIncluirObjeto');
+        const txtObj = document.getElementById('txtObjeto');
+
+        if (!btnInc || btnInc.offsetParent === null) {
+          if (txtObj) txtObj.focus();
+          return;
+        }
+
         if (document.activeElement) document.activeElement.blur();
+
         const a = document.getElementById('btnModalA');
         let d = 0;
         if (a && a.offsetParent !== null) {
           a.click();
           d = 300;
         }
+
         setTimeout(() => {
           let t = 0;
           const c = setInterval(() => {
-            const i = document.getElementById('txtNumero');
-            if (i) {
+            const txtNum = document.getElementById('txtNumero');
+            if (txtNum) {
               clearInterval(c);
               setTimeout(() => {
-                const v = i.value.trim().toUpperCase();
-                if (v === '' || v === 'N/A' || v === 'S/A' || v === 'S/N')
-                  return;
-                i.blur();
+                const v = txtNum.value.trim().toUpperCase();
+                const inv =
+                  v === '' || v === 'N/A' || v === 'S/A' || v === 'S/N';
+
+                if (inv) {
+                  if (window._sroBP !== S.code) {
+                    window._sroBP = S.code;
+                    txtNum.focus();
+                    txtNum.select();
+                    return;
+                  }
+                } else {
+                  window._sroBP = null;
+                }
+
+                window._sroBP = null;
+                txtNum.blur();
                 if (document.activeElement) document.activeElement.blur();
+
                 setTimeout(() => {
-                  const b = document.getElementById('btnIncluirObjeto');
-                  if (b) {
-                    b.click();
-                    b.dispatchEvent(
-                      new MouseEvent('click', {
-                        bubbles: !0,
-                        cancelable: !0,
-                        view: window
-                      })
-                    );
+                  if (btnInc) {
+                    btnInc.click();
                     let w = 0;
                     const wc = setInterval(() => {
-                      const m = document.getElementById('txtObjeto');
-                      if (m && m.value === '') {
+                      if (txtObj && txtObj.value === '') {
                         clearInterval(wc);
-                        m.focus();
-                        RFC(m);
+                        txtObj.focus();
+                        LIV = txtObj.value;
                       }
                       if (++w > 100) clearInterval(wc);
                     }, 100);
@@ -52,36 +67,39 @@
             if (++t > 60) clearInterval(c);
           }, 50);
         }, d);
-      },
-      'CT-EXCLUIROBJETO': () => {
-        if (document.activeElement) document.activeElement.blur();
-        const b = document.getElementById('btnModalE');
-        if (b) b.click();
       }
     };
+
     (function () {
       const T = '#',
-        O = 1e3;
+        O = 1000;
       let b = '',
         c = !1,
         tm = null;
+
+      function exec() {
+        if (b.length > 0) {
+          const cmd = b.toUpperCase();
+          if (ACTIONS[cmd]) ACTIONS[cmd]();
+        }
+        b = '';
+        if (tm) clearTimeout(tm);
+        tm = setTimeout(() => {
+          c = !1;
+        }, 200);
+      }
+
       window.addEventListener(
         'keydown',
         (e) => {
           if (e.key === T) {
             e.preventDefault();
             e.stopImmediatePropagation();
-            if (c) {
-              if (b.length > 0) {
-                const cmd = b.toUpperCase();
-                if (ACTIONS[cmd]) ACTIONS[cmd]();
-              }
-              c = !1;
-              b = '';
-              if (tm) clearTimeout(tm);
-            } else {
+            if (c) exec();
+            else {
               c = !0;
               b = '';
+              if (tm) clearTimeout(tm);
               tm = setTimeout(() => {
                 c = !1;
                 b = '';
@@ -92,7 +110,8 @@
           if (c) {
             e.preventDefault();
             e.stopImmediatePropagation();
-            if (e.key.length === 1) {
+            if (e.key === 'Enter') exec();
+            else if (e.key.length === 1) {
               b += e.key;
               if (tm) clearTimeout(tm);
               tm = setTimeout(() => {
@@ -105,11 +124,13 @@
         !0
       );
     })();
+
     const K = {
       POS: 'correiostools_pos_v2',
       LAYOUT: 'correiostools_layout_inv',
       HIDDEN: 'correiostools_panel_hide'
     };
+
     let S = {
       code: '--',
       status: 'AGUARDANDO...',
@@ -143,16 +164,19 @@
         side: '--'
       }
     };
+
     let D = { active: !1, cX: 0, cY: 0, iX: 0, iY: 0, xOff: 0, yOff: 0 };
     let LIV = null;
+
     function FC(c) {
-      return !c || c.length !== 13
-        ? c
-        : `${c.slice(0, 2)} ${c.slice(2, 5)} ${c.slice(5, 8)} ${c.slice(8, 11)} ${c.slice(11)}`;
+      if (!c || c.length !== 13) return c || '';
+      return `<strong style="color:#00416B">${c.slice(0, 2)}</strong> ${c.slice(2, 5)} ${c.slice(5, 8)} <strong style="color:#00416B">${c.slice(8, 11)}</strong> ${c.slice(11)}`;
     }
+
     function SP() {
       localStorage.setItem(K.POS, JSON.stringify({ x: D.xOff, y: D.yOff }));
     }
+
     function LP(el) {
       try {
         const p = JSON.parse(localStorage.getItem(K.POS));
@@ -163,6 +187,7 @@
         }
       } catch (e) {}
     }
+
     function GDH(ic) {
       let c = S.domDist && S.domDist !== '' ? S.domDist : S.district;
       c = c ? c.trim() : '';
@@ -179,6 +204,7 @@
         return `<div style="${st}"><span class="${ic ? 'sro-old' : 'sro-old-p'}">${S.initialDist}</span><span class="${ic ? 'sro-arrow' : 'sro-arrow-p'}">➜</span><span class="${ic ? 'sro-new' : 'sro-new-p'}">${c}</span></div>`;
       return `<span class="${ic ? 'sro-new' : 'sro-new-p'}">${c || '--'}</span>`;
     }
+
     function APL() {
       const b = document.getElementById('div-map');
       if (!b) return;
@@ -187,11 +213,13 @@
       if (i) p.prepend(b);
       else p.append(b);
     }
+
     function TGL() {
       const v = localStorage.getItem(K.LAYOUT) === 'true';
       localStorage.setItem(K.LAYOUT, !v);
       APL();
     }
+
     function IJT() {
       if (document.getElementById('sro-table-wrapper')) return;
       const b = document.querySelector('.botoes');
@@ -201,6 +229,7 @@
       d.innerHTML = `<div class="sro-table-header"><span style="color:#ffffff !important">DADOS OPERACIONAIS</span></div><table class="sro-full-table"><tr><th>OBJETO</th><td id="td-cod" style="font-weight:bold;font-size:12px">--</td><th>STATUS</th><td id="td-stt">--</td><th>VALIDAÇÃO</th><td id="td-val">--</td><th>DATA PREV.</th><td id="td-dat-prev">--</td></tr><tr id="row-exc" style="display:none"><th style="color:#c62828">EXCEÇÃO</th><td colspan="7" id="td-exc" style="color:#c62828;font-weight:bold">--</td></tr><tr><th>ENDEREÇO</th><td colspan="5" id="td-end-full">--</td><th>CEP</th><td id="td-cep" style="font-weight:bold">--</td></tr><tr><th>CONTATO</th><td colspan="7" id="td-con">--</td></tr><tr><th>DISTRITO</th><td id="td-dis" class="hl-dist">--</td><th>ORDEM</th><td id="td-ord">--</td><th>LADO</th><td id="td-lad">--</td><th>SERVIÇOS</th><td colspan="3" id="td-srv">--</td></tr><tr><th rowspan="2">INDUÇÃO</th><td colspan="7"><span style="color:#777">L:</span> <b id="td-lis">--</b> &nbsp;|&nbsp; <span style="color:#777">E:</span> <b id="td-est">--</b> &nbsp;|&nbsp; <span style="color:#777">U:</span> <b id="td-usu">--</b> &nbsp;|&nbsp; <span style="color:#777">DATA:</span> <b id="td-dat">--</b></td></tr><tr><td colspan="7" style="background:#fffde7;border-left:3px solid #fbc02d"><span style="color:#f57f17;font-weight:bold;text-transform:uppercase">CARTEIRO:</span> <b id="td-postman" style="font-size:12px;color:#333;margin-left:5px">--</b></td></tr></table>`;
       b.insertAdjacentElement('afterend', d);
     }
+
     function UPT() {
       const el = (id) => document.getElementById(id);
       if (!el('td-cod')) return;
@@ -215,8 +244,11 @@
         el('td-exc').innerText = S.exc;
         document.getElementById('row-exc').style.display = 'table-row';
       } else document.getElementById('row-exc').style.display = 'none';
-      el('td-end-full').innerText =
-        `${S.addr.log}, ${S.addr.num} ${S.addr.comp ? '- ' + S.addr.comp : ''} - ${S.addr.bair}, ${S.addr.mun}/${S.addr.uf}`;
+
+      const fullAddr = `${S.addr.log}, ${S.addr.num} ${S.addr.comp && S.addr.comp !== '--' ? '- ' + S.addr.comp : ''} - ${S.addr.bair}, ${S.addr.mun}/${S.addr.uf}`;
+      el('td-end-full').innerHTML =
+        `<a href="https://www.google.com/maps/place/${fullAddr}" target="_blank" style="color:#00416B;text-decoration:underline;font-weight:bold;">${fullAddr}</a>`;
+
       el('td-cep').innerText = S.addr.cep;
       el('td-con').innerHTML =
         `TEL: <b>${S.contact.tel}</b> ${S.contact.email !== '--' ? ' | EMAIL: ' + S.contact.email : ''}`;
@@ -236,6 +268,7 @@
           ? `${ts.substring(8, 10)}/${ts.substring(10, 12)}/${ts.substring(12, 16)} às ${ts.substring(16, 18)}:${ts.substring(18, 20)}`
           : '--';
     }
+
     function IJS() {
       if (document.getElementById('sro-styles')) return;
       const s = document.createElement('style');
@@ -243,6 +276,7 @@
       s.innerHTML = `#sro-container { position: fixed; top: 15px; right: 15px; z-index: 999999; display: flex; flex-direction: column; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3)); will-change: transform; font-family: 'Segoe UI', sans-serif; } .sro-card { width: 360px; background: #fff; border-radius: 6px; overflow: hidden; border-left: 8px solid #999; display: block; } .sro-header { padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; background: #fdfdfd; border-bottom: 1px solid #eee; cursor: grab; user-select: none; } .sro-status-block { display: flex; align-items: center; gap: 8px; flex: 1; } .sro-status-text { font-size: 0.95rem; font-weight: 800; text-transform: uppercase; color: #444; } .sro-btn-group { display: flex; align-items: center; gap: 8px; } .sro-btn-panel { cursor: pointer; font-size: 1.2rem; color: #555; transition: all 0.2s; line-height: 1; font-weight:bold; padding: 2px 5px; border-radius: 4px; } .sro-btn-panel:hover { color: #00416B; background: #f0f0f0; } .sro-btn-disabled { opacity: 0.3; pointer-events: none; } .sro-body { padding: 12px; text-align: center; background: #fff; } .sro-distrito { font-size: 3rem; font-weight: 900; line-height: 1; color: #00416B; margin: 6px 0; } .sro-new { color: #00416B; font-size: 3rem; font-weight: 900; } .sro-old { font-size: 2rem; opacity: 0.35; font-weight: 700; color: #000; margin-right: 5px; } .sro-arrow { font-size: 2rem; margin: 0 10px; color: #444; font-weight: 400; } .mode-loading { border-left-color: #7f8c8d; } .mode-success { border-left-color: #009688; } .mode-success .sro-header { background: #e0f2f1; } .mode-success .sro-status-text { color: #00695c; } .mode-error { border-left-color: #d32f2f; } .mode-error .sro-header { background: #ffebee; } .mode-error .sro-status-text { color: #c62828; } .mode-info { border-left-color: #1976d2; } .mode-info .sro-header { background: #e3f2fd; } .mode-info .sro-status-text { color: #0d47a1; } #sro-table-wrapper { margin-top: 25px; font-family: 'Segoe UI', Tahoma, sans-serif; border: 1px solid #ccc; background: #fff; width: 100%; box-sizing: border-box; clear: both; pointer-events: auto; } .sro-table-header { background: #00416B; color: #ffffff !important; padding: 8px 12px; font-weight: 700; font-size: 13px; text-transform: uppercase; display: flex; justify-content: space-between; border-bottom: 3px solid #FFE600; } .sro-full-table { width: 100%; border-collapse: collapse; font-size: 11px; } .sro-full-table th { background: #f0f0f0; color: #333; text-align: left; padding: 5px 8px; border: 1px solid #ddd; font-weight: 700; white-space: nowrap; width: 1%; } .sro-full-table td { padding: 5px 8px; border: 1px solid #ddd; color: #000; word-break: break-word; } .hl-val { color: #2e7d32; font-weight: 800; background: #e8f5e9; padding: 1px 4px; border-radius: 3px; } .hl-err { color: #c62828; font-weight: 800; background: #ffebee; padding: 1px 4px; border-radius: 3px; } .hl-dist { font-size: 15px; font-weight: 800; color: #00416B; } .hl-serv { background: #fff8e1; color: #ff8f00; padding: 0 3px; border-radius: 2px; font-weight: bold; border: 1px solid #ffecb3; margin-right: 3px; } .hl-serv-off { opacity: 0.2; margin-right: 3px; } @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }`;
       document.head.appendChild(s);
     }
+
     function STD(h, c) {
       h.onmousedown = (e) => {
         if (e.target.closest('.sro-btn-group')) return;
@@ -276,6 +310,7 @@
         c.style.transform = `translate3d(${D.cX}px, ${D.cY}px, 0)`;
       };
     }
+
     function SNP(c) {
       if (!c) return;
       const r = c.getBoundingClientRect();
@@ -305,13 +340,14 @@
         SP();
       }
     }
+
     function RDP() {
       IJS();
       let c = document.getElementById('sro-container');
       if (!c) {
         c = document.createElement('div');
         c.id = 'sro-container';
-        c.innerHTML = `<div id="sro-card" class="sro-card mode-loading"><div id="sro-header" class="sro-header" title="Segure para mover"><div class="sro-status-block"><span id="sro-icon" class="sro-icon">⏳</span><span id="sro-status" class="sro-status-text">AGUARDANDO...</span></div><div class="sro-btn-group"><span id="btn-layout-toggle" class="sro-btn-panel" title="Inverter Layout">⇄</span></div></div><div class="sro-body"><div id="sro-distrito" class="sro-distrito">--</div><div style="font-size:12px;color:#666;margin-top:4px">PREVISÃO: <strong id="sro-previsao" style="color:#333">--/--/----</strong></div></div></div>`;
+        c.innerHTML = `<div id="sro-card" class="sro-card mode-loading"><div id="sro-header" class="sro-header" title="Segure para mover"><div class="sro-status-block"><span id="sro-icon" class="sro-icon">⏳</span><span id="sro-status" class="sro-status-text">AGUARDANDO...</span></div><div class="sro-btn-group"><span id="btn-layout-toggle" class="sro-btn-panel" title="Inverter Layout">⇄</span></div></div><div class="sro-body"><div id="sro-tracking" style="font-size:13px;color:#888;font-weight:700;letter-spacing:0.5px;margin-bottom:2px;min-height:16px"></div><div id="sro-distrito" class="sro-distrito">--</div><div style="font-size:12px;color:#666;margin-top:4px">PREVISÃO: <strong id="sro-previsao" style="color:#333">--/--/----</strong></div></div></div>`;
         document.body.appendChild(c);
         LP(c);
         STD(document.getElementById('sro-header'), c);
@@ -326,18 +362,23 @@
         cd.className = `sro-card visible mode-${S.mode}`;
         document.getElementById('sro-status').innerText = S.status;
         document.getElementById('sro-icon').innerText = i;
+        document.getElementById('sro-tracking').innerHTML =
+          S.code && S.code !== '--' ? FC(S.code) : '';
         document.getElementById('sro-distrito').innerHTML = GDH(!0);
         document.getElementById('sro-previsao').innerText =
           S.date || '--/--/----';
       }
       UPT();
     }
+
     function HRE(u, d) {
       const lc = u.toLowerCase();
       let up = !1;
       const cd =
         new URL(u, window.location.origin).searchParams.get('codigo') ||
-        new URL(u, window.location.origin).searchParams.get('objeto');
+        new URL(u, window.location.origin).searchParams.get('objeto') ||
+        new URL(u, window.location.origin).searchParams.get('id');
+
       if (
         cd &&
         cd !== S.code &&
@@ -378,13 +419,16 @@
         };
         up = !0;
       }
+
       if (lc.includes('acao=validar')) {
         S.val = d.validacao || '--';
         S.exc = d.excecao || '--';
         S.lastEvt = d.ultimoEventoDescricao || '--';
         if (d.validacao) {
-          S.mode = 'info';
-          S.status = 'PRONTO P/ INDUZIR';
+          if (S.mode !== 'success' && S.mode !== 'error') {
+            S.mode = 'info';
+            S.status = 'PRONTO P/ INDUZIR';
+          }
           S.date = d.previsaoEntrega?.data || '--/--/----';
         } else {
           S.mode = 'error';
@@ -416,24 +460,63 @@
         S.op.ord = d[0].ordemPercorrida;
         S.op.side = d[0].lado;
         up = !0;
-      } else if (lc.includes('acao=salvar') && d.idLancamento) {
-        S.mode = 'success';
-        S.status = 'OBJETO INDUZIDO';
-        S.op.list = d.numeroLista;
-        S.op.user = d.usuario;
-        S.op.st = d.estacao;
-        S.op.ts = d.carimbo;
-        if (d.dataPrevista) S.date = d.dataPrevista;
-        if (S.pendingDist) {
-          S.district = S.pendingDist;
-          S.initialDist = S.pendingDist;
-          S.domDist = S.pendingDist;
+      } else if (lc.includes('acao=pesquisarloecobjeto')) {
+        if (d.id || d.idLancamento) {
+          S.mode = 'success';
+          S.status = 'JÁ INDUZIDO';
+          S.district =
+            `${d.numeroDistrito || ''} ${d.distritoComplemento || ''}`.trim();
+          S.domDist = S.district;
+          S.initialDist = S.district;
+          if (d.carteiro && d.carteiro.nome) S.op.postman = d.carteiro.nome;
+          up = !0;
         }
-        if (d.distrito) {
-          S.initialDist = d.distrito;
-          S.domDist = d.distrito;
+      } else if (lc.includes('acao=salvar')) {
+        if (d.idLancamento) {
+          S.mode = 'success';
+          S.status = 'OBJETO INDUZIDO';
+          S.op.list = d.numeroLista;
+          S.op.user = d.usuario;
+          S.op.st = d.estacao;
+          S.op.ts = d.carimbo;
+          if (d.dataPrevista) S.date = d.dataPrevista;
+          if (S.pendingDist) {
+            S.district = S.pendingDist;
+            S.initialDist = S.pendingDist;
+            S.domDist = S.pendingDist;
+          }
+          if (d.distrito) {
+            S.initialDist = d.distrito;
+            S.domDist = d.distrito;
+          }
+          [
+            'txtCep',
+            'txtNumero',
+            'txtComplemento',
+            'txtLogradouro',
+            'txtBairro',
+            'txtMunicipio'
+          ].forEach((id) => {
+            const el = document.getElementById(id);
+            if (el && el.value) {
+              const k = id.replace('txt', '').toLowerCase();
+              if (k === 'cep') S.addr.cep = el.value.trim();
+              if (k === 'numero') S.addr.num = el.value.trim();
+              if (k === 'complemento') S.addr.comp = el.value.trim();
+              if (k === 'logradouro') S.addr.log = el.value.trim();
+              if (k === 'bairro') S.addr.bair = el.value.trim();
+              if (k === 'municipio') S.addr.mun = el.value.trim();
+            }
+          });
+          const selUf = document.getElementById('selUf');
+          if (selUf && selUf.value) S.addr.uf = selUf.value;
+          up = !0;
+        } else if (d.excecao) {
+          S.mode = 'error';
+          S.status = 'ERRO NA INDUÇÃO';
+          S.exc = d.excecao;
+          up = !0;
         }
-        up = !0;
       } else if (lc.includes('acao=excluir')) {
         S.mode = 'error';
         S.status = 'EXCLUÍDO';
@@ -441,6 +524,7 @@
       }
       if (up) RDP();
     }
+
     const oF = window.fetch;
     window.fetch = async function (...a) {
       const r = await oF.apply(this, a);
@@ -459,6 +543,7 @@
       } catch (e) {}
       return r;
     };
+
     const oO = XMLHttpRequest.prototype.open;
     const oS = XMLHttpRequest.prototype.send;
     XMLHttpRequest.prototype.open = function (m, u) {
@@ -467,6 +552,7 @@
         ATC();
       return oO.apply(this, arguments);
     };
+
     XMLHttpRequest.prototype.send = function (b) {
       if (this._u && this._u.toLowerCase().includes('acao=salvar') && b) {
         try {
@@ -488,6 +574,7 @@
       });
       return oS.apply(this, arguments);
     };
+
     function ATC() {
       let t = 0;
       const i = setInterval(() => {
@@ -515,6 +602,7 @@
         if (++t >= 50) clearInterval(i);
       }, 200);
     }
+
     function WTI() {
       const inp = document.getElementById('txtObjeto');
       if (!inp) return setTimeout(WTI, 1000);
@@ -552,6 +640,7 @@
       s.addEventListener('change', f);
       s.addEventListener('input', f);
     }
+
     function IAP() {
       IJT();
       WTI();
@@ -560,6 +649,7 @@
       RDP();
       APL();
     }
+
     if (document.readyState === 'loading')
       document.addEventListener('DOMContentLoaded', IAP);
     else IAP();
@@ -577,7 +667,7 @@
       if (!window.Chart) {
         await new Promise((resolve, reject) => {
           const script = document.createElement('script');
-          script.src = 'https://unpkg.com/chart.js@4.5.1/dist/chart.umd.min.js';
+          script.src = 'https://unpkg.com/chart.js@4/dist/chart.umd.min.js';
           script.onload = resolve;
           script.onerror = reject;
           document.head.appendChild(script);
@@ -674,15 +764,15 @@
           ]
         },
         options: {
-          responsive: true,
-          maintainAspectRatio: false,
+          responsive: !0,
+          maintainAspectRatio: !1,
           cutout: '50%',
           plugins: {
             legend: {
               position: 'bottom',
               labels: {
                 padding: 20,
-                usePointStyle: true,
+                usePointStyle: !0,
                 font: { family: 'system-ui' }
               }
             },
@@ -711,10 +801,10 @@
           ]
         },
         options: {
-          responsive: true,
-          maintainAspectRatio: false,
+          responsive: !0,
+          maintainAspectRatio: !1,
           plugins: {
-            legend: { display: false },
+            legend: { display: !1 },
             tooltip: {
               backgroundColor: 'rgba(15,23,42,0.9)',
               padding: 12,
@@ -723,14 +813,14 @@
           },
           scales: {
             y: {
-              beginAtZero: true,
+              beginAtZero: !0,
               grid: { color: '#e2e8f0' },
-              border: { display: false },
+              border: { display: !1 },
               ticks: { font: { family: 'system-ui' }, color: '#64748b' }
             },
             x: {
-              grid: { display: false },
-              border: { display: false },
+              grid: { display: !1 },
+              border: { display: !1 },
               ticks: { font: { family: 'system-ui' }, color: '#64748b' }
             }
           }
@@ -742,9 +832,7 @@
       if (u && u.includes('lancamentoController.php?acao=listar'))
         try {
           const j = typeof t === 'string' ? JSON.parse(t) : t;
-          if (Array.isArray(j)) {
-            setTimeout(() => RCD(j), 350);
-          }
+          if (Array.isArray(j)) setTimeout(() => RCD(j), 350);
         } catch (e) {}
     }
 
