@@ -39,12 +39,10 @@ function mergeDeep(target, ...sources) {
 }
 
 function generateVersion() {
-  const now = new Date(
-    new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' })
-  );
-  const yyyy = now.getFullYear();
-  const m = now.getMonth() + 1;
-  const d = now.getDate();
+  const now = new Date();
+  const yyyy = now.getUTCFullYear();
+  const m = now.getUTCMonth() + 1;
+  const d = now.getUTCDate();
 
   let n = 0;
   try {

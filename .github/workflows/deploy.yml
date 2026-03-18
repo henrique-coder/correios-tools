@@ -60,16 +60,16 @@ jobs:
       - name: Generate version
         id: version
         run: |
-          SP_DATE=$(TZ=America/Sao_Paulo date +'%Y-%-m-%-d')
-          SP_YEAR=$(echo "$SP_DATE" | cut -d'-' -f1)
-          SP_MONTH=$(echo "$SP_DATE" | cut -d'-' -f2)
-          SP_DAY=$(echo "$SP_DATE" | cut -d'-' -f3)
+          BUILD_DATE=$(date -u +'%Y-%-m-%-d')
+          BUILD_YEAR=$(echo "$BUILD_DATE" | cut -d'-' -f1)
+          BUILD_MONTH=$(echo "$BUILD_DATE" | cut -d'-' -f2)
+          BUILD_DAY=$(echo "$BUILD_DATE" | cut -d'-' -f3)
 
-          TODAY_START=$(TZ=America/Sao_Paulo date -d "$(TZ=America/Sao_Paulo date +%Y-%m-%d) 00:00:00" -u +%Y-%m-%dT%H:%M:%SZ)
+          TODAY_START=$(date -u -d "$(date -u +%Y-%m-%d) 00:00:00" +%Y-%m-%dT%H:%M:%SZ)
           COMMIT_COUNT=$(git log --oneline --after="$TODAY_START" | wc -l)
           BUILD_NUMBER=$((COMMIT_COUNT > 0 ? COMMIT_COUNT - 1 : 0))
 
-          VERSION="${SP_YEAR}.${SP_MONTH}.${SP_DAY}.${BUILD_NUMBER}"
+          VERSION="${BUILD_YEAR}.${BUILD_MONTH}.${BUILD_DAY}.${BUILD_NUMBER}"
           echo "Generated version: $VERSION"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
