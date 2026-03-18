@@ -43,10 +43,7 @@ permissions = []
 # ─── Host Permissions ──────────────────────────────────────────────────────── #
 # URL patterns the extension needs access to (shared across all browsers).
 
-host_permissions = [
-  "https://sroweb.correios.com.br/*",
-  "https://sromonitor.correios.com.br/*"
-]
+host_permissions = ["https://*.correios.com.br/*"]
 
 # ─── Content Scripts ───────────────────────────────────────────────────────── #
 # Scripts injected into matching web pages.

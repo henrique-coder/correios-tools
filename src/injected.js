@@ -276,8 +276,13 @@
       } else document.getElementById('row-exc').style.display = 'none';
 
       const fullAddr = `${S.addr.log}, ${S.addr.num} ${S.addr.comp && S.addr.comp !== '--' ? '- ' + S.addr.comp : ''} - ${S.addr.bair}, ${S.addr.mun}/${S.addr.uf}`;
-      el('td-end-full').innerHTML =
-        `<a href="https://www.google.com/maps/place/${fullAddr}" target="_blank" style="color:#00416B;text-decoration:underline;font-weight:bold;">${fullAddr}</a>`;
+      const isAddrEmpty = S.addr.log === '--' && S.addr.num === '--';
+      if (isAddrEmpty) {
+        el('td-end-full').innerHTML = '--';
+      } else {
+        el('td-end-full').innerHTML =
+          `<a href="https://www.google.com/maps/place/${fullAddr}" target="_blank" style="color:#00416B;text-decoration:none;font-weight:bold;">${fullAddr}</a>`;
+      }
 
       el('td-cep').innerText = S.addr.cep;
       el('td-con').innerHTML =
@@ -1028,7 +1033,7 @@
                 }
               });
             } catch (err) {
-              body.innerHTML = `<div style="text-align:center;padding:40px;color:#ef4444;font-weight:bold;font-size:16px;">Falha ao consultar SRO Monitor.<br><br><span style="font-size:13px;color:#64748b;font-weight:normal;">Motivo Técnico: ${err.message}</span></div>`;
+              body.innerHTML = `<div style="text-align:center;padding:40px;color:#ef4444;font-weight:bold;font-size:16px;">Falha ao consultar SRO Monitor.<br><br><span style="font-size:13px;color:#64748b;font-weight:normal;">Logs detalhados: <br><br><pre style="text-align:left;background:#fee2e2;padding:10px;border-radius:6px;overflow-x:auto;">${err.stack || err.message}</pre></span></div>`;
             }
           };
 

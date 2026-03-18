@@ -6,7 +6,7 @@ chrome.action.onClicked.addListener(() => {
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'FETCH_SRO_MONITOR') {
-    fetch(request.url)
+    fetch(request.url, { credentials: 'include' })
       .then((res) => {
         if (!res.ok)
           throw new Error('HTTP ' + res.status + ' ' + res.statusText);
@@ -14,7 +14,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       })
       .then((text) => sendResponse({ success: true, data: text }))
       .catch((err) =>
-        sendResponse({ success: false, error: err.message || 'Erro de rede' })
+        sendResponse({
+          success: false,
+          error: err.stack || err.message || 'Erro de rede/CORS'
+        })
       );
 
     return true;
