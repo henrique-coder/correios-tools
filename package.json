@@ -1,10 +1,17 @@
 {
   "scripts": {
-    "lint": "prettier --check 'extension.config.toml' 'src/**'",
-    "format": "prettier --write 'extension.config.toml' 'src/**'"
+    "lint": "prettier --check '.github/**' 'src/**' 'extension.config.toml'",
+    "format": "prettier --write '.github/**' 'src/**' 'extension.config.toml'",
+    "build": "node scripts/build.mjs",
+    "build:chrome": "node scripts/build.mjs chrome",
+    "build:edge": "node scripts/build.mjs edge",
+    "build:firefox": "node scripts/build.mjs firefox"
   },
   "devDependencies": {
+    "csso-cli": "^4.0.2",
     "prettier": "^3.8.1",
-    "prettier-plugin-toml": "^2.0.6"
+    "prettier-plugin-toml": "^2.0.6",
+    "smol-toml": "^1.6.0",
+    "terser": "^5.46.1"
   }
 }

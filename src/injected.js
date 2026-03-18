@@ -2,6 +2,36 @@
   'use strict';
   const PATH = window.location.pathname.toLowerCase();
 
+  function fetchMonitor(url) {
+    return new Promise((resolve, reject) => {
+      const reqId = Date.now() + Math.random();
+      const listener = (e) => {
+        if (
+          e.source !== window ||
+          !e.data ||
+          e.data.type !== 'CT_FETCH_RESPONSE' ||
+          e.data.id !== reqId
+        )
+          return;
+        window.removeEventListener('message', listener);
+        if (e.data.response && e.data.response.success)
+          resolve(e.data.response.data);
+        else
+          reject(
+            new Error(
+              e.data.response
+                ? e.data.response.error
+                : 'Resposta vazia do Background'
+            )
+          );
+      };
+      window.addEventListener('message', listener);
+      window.postMessage(
+        { type: 'CT_FETCH_REQUEST', id: reqId, url: url },
+        '*'
+      );
+    });
+  }
   if (PATH.includes('/lancamentoautomatico/')) {
     const ACTIONS = {
       'CT-INDUZIROBJETO': () => {
@@ -226,7 +256,7 @@
       if (!b) return setTimeout(IJT, 500);
       const d = document.createElement('div');
       d.id = 'sro-table-wrapper';
-      d.innerHTML = `<div class="sro-table-header"><span style="color:#ffffff !important">DADOS OPERACIONAIS</span></div><table class="sro-full-table"><tr><th>OBJETO</th><td id="td-cod" style="font-weight:bold;font-size:12px">--</td><th>STATUS</th><td id="td-stt">--</td><th>VALIDAÇÃO</th><td id="td-val">--</td><th>DATA PREV.</th><td id="td-dat-prev">--</td></tr><tr id="row-exc" style="display:none"><th style="color:#c62828">EXCEÇÃO</th><td colspan="7" id="td-exc" style="color:#c62828;font-weight:bold">--</td></tr><tr><th>ENDEREÇO</th><td colspan="5" id="td-end-full">--</td><th>CEP</th><td id="td-cep" style="font-weight:bold">--</td></tr><tr><th>CONTATO</th><td colspan="7" id="td-con">--</td></tr><tr><th>DISTRITO</th><td id="td-dis" class="hl-dist">--</td><th>ORDEM</th><td id="td-ord">--</td><th>LADO</th><td id="td-lad">--</td><th>SERVIÇOS</th><td colspan="3" id="td-srv">--</td></tr><tr><th rowspan="2">INDUÇÃO</th><td colspan="7"><span style="color:#777">L:</span> <b id="td-lis">--</b> &nbsp;|&nbsp; <span style="color:#777">E:</span> <b id="td-est">--</b> &nbsp;|&nbsp; <span style="color:#777">U:</span> <b id="td-usu">--</b> &nbsp;|&nbsp; <span style="color:#777">DATA:</span> <b id="td-dat">--</b></td></tr><tr><td colspan="7" style="background:#fffde7;border-left:3px solid #fbc02d"><span style="color:#f57f17;font-weight:bold;text-transform:uppercase">CARTEIRO:</span> <b id="td-postman" style="font-size:12px;color:#333;margin-left:5px">--</b></td></tr></table>`;
+      d.innerHTML = `<div class="sro-table-header"><span style="color:#ffffff !important">DADOS OPERACIONAIS</span></div><table class="sro-full-table"><tr><th>OBJETO</th><td id="td-cod" style="font-weight:bold;font-size:12px">--</td><th>STATUS</th><td id="td-stt">--</td><th>VALIDAÇÃO</th><td id="td-val">--</td><th>DATA PREV.</th><td id="td-dat-prev">--</td></tr><tr id="row-exc" style="display:none"><th style="color:#c62828">EXCEÇÃO</th><td colspan="7" id="td-exc" style="color:#c62828;font-weight:bold">--</td></tr><tr><th>ENDEREÇO</th><td colspan="5" id="td-end-full">--</td><th>CEP</th><td id="td-cep" style="font-weight:bold">--</td></tr><tr><th>CONTATO</th><td colspan="7" id="td-con">--</td></tr><tr><th>DISTRITO</th><td id="td-dis" class="hl-dist">--</td><th>ORDEM</th><td id="td-ord">--</td><th>LADO</th><td id="td-lad">--</td><th>SERVIÇOS</th><td colspan="3" id="td-srv">--</td></tr><tr><th rowspan="2">INDUÇÃO</th><td colspan="7"><span style="color:#777">L:</span> <b id="td-lis">--</b>  |  <span style="color:#777">E:</span> <b id="td-est">--</b>  |  <span style="color:#777">U:</span> <b id="td-usu">--</b>  |  <span style="color:#777">DATA:</span> <b id="td-dat">--</b></td></tr><tr><td colspan="7" style="background:#fffde7;border-left:3px solid #fbc02d"><span style="color:#f57f17;font-weight:bold;text-transform:uppercase">CARTEIRO:</span> <b id="td-postman" style="font-size:12px;color:#333;margin-left:5px">--</b></td></tr></table>`;
       b.insertAdjacentElement('afterend', d);
     }
 
@@ -273,7 +303,7 @@
       if (document.getElementById('sro-styles')) return;
       const s = document.createElement('style');
       s.id = 'sro-styles';
-      s.innerHTML = `#sro-container { position: fixed; top: 15px; right: 15px; z-index: 999999; display: flex; flex-direction: column; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3)); will-change: transform; font-family: 'Segoe UI', sans-serif; } .sro-card { width: 360px; background: #fff; border-radius: 6px; overflow: hidden; border-left: 8px solid #999; display: block; } .sro-header { padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; background: #fdfdfd; border-bottom: 1px solid #eee; cursor: grab; user-select: none; } .sro-status-block { display: flex; align-items: center; gap: 8px; flex: 1; } .sro-status-text { font-size: 0.95rem; font-weight: 800; text-transform: uppercase; color: #444; } .sro-btn-group { display: flex; align-items: center; gap: 8px; } .sro-btn-panel { cursor: pointer; font-size: 1.2rem; color: #555; transition: all 0.2s; line-height: 1; font-weight:bold; padding: 2px 5px; border-radius: 4px; } .sro-btn-panel:hover { color: #00416B; background: #f0f0f0; } .sro-btn-disabled { opacity: 0.3; pointer-events: none; } .sro-body { padding: 12px; text-align: center; background: #fff; } .sro-distrito { font-size: 3rem; font-weight: 900; line-height: 1; color: #00416B; margin: 6px 0; } .sro-new { color: #00416B; font-size: 3rem; font-weight: 900; } .sro-old { font-size: 2rem; opacity: 0.35; font-weight: 700; color: #000; margin-right: 5px; } .sro-arrow { font-size: 2rem; margin: 0 10px; color: #444; font-weight: 400; } .mode-loading { border-left-color: #7f8c8d; } .mode-success { border-left-color: #009688; } .mode-success .sro-header { background: #e0f2f1; } .mode-success .sro-status-text { color: #00695c; } .mode-error { border-left-color: #d32f2f; } .mode-error .sro-header { background: #ffebee; } .mode-error .sro-status-text { color: #c62828; } .mode-info { border-left-color: #1976d2; } .mode-info .sro-header { background: #e3f2fd; } .mode-info .sro-status-text { color: #0d47a1; } #sro-table-wrapper { margin-top: 25px; font-family: 'Segoe UI', Tahoma, sans-serif; border: 1px solid #ccc; background: #fff; width: 100%; box-sizing: border-box; clear: both; pointer-events: auto; } .sro-table-header { background: #00416B; color: #ffffff !important; padding: 8px 12px; font-weight: 700; font-size: 13px; text-transform: uppercase; display: flex; justify-content: space-between; border-bottom: 3px solid #FFE600; } .sro-full-table { width: 100%; border-collapse: collapse; font-size: 11px; } .sro-full-table th { background: #f0f0f0; color: #333; text-align: left; padding: 5px 8px; border: 1px solid #ddd; font-weight: 700; white-space: nowrap; width: 1%; } .sro-full-table td { padding: 5px 8px; border: 1px solid #ddd; color: #000; word-break: break-word; } .hl-val { color: #2e7d32; font-weight: 800; background: #e8f5e9; padding: 1px 4px; border-radius: 3px; } .hl-err { color: #c62828; font-weight: 800; background: #ffebee; padding: 1px 4px; border-radius: 3px; } .hl-dist { font-size: 15px; font-weight: 800; color: #00416B; } .hl-serv { background: #fff8e1; color: #ff8f00; padding: 0 3px; border-radius: 2px; font-weight: bold; border: 1px solid #ffecb3; margin-right: 3px; } .hl-serv-off { opacity: 0.2; margin-right: 3px; } @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }`;
+      s.innerHTML = `#sro-container { position: fixed; top: 15px; right: 15px; z-index: 999999; display: flex; flex-direction: column; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3)); will-change: transform; font-family: 'Segoe UI', sans-serif; } .sro-card { width: 360px; background: #fff; border-radius: 6px; overflow: hidden; border-left: 8px solid #999; display: block; } .sro-header { padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; background: #fdfdfd; border-bottom: 1px solid #eee; cursor: grab; user-select: none; } .sro-status-block { display: flex; align-items: center; gap: 8px; flex: 1; } .sro-status-text { font-size: 0.95rem; font-weight: 800; text-transform: uppercase; color: #444; } .sro-btn-group { display: flex; align-items: center; gap: 8px; } .sro-btn-panel { cursor: pointer; font-size: 1.2rem; color: #555; transition: all 0.2s; line-height: 1; font-weight:bold; padding: 2px 5px; border-radius: 4px; } .sro-btn-panel:hover { color: #00416B; background: #f0f0f0; } .sro-btn-disabled { opacity: 0.3; pointer-events: none; } .sro-body { padding: 12px; text-align: center; background: #fff; } .sro-distrito { font-size: 3rem; font-weight: 900; line-height: 1; color: #00416B; margin: 6px 0; } .sro-new { color: #00416B; font-size: 3rem; font-weight: 900; } .sro-old { font-size: 2rem; opacity: 0.35; font-weight: 700; color: #000; margin-right: 5px; } .sro-arrow { font-size: 2rem; margin: 0 10px; color: #444; font-weight: 400; } .mode-loading { border-left-color: #7f8c8d; } .mode-success { border-left-color: #009688; } .mode-success .sro-header { background: #e0f2f1; } .mode-success .sro-status-text { color: #00695c; } .mode-error { border-left-color: #d32f2f; } .mode-error .sro-header { background: #ffebee; } .mode-error .sro-status-text { color: #c62828; } .mode-info { border-left-color: #1976d2; } .mode-info .sro-header { background: #e3f2fd; } .mode-info .sro-status-text { color: #0d47a1; } #sro-table-wrapper { margin-top: 25px; font-family: 'Segoe UI', Tahoma, sans-serif; border: 1px solid #ccc; background: #fff; width: 100%; box-sizing: border-box; clear: both; pointer-events: auto; } .sro-table-header { background: #00416B; color: #ffffff !important; padding: 8px 12px; font-weight: 700; font-size: 13px; text-transform: uppercase; display: flex; justify-content: space-between; border-bottom: 3px solid #FFE600; } .sro-full-table { width: 100%; border-collapse: collapse; font-size: 11px; } .sro-full-table th { background: #f0f0f0; color: #333; text-align: left; padding: 5px 8px; border: 1px solid #ddd; font-weight: 700; white-space: nowrap; width: 1%; } .sro-full-table td { padding: 5px 8px; border: 1px solid #ddd; color: #000; word-break: break-word; } .hl-val { color: #2e7d32; font-weight: 800; background: #e8f5e9; padding: 1px 4px; border-radius: 3px; } .hl-err { color: #c62828; font-weight: 800; background: #ffebee; padding: 1px 4px; border-radius: 3px; } .hl-dist { font-size: 15px; font-weight: 800; color: #00416B; } .hl-serv { background: #fff8e1; color: #ff8f00; padding: 0 3px; border-radius: 2px; font-weight: bold; border: 1px solid #ffecb3; margin-right: 3px; } .hl-serv-off { opacity: 0.2; margin-right: 3px; }`;
       document.head.appendChild(s);
     }
 
@@ -288,9 +318,7 @@
         if (e.target.closest('.sro-btn-group')) return;
         D.xOff = 0;
         D.yOff = 0;
-        c.classList.add('sro-snap');
         c.style.transform = 'translate3d(0,0,0)';
-        setTimeout(() => c.classList.remove('sro-snap'), 300);
         SP();
       };
       document.onmouseup = () => {
@@ -334,9 +362,7 @@
         s = !0;
       }
       if (s) {
-        c.classList.add('sro-snap');
         c.style.transform = `translate3d(${D.xOff}px, ${D.yOff}px, 0)`;
-        setTimeout(() => c.classList.remove('sro-snap'), 300);
         SP();
       }
     }
@@ -674,6 +700,14 @@
         });
       }
 
+      let mod = document.getElementById('ct-mon-modal');
+      if (!mod) {
+        mod = document.createElement('div');
+        mod.id = 'ct-mon-modal';
+        mod.style.cssText =
+          'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.6);z-index:9999999;display:none;align-items:center;justify-content:center;backdrop-filter:blur(3px);';
+        document.body.appendChild(mod);
+      }
       let totalObjs = 0,
         totalPts = 0,
         totalVencidos = 0,
@@ -682,23 +716,22 @@
         totalARs = 0;
       const distritosList = [];
 
-      data.forEach((item) => {
+      data.forEach((item, idx) => {
         const qtde = PN(item.qtde);
         const qtdePontos = PN(item.qtdePontos);
         const qtdeVencido = PN(item.qtdeVencido);
         const qtdeHoje = PN(item.qtdeHoje);
         const qtdeAVencer = PN(item.qtdeAVencer);
         const qtdeAR = PN(item.qtdeAR);
+
         totalObjs += qtde;
         totalPts += qtdePontos;
         totalVencidos += qtdeVencido;
         totalHoje += qtdeHoje;
         totalAVencer += qtdeAVencer;
         totalARs += qtdeAR;
-        distritosList.push({
-          distrito: item.numeroDistrito || 'N/A',
-          qtde: qtde
-        });
+
+        distritosList.push({ ...item, qtde, _origIndex: idx });
       });
 
       distritosList.sort((a, b) => b.qtde - a.qtde);
@@ -707,13 +740,15 @@
       let container = document.getElementById(containerId);
 
       if (container) container.remove();
+
       const refNode = document.querySelector('.botoes');
       if (!refNode) return;
+      refNode.style.marginTop = '25px';
 
       container = document.createElement('div');
       container.id = containerId;
       container.style.cssText =
-        'width:100%;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:8px;padding:20px;margin-bottom:40px;clear:both;display:block;box-sizing:border-box;font-family:system-ui,-apple-system,sans-serif;';
+        'width:100%;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:8px;padding:20px;margin-bottom:25px;clear:both;display:block;box-sizing:border-box;font-family:system-ui,-apple-system,sans-serif;';
       container.innerHTML = `
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:24px;">
           <div style="background:#fff;padding:20px;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,0.1);border-left:4px solid #3b82f6;">
@@ -746,6 +781,10 @@
             <h4 style="margin:0 0 16px 0;font-size:14px;color:#334155;">Top 10 Distritos (Volume)</h4>
             <div style="position:relative;height:calc(100% - 35px);width:100%;"><canvas id="chartjs-volume"></canvas></div>
           </div>
+        </div>
+        <div style="margin-top:24px;">
+          <h4 style="margin:0 0 16px 0;font-size:16px;color:#334155;">Detalhamento por Distrito (Clique na caixa para visualizar os dados analíticos de entrega)</h4>
+          <div id="ct-dist-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;"></div>
         </div>
       `;
       refNode.parentNode.insertBefore(container, refNode);
@@ -788,7 +827,7 @@
       new window.Chart(document.getElementById('chartjs-volume'), {
         type: 'bar',
         data: {
-          labels: topDistritos.map((d) => d.distrito),
+          labels: topDistritos.map((d) => d.numeroDistrito),
           datasets: [
             {
               label: 'Volume',
@@ -825,6 +864,202 @@
             }
           }
         }
+      });
+
+      const grid = document.getElementById('ct-dist-grid');
+      distritosList.forEach((d) => {
+        const card = document.createElement('div');
+        card.style.cssText =
+          'background:#fff;border:1px solid #e2e8f0;padding:10px 15px;border-radius:6px;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,0.05);transition:all 0.2s;display:flex;flex-direction:column;justify-content:center;';
+        card.onmouseover = () => {
+          card.style.borderColor = '#3b82f6';
+          card.style.transform = 'translateY(-2px)';
+        };
+        card.onmouseout = () => {
+          card.style.borderColor = '#e2e8f0';
+          card.style.transform = 'translateY(0)';
+        };
+        card.innerHTML = `
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <div style="font-size:24px;font-weight:900;color:#0f172a;line-height:1;">${d.numeroDistrito}</div>
+            <div style="display:flex;gap:6px;background:#f8fafc;padding:4px 8px;border-radius:4px;border:1px solid #f1f5f9;">
+              <span style="color:#ef4444;font-size:12px;font-weight:bold;">V:${PN(d.qtdeVencido)}</span>
+              <span style="color:#f97316;font-size:12px;font-weight:bold;">H:${PN(d.qtdeHoje)}</span>
+              <span style="color:#10b981;font-size:12px;font-weight:bold;">A:${PN(d.qtdeAVencer)}</span>
+            </div>
+          </div>
+          <div style="font-size:13px;color:#333;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${d.nomeCarteiro || 'NÃO ATRIBUÍDO'}">${d.nomeCarteiro || 'NÃO ATRIBUÍDO'}</div>
+        `;
+
+        card.onclick = () => {
+          const dt = new Date();
+          dt.setHours(dt.getHours() - 24);
+          const defDate = dt.toISOString().slice(0, 10);
+
+          mod.style.display = 'flex';
+          mod.innerHTML = `
+            <div style="background:#fff;width:95%;max-width:1100px;height:85vh;border-radius:10px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 25px 50px -12px rgba(0,0,0,0.5);">
+              <div style="background:#00416B;padding:16px 24px;display:flex;justify-content:space-between;align-items:center;border-bottom:4px solid #FFE600;">
+                <div style="color:#fff;">
+                  <h2 style="margin:0;font-size:22px;font-weight:800;letter-spacing:0.5px;">DISTRITO ${d.numeroDistrito}</h2>
+                  <div style="font-size:14px;color:#FFE600;font-weight:700;margin-top:4px;text-transform:uppercase;">${d.nomeCarteiro || 'SEM NOME'}  |  MATRÍCULA: ${d.matriculaCarteiro || '--'}</div>
+                </div>
+                <button id="ct-close-mod" style="background:transparent;border:none;color:#fff;font-size:28px;cursor:pointer;padding:0;line-height:1;transition:0.2s;" onmouseover="this.style.color='#FFE600'" onmouseout="this.style.color='#fff'">×</button>
+              </div>
+              <div style="padding:16px 24px;background:#f8fafc;border-bottom:1px solid #e2e8f0;display:flex;gap:16px;align-items:center;">
+                <div style="display:flex;flex-direction:column;flex:1;max-width:300px;">
+                  <label style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;margin-bottom:4px;">Data do Relatório SRO Monitor</label>
+                  <div style="display:flex;align-items:center;gap:8px;">
+                    <button id="ct-mod-prev" style="background:#e2e8f0;border:1px solid #cbd5e1;color:#334155;border-radius:6px;width:34px;height:34px;cursor:pointer;font-weight:bold;font-size:16px;display:flex;align-items:center;justify-content:center;transition:0.2s;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">◄</button>
+                    <input type="date" id="ct-mod-date" value="${defDate}" style="padding:0 12px;height:34px;border:1px solid #cbd5e1;border-radius:6px;font-family:inherit;font-size:14px;color:#334155;outline:none;cursor:pointer;font-weight:600;flex:1;">
+                    <button id="ct-mod-next" style="background:#e2e8f0;border:1px solid #cbd5e1;color:#334155;border-radius:6px;width:34px;height:34px;cursor:pointer;font-weight:bold;font-size:16px;display:flex;align-items:center;justify-content:center;transition:0.2s;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">►</button>
+                  </div>
+                </div>
+              </div>
+              <div id="ct-mod-body" style="flex:1;overflow-y:auto;padding:24px;background:#f1f5f9;"></div>
+            </div>
+          `;
+
+          document.getElementById('ct-close-mod').onclick = () =>
+            (mod.style.display = 'none');
+
+          const dtInput = document.getElementById('ct-mod-date');
+          const btnPrev = document.getElementById('ct-mod-prev');
+          const btnNext = document.getElementById('ct-mod-next');
+          const body = document.getElementById('ct-mod-body');
+
+          const fetchAndRender = async () => {
+            const date = dtInput.value;
+            body.innerHTML =
+              '<div style="display:flex;justify-content:center;align-items:center;height:100%;color:#3b82f6;font-weight:700;font-size:16px;">Acessando SRO Monitor e processando dados...</div>';
+            try {
+              const u = `https://sromonitor.correios.com.br/app/analitico-unidade-se/index.php?data=${date}&unidade=${d.codigoSro}&matricula=${d.matriculaCarteiro}`;
+              const t = await fetchMonitor(u);
+              const p = new DOMParser();
+              const doc = p.parseFromString(t, 'text/html');
+              const rows = doc.querySelectorAll('#analiticounidadese tbody tr');
+
+              if (
+                rows.length === 0 ||
+                (rows.length === 1 && rows[0].innerText.includes('Nenhum'))
+              ) {
+                body.innerHTML = `<div style="text-align:center;padding:40px;color:#ef4444;font-weight:bold;font-size:16px;">Nenhum registro de distribuição em ${date.split('-').reverse().join('/')}.</div>`;
+                return;
+              }
+
+              const stats = {};
+              const list = [];
+              rows.forEach((tr) => {
+                const tds = tr.querySelectorAll('td');
+                if (tds.length >= 7) {
+                  const obj = tds[4].innerText.trim();
+                  const mot = tds[6].innerText.trim();
+                  if (!stats[mot]) stats[mot] = 0;
+                  stats[mot]++;
+                  list.push({ obj, mot });
+                }
+              });
+
+              const cid = 'ct-pie-' + Date.now();
+              body.innerHTML = `
+                <div style="display:flex;flex-wrap:wrap;gap:20px;margin-bottom:24px;">
+                  <div style="flex:1;min-width:300px;background:#fff;padding:20px;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,0.05);border:1px solid #e2e8f0;height:300px;position:relative;">
+                    <canvas id="${cid}"></canvas>
+                  </div>
+                  <div style="flex:1;min-width:300px;display:flex;flex-direction:column;gap:12px;height:300px;overflow-y:auto;padding-right:10px;">
+                    ${Object.entries(stats)
+                      .sort((a, b) => b[1] - a[1])
+                      .map(
+                        (s) => `
+                      <div style="background:#fff;padding:14px 18px;border-radius:6px;border-left:5px solid #3b82f6;display:flex;justify-content:space-between;align-items:center;box-shadow:0 1px 2px rgba(0,0,0,0.05);border:1px solid #e2e8f0;">
+                        <span style="font-size:12px;font-weight:800;color:#334155;text-transform:uppercase;">${s[0]}</span>
+                        <span style="font-size:18px;font-weight:900;color:#0f172a;">${s[1]}</span>
+                      </div>
+                    `
+                      )
+                      .join('')}
+                  </div>
+                </div>
+                <div style="background:#fff;border-radius:8px;border:1px solid #e2e8f0;box-shadow:0 1px 3px rgba(0,0,0,0.05);overflow:hidden;">
+                  <table style="width:100%;border-collapse:collapse;font-size:12px;text-align:left;">
+                    <thead style="background:#00416B;border-bottom:3px solid #FFE600;">
+                      <tr><th style="padding:12px 20px;color:#ffffff;font-weight:800;text-transform:uppercase;width:150px;">Objeto</th><th style="padding:12px 20px;color:#ffffff;font-weight:800;text-transform:uppercase;">Motivo Registrado</th></tr>
+                    </thead>
+                    <tbody>
+                      ${list.map((i, idx) => `<tr style="border-bottom:1px solid #f1f5f9;background:${idx % 2 === 0 ? '#fff' : '#f8fafc'};transition:0.1s;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='${idx % 2 === 0 ? '#fff' : '#f8fafc'}'"><td style="padding:12px 20px;font-weight:bold;color:#00416B;letter-spacing:0.5px;font-size:13px;"><a href="https://srointranet.correios.com.br/rastreamento?objetos=${i.obj}" target="_blank" style="text-decoration:none;color:inherit;">${i.obj}</a></td><td style="padding:12px 20px;color:#1e293b;font-weight:700;font-size:12px;">${i.mot}</td></tr>`).join('')}
+                    </tbody>
+                  </table>
+                </div>
+              `;
+
+              new window.Chart(document.getElementById(cid), {
+                type: 'pie',
+                data: {
+                  labels: Object.keys(stats),
+                  datasets: [
+                    {
+                      data: Object.values(stats),
+                      backgroundColor: [
+                        '#3b82f6',
+                        '#ef4444',
+                        '#10b981',
+                        '#f97316',
+                        '#8b5cf6',
+                        '#ec4899',
+                        '#14b8a6',
+                        '#eab308'
+                      ],
+                      borderWidth: 0
+                    }
+                  ]
+                },
+                options: {
+                  responsive: !0,
+                  maintainAspectRatio: !1,
+                  plugins: {
+                    legend: {
+                      position: 'right',
+                      labels: {
+                        boxWidth: 12,
+                        font: { family: 'system-ui', size: 11 }
+                      }
+                    }
+                  }
+                }
+              });
+            } catch (err) {
+              body.innerHTML = `<div style="text-align:center;padding:40px;color:#ef4444;font-weight:bold;font-size:16px;">Falha ao consultar SRO Monitor.<br><br><span style="font-size:13px;color:#64748b;font-weight:normal;">Motivo Técnico: ${err.message}</span></div>`;
+            }
+          };
+
+          const triggerUpdate = () => {
+            dtInput.style.pointerEvents = 'none';
+            dtInput.style.opacity = '0.5';
+            btnPrev.style.pointerEvents = 'none';
+            btnNext.style.pointerEvents = 'none';
+            fetchAndRender().finally(() => {
+              dtInput.style.pointerEvents = 'auto';
+              dtInput.style.opacity = '1';
+              btnPrev.style.pointerEvents = 'auto';
+              btnNext.style.pointerEvents = 'auto';
+            });
+          };
+
+          const changeDate = (offset) => {
+            const curr = new Date(dtInput.value);
+            if (isNaN(curr)) return;
+            curr.setDate(curr.getDate() + offset);
+            dtInput.value = curr.toISOString().slice(0, 10);
+            triggerUpdate();
+          };
+
+          dtInput.onchange = triggerUpdate;
+          btnPrev.onclick = () => changeDate(-1);
+          btnNext.onclick = () => changeDate(1);
+
+          fetchAndRender();
+        };
+        grid.appendChild(card);
       });
     }
 

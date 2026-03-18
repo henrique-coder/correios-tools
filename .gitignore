@@ -7,6 +7,7 @@ build/
 *.egg-info/
 .debug/
 .agent/
+build/
 
 # ─ ─── Files ─── ─ #
 # ...

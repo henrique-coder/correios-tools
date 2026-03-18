@@ -43,7 +43,10 @@ permissions = []
 # ─── Host Permissions ──────────────────────────────────────────────────────── #
 # URL patterns the extension needs access to (shared across all browsers).
 
-host_permissions = ["https://sroweb.correios.com.br/*"]
+host_permissions = [
+  "https://sroweb.correios.com.br/*",
+  "https://sromonitor.correios.com.br/*"
+]
 
 # ─── Content Scripts ───────────────────────────────────────────────────────── #
 # Scripts injected into matching web pages.
@@ -98,4 +101,4 @@ scripts = ["background.js"]
 [browser_overrides.firefox.browser_specific_settings.gecko]
 id = "@correios-wizard.henriquecoder"
 strict_min_version = "121.0"
-update_url = "https://github.com/henrique-coder/correios-wizard/releases/latest/download/updates.json"
+update_url = "https://github.com/henrique-coder/correios-wizard/releases/latest/download/firefox_updates.json"

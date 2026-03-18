@@ -198,7 +198,7 @@ jobs:
                 }
               }
             };
-            fs.writeFileSync('updates.json', JSON.stringify(manifest));
+            fs.writeFileSync('firefox_updates.json', JSON.stringify(manifest));
           "
 
       - name: Create release
@@ -220,5 +220,5 @@ jobs:
             correios-wizard-chrome.zip
             correios-wizard-edge.zip
             correios-wizard-firefox.zip
-            updates.json
+            firefox_updates.json
           make_latest: true
