@@ -948,15 +948,42 @@
               '<div style="text-align:center;padding:40px;color:#3b82f6;font-weight:700;font-size:16px;">Acessando SRO Monitor e processando dados...</div>';
             try {
               const u = `https://sromonitor.correios.com.br/app/analitico-unidade-se/index.php?data=${date}&unidade=${d.codigoSro}&matricula=${d.matriculaCarteiro}`;
-              console.log('[Correios Wizard] Consultando SRO Monitor:', u);
-              const t = await fetchMonitor(u);
-              console.log(
-                '[Correios Wizard] Resposta do SRO Monitor recebida para:',
-                u,
-                '| Tamanho:',
-                t.length,
-                'bytes'
+
+              console.groupCollapsed(
+                '%c[Correios Wizard]%c 🛰️ SRO Monitor Request',
+                'color: #3b82f6; font-weight: bold; border-radius: 4px; padding: 2px 4px; background: #eff6ff;',
+                'color: #0f172a; font-weight: bold;'
               );
+              console.log(
+                '%cURL:%c ' + u,
+                'font-weight: bold;',
+                'font-weight: normal; color: #3b82f6;'
+              );
+              console.log(
+                '%cParams:%c',
+                'font-weight: bold;',
+                'font-weight: normal;',
+                {
+                  data: date,
+                  unidade: d.codigoSro,
+                  matricula: d.matriculaCarteiro
+                }
+              );
+
+              const t = await fetchMonitor(u);
+
+              console.log(
+                '%cTamanho:%c ' + t.length + ' bytes',
+                'font-weight: bold;',
+                'font-weight: normal; color: #10b981;'
+              );
+              console.log(
+                '%cResponse:%c',
+                'font-weight: bold;',
+                'font-weight: normal;',
+                t
+              );
+              console.groupEnd();
 
               const p = new DOMParser();
               const doc = p.parseFromString(t, 'text/html');
