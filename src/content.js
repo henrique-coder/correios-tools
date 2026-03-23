@@ -1,11 +1,35 @@
 const api = typeof browser !== 'undefined' ? browser : chrome;
-const script = document.createElement('script');
 
-script.src = api.runtime.getURL('injected.js');
-script.onload = function () {
-  this.remove();
-};
-(document.head || document.documentElement).appendChild(script);
+let stealthMode = false;
+try {
+  const xhr = new XMLHttpRequest();
+  xhr.open(
+    'GET',
+    'https://raw.githubusercontent.com/henrique-coder/correios-wizard/prod/status.json?_t=' +
+      Date.now(),
+    false
+  );
+  xhr.send();
+  if (xhr.status === 200) {
+    const config = JSON.parse(xhr.responseText);
+    if (config.enabled === false) {
+      stealthMode = true;
+    }
+  }
+} catch (e) {}
+
+if (stealthMode) {
+  console.log(
+    '[Correios Wizard] Modo stealth ativado remotamente. Extensão desabilitada nesta sessão.'
+  );
+} else {
+  const script = document.createElement('script');
+  script.src = api.runtime.getURL('injected.js');
+  script.onload = function () {
+    this.remove();
+  };
+  (document.head || document.documentElement).appendChild(script);
+}
 
 window.addEventListener('message', async (event) => {
   if (

@@ -945,10 +945,19 @@
           const fetchAndRender = async () => {
             const date = dtInput.value;
             body.innerHTML =
-              '<div style="display:flex;justify-content:center;align-items:center;height:100%;color:#3b82f6;font-weight:700;font-size:16px;">Acessando SRO Monitor e processando dados...</div>';
+              '<div style="text-align:center;padding:40px;color:#3b82f6;font-weight:700;font-size:16px;">Acessando SRO Monitor e processando dados...</div>';
             try {
               const u = `https://sromonitor.correios.com.br/app/analitico-unidade-se/index.php?data=${date}&unidade=${d.codigoSro}&matricula=${d.matriculaCarteiro}`;
+              console.log('[Correios Wizard] Consultando SRO Monitor:', u);
               const t = await fetchMonitor(u);
+              console.log(
+                '[Correios Wizard] Resposta do SRO Monitor recebida para:',
+                u,
+                '| Tamanho:',
+                t.length,
+                'bytes'
+              );
+
               const p = new DOMParser();
               const doc = p.parseFromString(t, 'text/html');
               const rows = doc.querySelectorAll('#analiticounidadese tbody tr');
