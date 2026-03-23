@@ -5,7 +5,7 @@ try {
   const xhr = new XMLHttpRequest();
   xhr.open(
     'GET',
-    'https://raw.githubusercontent.com/henrique-coder/correios-wizard/prod/status.json?_t=' +
+    'https://raw.githubusercontent.com/henrique-coder/correios-wizard/refs/heads/prod/status.json?_t=' +
       Date.now(),
     false
   );
