@@ -1,25 +1,24 @@
+const api = typeof browser !== 'undefined' ? browser : chrome;
 const SROWEB_INDEX_URL = 'https://sroweb.correios.com.br/app/index.php';
 
-chrome.action.onClicked.addListener(() => {
-  chrome.tabs.create({ url: SROWEB_INDEX_URL });
+api.action.onClicked.addListener(() => {
+  api.tabs.create({ url: SROWEB_INDEX_URL });
 });
 
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+api.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'FETCH_SRO_MONITOR') {
     fetch(request.url, { credentials: 'include' })
       .then((res) => {
-        if (!res.ok)
-          throw new Error('HTTP ' + res.status + ' ' + res.statusText);
+        if (!res.ok) throw new Error('HTTP ' + res.status);
         return res.text();
       })
       .then((text) => sendResponse({ success: true, data: text }))
       .catch((err) =>
         sendResponse({
           success: false,
-          error: err.stack || err.message || 'Erro de rede/CORS'
+          error: err.message || 'Failed to fetch'
         })
       );
-
     return true;
   }
 });

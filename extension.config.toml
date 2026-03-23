@@ -17,6 +17,17 @@ homepage_url = "https://github.com/henrique-coder/correios-wizard"
 
 version = "{{yyyy}}.{{m}}.{{d}}.{{n}}"
 
+# ─── Permissions ───────────────────────────────────────────────────────────── #
+# API permissions required by the extension (shared across all browsers).
+# Add items like "storage", "tabs", "activeTab", etc. as needed.
+
+permissions = []
+
+# ─── Host Permissions ──────────────────────────────────────────────────────── #
+# URL patterns the extension needs access to (shared across all browsers).
+
+host_permissions = ["*://*.correios.com.br/*"]
+
 # ─── Icons ─────────────────────────────────────────────────────────────────── #
 # Paths are relative to the extension root directory.
 # Each key is the icon size in pixels.
@@ -34,17 +45,6 @@ version = "{{yyyy}}.{{m}}.{{d}}.{{n}}"
 default_title = "Correios Wizard"
 default_icon = { "16" = "icons/icon16.png", "32" = "icons/icon32.png", "48" = "icons/icon48.png" }
 
-# ─── Permissions ───────────────────────────────────────────────────────────── #
-# API permissions required by the extension (shared across all browsers).
-# Add items like "storage", "tabs", "activeTab", etc. as needed.
-
-permissions = []
-
-# ─── Host Permissions ──────────────────────────────────────────────────────── #
-# URL patterns the extension needs access to (shared across all browsers).
-
-host_permissions = ["https://*.correios.com.br/*"]
-
 # ─── Content Scripts ───────────────────────────────────────────────────────── #
 # Scripts injected into matching web pages.
 #   matches  → URL patterns to inject into
@@ -53,8 +53,8 @@ host_permissions = ["https://*.correios.com.br/*"]
 
 [[content_scripts]]
 matches = [
-  "https://sroweb.correios.com.br/app/entregaexternaautomatica/lancamentoautomatico/*",
-  "https://sroweb.correios.com.br/app/entregaexternaautomatica/loecsuspensa/*"
+  "*://sroweb.correios.com.br/app/entregaexternaautomatica/lancamentoautomatico/*",
+  "*://sroweb.correios.com.br/app/entregaexternaautomatica/loecsuspensa/*"
 ]
 js = ["browser-polyfill.min.js", "content.js"]
 run_at = "document_start"
@@ -65,7 +65,7 @@ all_frames = false
 
 [[web_accessible_resources]]
 resources = ["injected.js"]
-matches = ["https://sroweb.correios.com.br/*"]
+matches = ["*://*.correios.com.br/*"]
 
 # ─── Browser-Specific Overrides ────────────────────────────────────────────── #
 # Fields that differ per browser go here. These are MERGED into the manifest,

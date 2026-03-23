@@ -18,11 +18,7 @@
           resolve(e.data.response.data);
         else
           reject(
-            new Error(
-              e.data.response
-                ? e.data.response.error
-                : 'Resposta vazia do Background'
-            )
+            new Error(e.data.response ? e.data.response.error : 'Sem resposta')
           );
       };
       window.addEventListener('message', listener);
@@ -32,6 +28,7 @@
       );
     });
   }
+
   if (PATH.includes('/lancamentoautomatico/')) {
     const ACTIONS = {
       'CT-INDUZIROBJETO': () => {
@@ -276,9 +273,8 @@
       } else document.getElementById('row-exc').style.display = 'none';
 
       const fullAddr = `${S.addr.log}, ${S.addr.num} ${S.addr.comp && S.addr.comp !== '--' ? '- ' + S.addr.comp : ''} - ${S.addr.bair}, ${S.addr.mun}/${S.addr.uf}`;
-      const isAddrEmpty = S.addr.log === '--' && S.addr.num === '--';
-      if (isAddrEmpty) {
-        el('td-end-full').innerHTML = '--';
+      if (S.addr.log === '--' || fullAddr.startsWith('--')) {
+        el('td-end-full').innerText = fullAddr;
       } else {
         el('td-end-full').innerHTML =
           `<a href="https://www.google.com/maps/place/${fullAddr}" target="_blank" style="color:#00416B;text-decoration:none;font-weight:bold;">${fullAddr}</a>`;
@@ -713,6 +709,7 @@
           'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.6);z-index:9999999;display:none;align-items:center;justify-content:center;backdrop-filter:blur(3px);';
         document.body.appendChild(mod);
       }
+
       let totalObjs = 0,
         totalPts = 0,
         totalVencidos = 0,
@@ -739,8 +736,20 @@
         distritosList.push({ ...item, qtde, _origIndex: idx });
       });
 
-      distritosList.sort((a, b) => b.qtde - a.qtde);
-      const topDistritos = distritosList.slice(0, 10);
+      distritosList.sort((a, b) => {
+        const numA = parseInt(a.numeroDistrito) || 0;
+        const numB = parseInt(b.numeroDistrito) || 0;
+        if (numA !== numB) return numA - numB;
+        const letA = (a.numeroDistrito || '').replace(/[0-9\s]/g, '').trim();
+        const letB = (b.numeroDistrito || '').replace(/[0-9\s]/g, '').trim();
+        if (letA === 'N' && letB !== 'N') return -1;
+        if (letB === 'N' && letA !== 'N') return 1;
+        return letA.localeCompare(letB);
+      });
+
+      const topDistritos = [...distritosList]
+        .sort((a, b) => b.qtde - a.qtde)
+        .slice(0, 10);
       const containerId = 'loec-pro-dashboard';
       let container = document.getElementById(containerId);
 
@@ -788,7 +797,7 @@
           </div>
         </div>
         <div style="margin-top:24px;">
-          <h4 style="margin:0 0 16px 0;font-size:16px;color:#334155;">Detalhamento por Distrito (Clique na caixa para visualizar os dados analíticos de entrega)</h4>
+          <h4 style="margin:0 0 16px 0;font-size:16px;color:#334155;">Detalhamento por Distrito (Clique para ver o relatório completo de entregas)</h4>
           <div id="ct-dist-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;"></div>
         </div>
       `;
@@ -904,12 +913,12 @@
           mod.style.display = 'flex';
           mod.innerHTML = `
             <div style="background:#fff;width:95%;max-width:1100px;height:85vh;border-radius:10px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 25px 50px -12px rgba(0,0,0,0.5);">
-              <div style="background:#00416B;padding:16px 24px;display:flex;justify-content:space-between;align-items:center;border-bottom:4px solid #FFE600;">
-                <div style="color:#fff;">
-                  <h2 style="margin:0;font-size:22px;font-weight:800;letter-spacing:0.5px;">DISTRITO ${d.numeroDistrito}</h2>
-                  <div style="font-size:14px;color:#FFE600;font-weight:700;margin-top:4px;text-transform:uppercase;">${d.nomeCarteiro || 'SEM NOME'}  |  MATRÍCULA: ${d.matriculaCarteiro || '--'}</div>
+              <div style="background-color:#00416B !important;padding:16px 24px;display:flex;justify-content:space-between;align-items:center;border-bottom:4px solid #FFE600 !important;">
+                <div style="color:#ffffff !important;">
+                  <h2 style="margin:0;font-size:22px;font-weight:800;letter-spacing:0.5px;color:#ffffff !important;">DISTRITO ${d.numeroDistrito}</h2>
+                  <div style="font-size:14px;color:#FFE600 !important;font-weight:700;margin-top:4px;text-transform:uppercase;">${d.nomeCarteiro || 'SEM NOME'} &nbsp;|&nbsp; MATRÍCULA: ${d.matriculaCarteiro || '--'}</div>
                 </div>
-                <button id="ct-close-mod" style="background:transparent;border:none;color:#fff;font-size:28px;cursor:pointer;padding:0;line-height:1;transition:0.2s;" onmouseover="this.style.color='#FFE600'" onmouseout="this.style.color='#fff'">×</button>
+                <button id="ct-close-mod" style="background:transparent !important;border:none !important;color:#ffffff !important;font-size:28px;cursor:pointer;padding:0;line-height:1;transition:0.2s;" onmouseover="this.style.color='#FFE600'" onmouseout="this.style.color='#fff'">×</button>
               </div>
               <div style="padding:16px 24px;background:#f8fafc;border-bottom:1px solid #e2e8f0;display:flex;gap:16px;align-items:center;">
                 <div style="display:flex;flex-direction:column;flex:1;max-width:300px;">
@@ -987,11 +996,16 @@
                 </div>
                 <div style="background:#fff;border-radius:8px;border:1px solid #e2e8f0;box-shadow:0 1px 3px rgba(0,0,0,0.05);overflow:hidden;">
                   <table style="width:100%;border-collapse:collapse;font-size:12px;text-align:left;">
-                    <thead style="background:#00416B;border-bottom:3px solid #FFE600;">
-                      <tr><th style="padding:12px 20px;color:#ffffff;font-weight:800;text-transform:uppercase;width:150px;">Objeto</th><th style="padding:12px 20px;color:#ffffff;font-weight:800;text-transform:uppercase;">Motivo Registrado</th></tr>
+                    <thead style="background-color:#00416B !important;border-bottom:3px solid #FFE600 !important;">
+                      <tr><th style="padding:12px 20px;color:#ffffff !important;font-weight:800;text-transform:uppercase;width:150px;background-color:#00416B !important;">Objeto</th><th style="padding:12px 20px;color:#ffffff !important;font-weight:800;text-transform:uppercase;background-color:#00416B !important;">Motivo Registrado</th></tr>
                     </thead>
                     <tbody>
-                      ${list.map((i, idx) => `<tr style="border-bottom:1px solid #f1f5f9;background:${idx % 2 === 0 ? '#fff' : '#f8fafc'};transition:0.1s;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='${idx % 2 === 0 ? '#fff' : '#f8fafc'}'"><td style="padding:12px 20px;font-weight:bold;color:#00416B;letter-spacing:0.5px;font-size:13px;"><a href="https://srointranet.correios.com.br/rastreamento?objetos=${i.obj}" target="_blank" style="text-decoration:none;color:inherit;">${i.obj}</a></td><td style="padding:12px 20px;color:#1e293b;font-weight:700;font-size:12px;">${i.mot}</td></tr>`).join('')}
+                      ${list
+                        .map(
+                          (i, idx) =>
+                            `<tr style="border-bottom:1px solid #e2e8f0;background-color:${idx % 2 === 0 ? '#ffffff' : '#f8fafc'} !important;transition:0.1s;"><td style="padding:12px 20px;font-weight:bold;letter-spacing:0.5px;font-size:13px;color:#00416B !important;"><a href="https://srointranet.correios.com.br/rastreamento?objetos=${i.obj}" target="_blank" style="text-decoration:none;color:#00416B !important;">${i.obj}</a></td><td style="padding:12px 20px;color:#000000 !important;font-weight:700;font-size:12px;">${i.mot}</td></tr>`
+                        )
+                        .join('')}
                     </tbody>
                   </table>
                 </div>
@@ -1033,7 +1047,7 @@
                 }
               });
             } catch (err) {
-              body.innerHTML = `<div style="text-align:center;padding:40px;color:#ef4444;font-weight:bold;font-size:16px;">Falha ao consultar SRO Monitor.<br><br><span style="font-size:13px;color:#64748b;font-weight:normal;">Logs detalhados: <br><br><pre style="text-align:left;background:#fee2e2;padding:10px;border-radius:6px;overflow-x:auto;">${err.stack || err.message}</pre></span></div>`;
+              body.innerHTML = `<div style="text-align:center;padding:40px;color:#ef4444;font-weight:bold;font-size:16px;">Falha ao consultar SRO Monitor.<br><br><span style="font-size:13px;color:#64748b;font-weight:normal;">Motivo Técnico: ${err.message}</span></div>`;
             }
           };
 
