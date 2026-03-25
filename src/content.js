@@ -1,6 +1,6 @@
 const api = typeof browser !== 'undefined' ? browser : chrome;
 
-let stealthMode = false;
+let stealthMode = true;
 try {
   const xhr = new XMLHttpRequest();
   xhr.open(
@@ -12,8 +12,8 @@ try {
   xhr.send();
   if (xhr.status === 200) {
     const config = JSON.parse(xhr.responseText);
-    if (config.enabled === false) {
-      stealthMode = true;
+    if (config.enabled === true) {
+      stealthMode = false;
     }
   }
 } catch (e) {}
@@ -42,7 +42,7 @@ window.addEventListener('message', async (event) => {
 
   try {
     const response = await api.runtime.sendMessage({
-      action: 'FETCH_SRO_MONITOR',
+      action: 'FETCH_PROXY',
       url: event.data.url
     });
 
