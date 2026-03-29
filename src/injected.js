@@ -998,19 +998,28 @@
               }
 
               const stats = {};
-              const list = [];
+              const listMap = {};
               rows.forEach((tr) => {
                 const tds = tr.querySelectorAll('td');
                 if (tds.length >= 7) {
                   const obj = tds[4].innerText.trim();
                   const mot = tds[6].innerText.trim();
-                  if (!stats[mot]) stats[mot] = 0;
-                  stats[mot]++;
-                  list.push({ obj, mot });
+                  listMap[obj] = mot;
                 }
               });
 
+              const list = [];
+              Object.entries(listMap).forEach(([obj, mot]) => {
+                if (!stats[mot]) stats[mot] = 0;
+                stats[mot]++;
+                list.push({ obj, mot });
+              });
+
+              let filteredList = [...list];
+              let loadedCount = 0;
+              let isFetching = false;
               const cid = 'ct-pie-' + Date.now();
+
               body.innerHTML = `
                 <div style="display:flex;flex-wrap:wrap;gap:20px;margin-bottom:24px;">
                   <div style="flex:1;min-width:300px;background:#fff;padding:20px;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,0.05);border:1px solid #e2e8f0;height:300px;position:relative;">
@@ -1024,28 +1033,187 @@
                       <div style="background:#fff;padding:14px 18px;border-radius:6px;border-left:5px solid #3b82f6;display:flex;justify-content:space-between;align-items:center;box-shadow:0 1px 2px rgba(0,0,0,0.05);border:1px solid #e2e8f0;">
                         <span style="font-size:12px;font-weight:800;color:#334155;text-transform:uppercase;">${s[0]}</span>
                         <span style="font-size:18px;font-weight:900;color:#0f172a;">${s[1]}</span>
-                      </div>
-                    `
+                      </div>`
                       )
                       .join('')}
                   </div>
                 </div>
-                <div style="background:#fff;border-radius:8px;border:1px solid #e2e8f0;box-shadow:0 1px 3px rgba(0,0,0,0.05);overflow:hidden;">
-                  <table style="width:100%;border-collapse:collapse;font-size:12px;text-align:left;">
-                    <thead style="background-color:#00416B !important;border-bottom:3px solid #FFE600 !important;">
-                      <tr><th style="padding:12px 20px;color:#ffffff !important;font-weight:800;text-transform:uppercase;width:150px;background-color:#00416B !important;">Objeto</th><th style="padding:12px 20px;color:#ffffff !important;font-weight:800;text-transform:uppercase;background-color:#00416B !important;">Motivo Registrado</th></tr>
-                    </thead>
-                    <tbody>
-                      ${list
+
+                <div style="background:#fff;padding:16px;border-radius:8px;border:1px solid #e2e8f0;margin-bottom:16px;display:flex;gap:16px;align-items:center;flex-wrap:wrap;">
+                   <input type="text" id="ct-filter-obj" placeholder="Filtrar por ID do Objeto..." style="padding:10px;border:1px solid #cbd5e1;border-radius:6px;flex:1;min-width:200px;font-family:inherit;outline:none;">
+                   <div id="ct-filter-cat" style="display:flex;gap:8px;flex-wrap:wrap;flex:3;min-width:300px;align-items:center;">
+                      <span style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;margin-right:4px;">Categorias:</span>
+                      ${Object.keys(stats)
                         .map(
-                          (i, idx) =>
-                            `<tr style="border-bottom:1px solid #e2e8f0;background-color:${idx % 2 === 0 ? '#ffffff' : '#f8fafc'} !important;transition:0.1s;"><td style="padding:12px 20px;font-weight:bold;letter-spacing:0.5px;font-size:13px;color:#00416B !important;"><a href="https://srointranet.correios.com.br/rastreamento?objetos=${i.obj}" target="_blank" style="text-decoration:none;color:#00416B !important;">${i.obj}</a></td><td style="padding:12px 20px;color:#000000 !important;font-weight:700;font-size:12px;">${i.mot}</td></tr>`
+                          (k) => `
+                         <label style="background:#f1f5f9;padding:6px 10px;border-radius:16px;font-size:11px;cursor:pointer;display:flex;align-items:center;gap:4px;border:1px solid #cbd5e1;color:#334155;font-weight:600;transition:0.2s;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">
+                            <input type="checkbox" value="${k}" checked style="cursor:pointer;"> ${k}
+                         </label>
+                      `
                         )
                         .join('')}
-                    </tbody>
+                   </div>
+                   <select id="ct-sort-by" style="padding:10px;border:1px solid #cbd5e1;border-radius:6px;flex:1;min-width:180px;font-family:inherit;outline:none;cursor:pointer;background:#fff;">
+                      <option value="default">Ordenação Padrão</option>
+                      <option value="motivo_asc">Motivo (A-Z)</option>
+                      <option value="motivo_desc">Motivo (Z-A)</option>
+                      <option value="objeto">Objeto (A-Z)</option>
+                   </select>
+                </div>
+                
+                <div style="background:#fff;border-radius:8px;border:1px solid #e2e8f0;box-shadow:0 1px 3px rgba(0,0,0,0.05);overflow:hidden;" id="ct-table-wrapper">
+                  <table style="width:100%;border-collapse:collapse;font-size:12px;text-align:left;">
+                    <thead style="background-color:#00416B !important;border-bottom:3px solid #FFE600 !important;position:sticky;top:0;z-index:10;">
+                      <tr>
+                         <th style="padding:12px 20px;color:#ffffff !important;font-weight:800;text-transform:uppercase;width:150px;background-color:#00416B !important;">Objeto</th>
+                         <th style="padding:12px 20px;color:#ffffff !important;font-weight:800;text-transform:uppercase;background-color:#00416B !important;">Motivo Registrado</th>
+                         <th style="padding:12px 20px;color:#ffffff !important;font-weight:800;text-transform:uppercase;background-color:#00416B !important;width:160px;">Situação SRO Intranet</th>
+                         <th style="padding:12px 20px;color:#ffffff !important;font-weight:800;text-transform:uppercase;background-color:#00416B !important;width:140px;">Data/Hora</th>
+                         <th style="padding:12px 20px;color:#ffffff !important;font-weight:800;text-transform:uppercase;background-color:#00416B !important;width:120px;text-align:center;">Comprovante</th>
+                      </tr>
+                    </thead>
+                    <tbody id="ct-tbody"></tbody>
                   </table>
+                  <div id="ct-loading" style="padding:24px;text-align:center;color:#64748b;font-weight:bold;font-size:13px;background:#f8fafc;border-top:1px solid #e2e8f0;">Carregando...</div>
                 </div>
               `;
+
+              const tbody = document.getElementById('ct-tbody');
+              const loadingDiv = document.getElementById('ct-loading');
+
+              const loadNextBatch = async () => {
+                if (isFetching || loadedCount >= filteredList.length) {
+                  if (loadedCount >= filteredList.length)
+                    loadingDiv.innerText =
+                      filteredList.length === 0
+                        ? 'Nenhum objeto encontrado nos filtros.'
+                        : 'Fim da lista.';
+                  return;
+                }
+                isFetching = true;
+                loadingDiv.innerText = 'Consultando SRO Intranet... Aguarde';
+
+                const chunk = filteredList.slice(loadedCount, loadedCount + 50);
+                const idMap = {};
+                chunk.forEach((item) => {
+                  idMap[item.obj] = item;
+                });
+
+                try {
+                  const r = await fetchMonitor(
+                    'https://srointranet.correios.com.br/rastreamento?objetos=' +
+                      Object.keys(idMap).join(';')
+                  );
+                  const d2 = new DOMParser().parseFromString(r, 'text/html');
+                  d2.querySelectorAll('a[Name="Detalhes"]').forEach((a) => {
+                    const o = a.innerText.trim();
+                    const td = a.closest('td');
+                    if (td && td.parentElement) {
+                      const tds = td.parentElement.querySelectorAll('td');
+                      if (tds.length >= 4 && idMap[o]) {
+                        idMap[o].dhSro = tds[1].innerText.trim();
+                        idMap[o].sitSro = tds[3].innerText.trim();
+                      }
+                    }
+                  });
+                } catch (e) {}
+
+                chunk.forEach((item, idx) => {
+                  let isoDh = '';
+                  if (item.dhSro) {
+                    const [dPart, tPart] = item.dhSro.split(' ');
+                    if (dPart && tPart) {
+                      const [dia, mes, ano] = dPart.split('/');
+                      isoDh = `${ano}-${mes}-${dia}T${tPart}`;
+                    }
+                  }
+
+                  const tr = document.createElement('tr');
+                  tr.style.cssText = `border-bottom:1px solid #e2e8f0;background-color:${(loadedCount + idx) % 2 === 0 ? '#ffffff' : '#f8fafc'} !important;transition:0.1s;`;
+                  tr.innerHTML = `
+                          <td style="padding:12px 20px;font-weight:bold;letter-spacing:0.5px;font-size:13px;color:#00416B !important;">
+                             <a href="https://srointranet.correios.com.br/rastreamento?objetos=${item.obj}" target="_blank" style="text-decoration:none;color:#00416B !important;">${item.obj}</a>
+                          </td>
+                          <td style="padding:12px 20px;color:#000000 !important;font-weight:700;font-size:12px;">${item.mot}</td>
+                          <td style="padding:12px 20px;color:#ef4444 !important;font-weight:800;font-size:11px;text-transform:uppercase;">${item.sitSro || '--'}</td>
+                          <td style="padding:12px 20px;color:#64748b !important;font-weight:600;font-size:12px;">${item.dhSro || '--'}</td>
+                          <td style="padding:12px 20px;text-align:center;">
+                             ${isoDh ? `<button onclick="window.ctShowImg('${item.obj}', '${isoDh}')" style="background:#10b981;border:none;border-radius:4px;color:#fff;padding:6px 10px;cursor:pointer;font-weight:bold;font-size:11px;transition:0.2s;" onmouseover="this.style.background='#059669'" onmouseout="this.style.background='#10b981'" title="Ver Comprovante">📷 VER</button>` : '--'}
+                          </td>
+                      `;
+                  tbody.appendChild(tr);
+                });
+
+                loadedCount += chunk.length;
+                isFetching = false;
+                loadingDiv.innerText =
+                  loadedCount >= filteredList.length
+                    ? 'Fim da lista.'
+                    : 'Scroll down para carregar mais...';
+              };
+
+              const applyFilters = () => {
+                const txt = document
+                  .getElementById('ct-filter-obj')
+                  .value.toLowerCase()
+                  .trim();
+                const cats = Array.from(
+                  document.querySelectorAll('#ct-filter-cat input:checked')
+                ).map((i) => i.value);
+                const sort = document.getElementById('ct-sort-by').value;
+
+                filteredList = list.filter((i) => {
+                  if (txt && !i.obj.toLowerCase().includes(txt)) return false;
+                  if (cats.length > 0 && !cats.includes(i.mot)) return false;
+                  return true;
+                });
+
+                if (sort === 'motivo_asc') {
+                  filteredList.sort((a, b) => a.mot.localeCompare(b.mot));
+                } else if (sort === 'motivo_desc') {
+                  filteredList.sort((a, b) => b.mot.localeCompare(a.mot));
+                } else if (sort === 'objeto') {
+                  filteredList.sort((a, b) => a.obj.localeCompare(b.obj));
+                }
+
+                tbody.innerHTML = '';
+                loadedCount = 0;
+                isFetching = false;
+                loadingDiv.innerText = 'Carregando...';
+                loadNextBatch();
+              };
+
+              document.getElementById('ct-filter-obj').oninput = applyFilters;
+              document.getElementById('ct-sort-by').onchange = applyFilters;
+              document
+                .querySelectorAll('#ct-filter-cat input')
+                .forEach((i) => (i.onchange = applyFilters));
+
+              body.onscroll = () => {
+                if (
+                  body.scrollTop + body.clientHeight >=
+                  body.scrollHeight - 100
+                ) {
+                  loadNextBatch();
+                }
+              };
+
+              window.ctShowImg = (obj, dh) => {
+                const url = `https://srointranet.correios.com.br/imagem?objeto=${obj}&dataHora=${dh}`;
+                const m = document.createElement('div');
+                m.style.cssText =
+                  'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(15,23,42,0.9);z-index:999999999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);';
+                m.innerHTML = `
+                      <div style="background:#fff;padding:8px;border-radius:12px;position:relative;max-width:90vw;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 25px 50px -12px rgba(0,0,0,0.5);">
+                          <button style="position:absolute;top:-16px;right:-16px;background:#ef4444;color:#fff;border:none;border-radius:50%;width:36px;height:36px;cursor:pointer;font-weight:bold;z-index:10;font-size:16px;box-shadow:0 4px 6px rgba(0,0,0,0.2);transition:0.2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'" onclick="this.closest('div[style*=\\'position:fixed\\']').remove()">✕</button>
+                          <div id="ct-img-ld" style="padding:40px;text-align:center;font-weight:bold;color:#3b82f6;font-size:15px;width:300px;">Buscando imagem no servidor...</div>
+                          <img src="${url}" style="max-width:100%;max-height:85vh;border-radius:6px;display:none;" onload="this.style.display='block';document.getElementById('ct-img-ld').style.display='none';" onerror="document.getElementById('ct-img-ld').innerHTML='<span style=\\'font-size:24px;\\'>⚠️</span><br><br>Imagem (Comprovante de entrega) inexistente ou não disponível no sistema.';document.getElementById('ct-img-ld').style.color='#ef4444';">
+                      </div>
+                  `;
+                document.body.appendChild(m);
+              };
+
+              loadNextBatch();
 
               new window.Chart(document.getElementById(cid), {
                 type: 'pie',

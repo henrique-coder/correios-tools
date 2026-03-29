@@ -6,8 +6,8 @@ api.action.onClicked.addListener(() => {
 });
 
 api.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.action === 'FETCH_SRO_MONITOR') {
-    fetch(request.url, { credentials: 'include' })
+  if (request.action === 'FETCH_PROXY') {
+    fetch(request.url)
       .then((res) => {
         if (!res.ok) throw new Error('HTTP ' + res.status);
         return res.text();
