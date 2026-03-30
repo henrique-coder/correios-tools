@@ -1,56 +1,44 @@
-# ─── Extension Metadata ────────────────────────────────────────────────────── #
-# Core identity fields shared by all browsers.
+# ==============================================================================
+# EXTENSION CONFIGURATION
+# ==============================================================================
+# Configuration file to build the manifest.json for Chrome, Edge, and Firefox. The build script (scripts/build.mjs) reads this file and applies browser-specific overrides.
 
+# ─── 1. Extension Metadata
+# Core extension properties shared by all browsers.
 manifest_version = 3
 name = "Correios Wizard"
 description = "Conjunto de ferramentas internas para otimizar tarefas operacionais nos Correios"
 author = "Henrique Moreira"
 homepage_url = "https://github.com/henrique-coder/correios-wizard"
 
-# ─── Version ───────────────────────────────────────────────────────────────── #
-# Dynamic version injected at build time via regex placeholders.
-#   {{yyyy}} → full year (e.g. 2026)
-#   {{m}}    → month without leading zero (1–12)
-#   {{d}}    → day without leading zero (1–31)
-#   {{n}}    → daily build counter, starts at 0
-# Example: first build on Mar 15 2026 → "2026.3.15.0"
-
+# ─── 2. Internal Versioning
+# Dynamic version injected at build time via regex placeholders: {{yyyy}} (year), {{m}} (month), {{d}} (day), {{n}} (daily build counter). Example: "2026.3.30.0".
 version = "{{yyyy}}.{{m}}.{{d}}.{{n}}"
 
-# ─── Permissions ───────────────────────────────────────────────────────────── #
-# API permissions required by the extension (shared across all browsers).
-# Add items like "storage", "tabs", "activeTab", etc. as needed.
-
+# ─── 3. Permissions
+# Required WebExtension API permissions.
 permissions = []
 
-# ─── Host Permissions ──────────────────────────────────────────────────────── #
-# URL patterns the extension needs access to (shared across all browsers).
-
+# ─── 4. Host Permissions
+# Allowed domains for extension interaction. Restricted to Correios subdomains for security.
 host_permissions = ["*://*.correios.com.br/*"]
 
-# ─── Icons ─────────────────────────────────────────────────────────────────── #
-# Paths are relative to the extension root directory.
-# Each key is the icon size in pixels.
-
+# ─── 5. UI Assets: Icons
+# Relative paths to extension icons by resolution in pixels.
 [icons]
 "16" = "icons/icon16.png"
 "32" = "icons/icon32.png"
 "48" = "icons/icon48.png"
 "128" = "icons/icon128.png"
 
-# ─── Action (Toolbar Button) ───────────────────────────────────────────────── #
-# Defines the browser action button appearance.
-
+# ─── 6. Action (Toolbar Button)
+# Browser action button configuration.
 [action]
 default_title = "Correios Wizard"
 default_icon = { "16" = "icons/icon16.png", "32" = "icons/icon32.png", "48" = "icons/icon48.png" }
 
-# ─── Content Scripts ───────────────────────────────────────────────────────── #
-# Scripts injected into matching web pages.
-#   matches  → URL patterns to inject into
-#   js       → scripts to inject (in order)
-#   run_at   → when to inject: "document_start", "document_end", or "document_idle"
-
+# ─── 7. Content Scripts
+# Scripts injected into matching URLs. Executes at 'document_start' in the top window only.
 [[content_scripts]]
 matches = [
   "*://sroweb.correios.com.br/app/entregaexternaautomatica/lancamentoautomatico/*",
@@ -60,38 +48,33 @@ js = ["browser-polyfill.min.js", "content.js"]
 run_at = "document_start"
 all_frames = false
 
-# ─── Web Accessible Resources ──────────────────────────────────────────────── #
-# Files accessible from web pages via the extension's URL.
-
+# ─── 8. Web Accessible Resources
+# Resources exposed to the web page context, required for XHR and fetch interceptions by injected.js.
 [[web_accessible_resources]]
 resources = ["injected.js"]
 matches = ["*://*.correios.com.br/*"]
 
-# ─── Browser-Specific Overrides ────────────────────────────────────────────── #
-# Fields that differ per browser go here. These are MERGED into the manifest,
-# overriding any shared field with the same key.
-#
-# Supported targets: "chrome", "edge", "firefox"
-#
-# Chrome/Edge: use "background.service_worker" for MV3 background scripts.
-# Firefox:     use "background.scripts" (array) for MV3 background scripts.
-#
-# Permissions and host_permissions can be overridden per browser if needed.
-# If a browser needs extra permissions, add them here — they will REPLACE
-# the shared value, not merge with it.
+# ==============================================================================
+# BROWSER-SPECIFIC OVERRIDES
+# ==============================================================================
+# Parameters to merge or replace global fields during the build phase based on the target browser.
 
+# ─── CHROME
 [browser_overrides.chrome]
 minimum_chrome_version = "102"
 
 [browser_overrides.chrome.background]
 service_worker = "background.js"
 
+# ─── EDGE
 [browser_overrides.edge]
 minimum_chrome_version = "102"
 
 [browser_overrides.edge.background]
 service_worker = "background.js"
 
+# ─── FIREFOX
+# Firefox MV3 requires background scripts instead of a service worker, and a browser_specific_settings block for extension ID and updates.
 [browser_overrides.firefox.background]
 scripts = ["background.js"]
 
