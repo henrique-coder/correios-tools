@@ -5,7 +5,7 @@ const api = typeof browser !== 'undefined' ? browser : chrome;
     const res = await api.runtime.sendMessage({ action: 'CHECK_STEALTH' });
     if (res && res.stealthMode) {
       console.log(
-        '[Correios Wizard] Modo stealth ativado remotamente. Extensão desabilitada nesta sessão.'
+        '[Correios Wizard] Stealth mode activated remotely. Extension disabled for this session.'
       );
       return;
     }
