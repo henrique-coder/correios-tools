@@ -10,7 +10,7 @@ async function checkStealthMode() {
   }
   try {
     const res = await fetch(
-      'https://raw.githubusercontent.com/henrique-coder/correios-wizard/refs/heads/prod/status.json?_t=' +
+      'https://raw.githubusercontent.com/henrique-coder/correios-wizard/prod/status.json?_t=' +
         Date.now()
     );
     if (res.ok) {
