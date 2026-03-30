@@ -1,35 +1,25 @@
 const api = typeof browser !== 'undefined' ? browser : chrome;
 
-let stealthMode = true;
-try {
-  const xhr = new XMLHttpRequest();
-  xhr.open(
-    'GET',
-    'https://raw.githubusercontent.com/henrique-coder/correios-wizard/refs/heads/prod/status.json?_t=' +
-      Date.now(),
-    false
-  );
-  xhr.send();
-  if (xhr.status === 200) {
-    const config = JSON.parse(xhr.responseText);
-    if (config.enabled === true) {
-      stealthMode = false;
+(async function init() {
+  try {
+    const res = await api.runtime.sendMessage({ action: 'CHECK_STEALTH' });
+    if (res && res.stealthMode) {
+      console.log(
+        '[Correios Wizard] Modo stealth ativado remotamente. Extensão desabilitada nesta sessão.'
+      );
+      return;
     }
-  }
-} catch (e) {}
 
-if (stealthMode) {
-  console.log(
-    '[Correios Wizard] Modo stealth ativado remotamente. Extensão desabilitada nesta sessão.'
-  );
-} else {
-  const script = document.createElement('script');
-  script.src = api.runtime.getURL('injected.js');
-  script.onload = function () {
-    this.remove();
-  };
-  (document.head || document.documentElement).appendChild(script);
-}
+    const script = document.createElement('script');
+    script.src = api.runtime.getURL('injected.js');
+    script.onload = function () {
+      this.remove();
+    };
+    (document.head || document.documentElement).appendChild(script);
+  } catch (e) {
+    console.warn('[Correios Wizard] Erro ao carregar status:', e);
+  }
+})();
 
 window.addEventListener('message', async (event) => {
   if (
