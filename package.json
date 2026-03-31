@@ -9,6 +9,7 @@
   },
   "devDependencies": {
     "csso-cli": "^4.0.2",
+    "decomment": "^0.9.5",
     "prettier": "^3.8.1",
     "prettier-plugin-toml": "^2.0.6",
     "smol-toml": "^1.6.1",

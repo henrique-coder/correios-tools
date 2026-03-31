@@ -51,9 +51,22 @@ api.runtime.onMessage.addListener((request, sender, sendResponse) => {
     }
 
     fetch(request.url)
-      .then((res) => {
+      .then(async (res) => {
         if (!res.ok) throw new Error('HTTP ' + res.status);
-        return res.text();
+        const buffer = await res.arrayBuffer();
+        const contentType = (
+          res.headers.get('content-type') || ''
+        ).toLowerCase();
+        let charset = 'utf-8';
+        if (
+          request.url.includes('sromonitor') ||
+          request.url.includes('srointranet') ||
+          contentType.includes('iso-8859-1')
+        ) {
+          charset = 'iso-8859-1';
+        }
+        const decoder = new TextDecoder(charset);
+        return decoder.decode(buffer);
       })
       .then((text) => sendResponse({ success: true, data: text }))
       .catch((err) =>

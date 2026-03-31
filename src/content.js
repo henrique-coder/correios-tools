@@ -1,24 +1,50 @@
 const api = typeof browser !== 'undefined' ? browser : chrome;
 
 (async function init() {
+  let stealth = false;
   try {
     const res = await api.runtime.sendMessage({ action: 'CHECK_STEALTH' });
-    if (res && res.stealthMode) {
-      console.log(
-        '[Correios Wizard] Stealth mode activated remotely. Extension disabled for this session.'
-      );
-      return;
-    }
+    if (res && res.stealthMode) stealth = true;
+  } catch (e) {}
 
+  let lastUrl = window.location.href;
+  setInterval(async () => {
+    if (window.location.href !== lastUrl) {
+      lastUrl = window.location.href;
+      try {
+        const check = await api.runtime.sendMessage({
+          action: 'CHECK_STEALTH'
+        });
+        const currentStealth = check ? !!check.stealthMode : stealth;
+
+        if (stealth !== currentStealth) {
+          window.location.reload();
+          return;
+        }
+
+        if (!currentStealth) {
+          const l = lastUrl.toLowerCase();
+          if (
+            l.includes('/loecsuspensa') ||
+            l.includes('/lancamentoautomatico')
+          ) {
+            window.location.reload();
+          }
+        }
+      } catch (e) {}
+    }
+  }, 500);
+
+  if (stealth) return;
+
+  try {
     const script = document.createElement('script');
     script.src = api.runtime.getURL('injected.js');
     script.onload = function () {
       this.remove();
     };
     (document.head || document.documentElement).appendChild(script);
-  } catch (e) {
-    console.warn('[Correios Wizard] Erro ao carregar status:', e);
-  }
+  } catch (e) {}
 })();
 
 window.addEventListener('message', async (event) => {

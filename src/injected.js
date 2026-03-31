@@ -912,7 +912,7 @@
 
           mod.style.display = 'flex';
           mod.innerHTML = `
-            <div style="background:#fff;width:95%;max-width:1100px;height:85vh;border-radius:10px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 25px 50px -12px rgba(0,0,0,0.5);">
+            <div style="background:#fff;width:98%;max-width:1400px;height:85vh;border-radius:10px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 25px 50px -12px rgba(0,0,0,0.5);">
               <div style="background-color:#00416B !important;padding:16px 24px;display:flex;justify-content:space-between;align-items:center;border-bottom:4px solid #FFE600 !important;">
                 <div style="color:#ffffff !important;">
                   <h2 style="margin:0;font-size:22px;font-weight:800;letter-spacing:0.5px;color:#ffffff !important;">DISTRITO ${d.numeroDistrito}</h2>
@@ -949,41 +949,7 @@
             try {
               const u = `https://sromonitor.correios.com.br/app/analitico-unidade-se/index.php?data=${date}&unidade=${d.codigoSro}&matricula=${d.matriculaCarteiro}`;
 
-              console.groupCollapsed(
-                '%c[Correios Wizard]%c 🛰️ SRO Monitor Request',
-                'color: #3b82f6; font-weight: bold; border-radius: 4px; padding: 2px 4px; background: #eff6ff;',
-                'color: #0f172a; font-weight: bold;'
-              );
-              console.log(
-                '%cURL:%c ' + u,
-                'font-weight: bold;',
-                'font-weight: normal; color: #3b82f6;'
-              );
-              console.log(
-                '%cParams:%c',
-                'font-weight: bold;',
-                'font-weight: normal;',
-                {
-                  data: date,
-                  unidade: d.codigoSro,
-                  matricula: d.matriculaCarteiro
-                }
-              );
-
               const t = await fetchMonitor(u);
-
-              console.log(
-                '%cTamanho:%c ' + t.length + ' bytes',
-                'font-weight: bold;',
-                'font-weight: normal; color: #10b981;'
-              );
-              console.log(
-                '%cResponse:%c',
-                'font-weight: bold;',
-                'font-weight: normal;',
-                t
-              );
-              console.groupEnd();
 
               const p = new DOMParser();
               const doc = p.parseFromString(t, 'text/html');
@@ -1020,6 +986,25 @@
               let isFetching = false;
               const cid = 'ct-pie-' + Date.now();
 
+              const chartLabels = Object.keys(stats);
+              const defaultColors = [
+                '#3b82f6',
+                '#10b981',
+                '#f97316',
+                '#8b5cf6',
+                '#ec4899',
+                '#14b8a6',
+                '#eab308',
+                '#6366f1'
+              ];
+              const getColorForLabel = (label) => {
+                if (label.toUpperCase().includes('AUSENTE')) return '#ef4444';
+                const idx = chartLabels.indexOf(label);
+                return defaultColors[
+                  (idx === -1 ? 0 : idx) % defaultColors.length
+                ];
+              };
+
               body.innerHTML = `
                 <div style="display:flex;flex-wrap:wrap;gap:20px;margin-bottom:24px;">
                   <div style="flex:1;min-width:300px;background:#fff;padding:20px;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,0.05);border:1px solid #e2e8f0;height:300px;position:relative;">
@@ -1030,7 +1015,7 @@
                       .sort((a, b) => b[1] - a[1])
                       .map(
                         (s) => `
-                      <div style="background:#fff;padding:14px 18px;border-radius:6px;border-left:5px solid #3b82f6;display:flex;justify-content:space-between;align-items:center;box-shadow:0 1px 2px rgba(0,0,0,0.05);border:1px solid #e2e8f0;">
+                      <div style="background:#fff;padding:14px 18px;border-radius:6px;border-left:5px solid ${getColorForLabel(s[0])};display:flex;justify-content:space-between;align-items:center;box-shadow:0 1px 2px rgba(0,0,0,0.05);border:1px solid #e2e8f0;">
                         <span style="font-size:12px;font-weight:800;color:#334155;text-transform:uppercase;">${s[0]}</span>
                         <span style="font-size:18px;font-weight:900;color:#0f172a;">${s[1]}</span>
                       </div>`
@@ -1039,10 +1024,20 @@
                   </div>
                 </div>
 
-                <div style="background:#fff;padding:16px;border-radius:8px;border:1px solid #e2e8f0;margin-bottom:16px;display:flex;gap:16px;align-items:center;flex-wrap:wrap;">
-                   <input type="text" id="ct-filter-obj" placeholder="Filtrar por ID do Objeto..." style="padding:10px;border:1px solid #cbd5e1;border-radius:6px;flex:1;min-width:200px;font-family:inherit;outline:none;">
-                   <div id="ct-filter-cat" style="display:flex;gap:8px;flex-wrap:wrap;flex:3;min-width:300px;align-items:center;">
+                <div style="background:#fff;padding:16px;border-radius:8px;border:1px solid #e2e8f0;margin-bottom:16px;display:flex;flex-direction:column;gap:12px;">
+                   <div style="display:flex;gap:16px;align-items:center;width:100%;">
+                       <input type="text" id="ct-filter-obj" placeholder="Filtrar por ID do Objeto..." style="padding:10px;border:1px solid #cbd5e1;border-radius:6px;flex:1;min-width:200px;font-family:inherit;outline:none;">
+                       <select id="ct-sort-by" style="padding:10px;border:1px solid #cbd5e1;border-radius:6px;width:250px;font-family:inherit;outline:none;cursor:pointer;background:#fff;">
+                          <option value="default">Ordenação Padrão</option>
+                          <option value="motivo_asc">Motivo (A-Z)</option>
+                          <option value="motivo_desc">Motivo (Z-A)</option>
+                          <option value="objeto">Objeto (A-Z)</option>
+                       </select>
+                   </div>
+                   <div id="ct-filter-cat" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
                       <span style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;margin-right:4px;">Categorias:</span>
+                      <button id="btn-sel-all" style="box-sizing:border-box;width:auto;min-width:max-content;height:auto;line-height:normal;white-space:nowrap;padding:4px 8px;font-size:10px;font-weight:700;border-radius:4px;border:1px solid #cbd5e1;background:#fff;cursor:pointer;color:#334155;transition:0.2s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#fff'">SELECIONAR TUDO</button>
+                      <button id="btn-desel-all" style="box-sizing:border-box;width:auto;min-width:max-content;height:auto;line-height:normal;white-space:nowrap;padding:4px 8px;font-size:10px;font-weight:700;border-radius:4px;border:1px solid #cbd5e1;background:#fff;cursor:pointer;margin-right:8px;color:#334155;transition:0.2s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#fff'">DESMARCAR TUDO</button>
                       ${Object.keys(stats)
                         .map(
                           (k) => `
@@ -1053,15 +1048,10 @@
                         )
                         .join('')}
                    </div>
-                   <select id="ct-sort-by" style="padding:10px;border:1px solid #cbd5e1;border-radius:6px;flex:1;min-width:180px;font-family:inherit;outline:none;cursor:pointer;background:#fff;">
-                      <option value="default">Ordenação Padrão</option>
-                      <option value="motivo_asc">Motivo (A-Z)</option>
-                      <option value="motivo_desc">Motivo (Z-A)</option>
-                      <option value="objeto">Objeto (A-Z)</option>
-                   </select>
                 </div>
-                
+
                 <div style="background:#fff;border-radius:8px;border:1px solid #e2e8f0;box-shadow:0 1px 3px rgba(0,0,0,0.05);overflow:hidden;" id="ct-table-wrapper">
+                  <div id="ct-loading" style="padding:16px;text-align:center;color:#64748b;font-weight:bold;font-size:13px;background:#f8fafc;border-bottom:1px solid #e2e8f0;">Carregando...</div>
                   <table style="width:100%;border-collapse:collapse;font-size:12px;text-align:left;">
                     <thead style="background-color:#00416B !important;border-bottom:3px solid #FFE600 !important;position:sticky;top:0;z-index:10;">
                       <tr>
@@ -1074,51 +1064,88 @@
                     </thead>
                     <tbody id="ct-tbody"></tbody>
                   </table>
-                  <div id="ct-loading" style="padding:24px;text-align:center;color:#64748b;font-weight:bold;font-size:13px;background:#f8fafc;border-top:1px solid #e2e8f0;">Carregando...</div>
                 </div>
               `;
 
               const tbody = document.getElementById('ct-tbody');
               const loadingDiv = document.getElementById('ct-loading');
 
-              const loadNextBatch = async () => {
-                if (isFetching || loadedCount >= filteredList.length) {
-                  if (loadedCount >= filteredList.length)
-                    loadingDiv.innerText =
-                      filteredList.length === 0
-                        ? 'Nenhum objeto encontrado nos filtros.'
-                        : 'Fim da lista.';
-                  return;
-                }
-                isFetching = true;
-                loadingDiv.innerText = 'Consultando SRO Intranet... Aguarde';
+              let fetchQueue = [];
+              let isFetchingAll = false;
 
-                const chunk = filteredList.slice(loadedCount, loadedCount + 50);
-                const idMap = {};
-                chunk.forEach((item) => {
-                  idMap[item.obj] = item;
-                });
+              const startBgFetch = async () => {
+                if (isFetchingAll) return;
+                isFetchingAll = true;
 
-                try {
-                  const r = await fetchMonitor(
-                    'https://srointranet.correios.com.br/rastreamento?objetos=' +
-                      Object.keys(idMap).join(';')
-                  );
-                  const d2 = new DOMParser().parseFromString(r, 'text/html');
-                  d2.querySelectorAll('a[Name="Detalhes"]').forEach((a) => {
-                    const o = a.innerText.trim();
-                    const td = a.closest('td');
-                    if (td && td.parentElement) {
-                      const tds = td.parentElement.querySelectorAll('td');
-                      if (tds.length >= 4 && idMap[o]) {
-                        idMap[o].dhSro = tds[1].innerText.trim();
-                        idMap[o].sitSro = tds[3].innerText.trim();
+                while (fetchQueue.length > 0) {
+                  if (!document.getElementById('ct-tbody')) break;
+
+                  const chunk = fetchQueue.splice(0, 50);
+                  const idMap = {};
+                  chunk.forEach((i) => {
+                    i.queried = true;
+                    idMap[i.obj] = i;
+                  });
+
+                  try {
+                    const r = await fetchMonitor(
+                      'https://srointranet.correios.com.br/rastreamento?objetos=' +
+                        Object.keys(idMap).join(';')
+                    );
+                    const d2 = new DOMParser().parseFromString(r, 'text/html');
+                    d2.querySelectorAll('a[Name="Detalhes"]').forEach((a) => {
+                      const o = a.innerText.trim();
+                      const td = a.closest('td');
+                      if (td && td.parentElement) {
+                        const tds = td.parentElement.querySelectorAll('td');
+                        if (tds.length >= 4 && idMap[o]) {
+                          idMap[o].dhSro = tds[1].innerText.trim();
+                          idMap[o].sitSro = tds[3].innerText.trim();
+                        }
+                      }
+                    });
+                  } catch (e) {}
+
+                  chunk.forEach((item) => {
+                    const tr = document.getElementById(`ct-tr-${item.obj}`);
+                    if (tr) {
+                      let isoDh = '';
+                      if (item.dhSro) {
+                        const [dPart, tPart] = item.dhSro.split(' ');
+                        if (dPart && tPart) {
+                          const [dia, mes, ano] = dPart.split('/');
+                          isoDh = `${ano}-${mes}-${dia}T${tPart}`;
+                        }
+                      }
+                      tr.cells[2].innerText = item.sitSro || '--';
+                      tr.cells[3].innerText = item.dhSro || '--';
+                      if (isoDh) {
+                        tr.cells[4].innerHTML = `<button onclick="window.ctShowImg('${item.obj}', '${isoDh}')" style="background:#10b981;border:none;border-radius:4px;color:#fff;padding:6px 10px;cursor:pointer;font-weight:bold;font-size:11px;transition:0.2s;" onmouseover="this.style.background='#059669'" onmouseout="this.style.background='#10b981'" title="Ver Comprovante">VER</button>`;
                       }
                     }
                   });
-                } catch (e) {}
 
-                chunk.forEach((item, idx) => {
+                  const total = list.length;
+                  const queriedCount = list.filter((i) => i.queried).length;
+                  loadingDiv.innerText = `Processando status do servidor SRO... (${queriedCount}/${total})`;
+                }
+
+                if (document.getElementById('ct-loading')) {
+                  document.getElementById('ct-loading').innerText =
+                    'Sincronização 100% concluída.';
+                }
+                isFetchingAll = false;
+              };
+
+              const renderTable = () => {
+                tbody.innerHTML = '';
+                if (filteredList.length === 0) {
+                  loadingDiv.innerText =
+                    'Nenhum objeto corresponde aos filtros (ou tudo oculto).';
+                  return;
+                }
+
+                filteredList.forEach((item, idx) => {
                   let isoDh = '';
                   if (item.dhSro) {
                     const [dPart, tPart] = item.dhSro.split(' ');
@@ -1129,27 +1156,27 @@
                   }
 
                   const tr = document.createElement('tr');
-                  tr.style.cssText = `border-bottom:1px solid #e2e8f0;background-color:${(loadedCount + idx) % 2 === 0 ? '#ffffff' : '#f8fafc'} !important;transition:0.1s;`;
+                  tr.id = `ct-tr-${item.obj}`;
+                  tr.style.cssText = `border-bottom:1px solid #e2e8f0;background-color:${idx % 2 === 0 ? '#ffffff' : '#f8fafc'} !important;transition:0.1s;`;
                   tr.innerHTML = `
                           <td style="padding:12px 20px;font-weight:bold;letter-spacing:0.5px;font-size:13px;color:#00416B !important;">
                              <a href="https://srointranet.correios.com.br/rastreamento?objetos=${item.obj}" target="_blank" style="text-decoration:none;color:#00416B !important;">${item.obj}</a>
                           </td>
                           <td style="padding:12px 20px;color:#000000 !important;font-weight:700;font-size:12px;">${item.mot}</td>
-                          <td style="padding:12px 20px;color:#ef4444 !important;font-weight:800;font-size:11px;text-transform:uppercase;">${item.sitSro || '--'}</td>
+                          <td style="padding:12px 20px;color:#ef4444 !important;font-weight:800;font-size:11px;text-transform:uppercase;">${item.sitSro || 'Aguardando...'}</td>
                           <td style="padding:12px 20px;color:#64748b !important;font-weight:600;font-size:12px;">${item.dhSro || '--'}</td>
                           <td style="padding:12px 20px;text-align:center;">
-                             ${isoDh ? `<button onclick="window.ctShowImg('${item.obj}', '${isoDh}')" style="background:#10b981;border:none;border-radius:4px;color:#fff;padding:6px 10px;cursor:pointer;font-weight:bold;font-size:11px;transition:0.2s;" onmouseover="this.style.background='#059669'" onmouseout="this.style.background='#10b981'" title="Ver Comprovante">📷 VER</button>` : '--'}
+                             ${isoDh ? `<button onclick="window.ctShowImg('${item.obj}', '${isoDh}')" style="background:#10b981;border:none;border-radius:4px;color:#fff;padding:6px 10px;cursor:pointer;font-weight:bold;font-size:11px;transition:0.2s;" onmouseover="this.style.background='#059669'" onmouseout="this.style.background='#10b981'" title="Ver Comprovante">VER</button>` : item.queried ? '--' : '⏳'}
                           </td>
                       `;
                   tbody.appendChild(tr);
                 });
 
-                loadedCount += chunk.length;
-                isFetching = false;
-                loadingDiv.innerText =
-                  loadedCount >= filteredList.length
-                    ? 'Fim da lista.'
-                    : 'Scroll down para carregar mais...';
+                const total = list.length;
+                const queriedCount = list.filter((i) => i.queried).length;
+                loadingDiv.innerText = isFetchingAll
+                  ? `Processando status do servidor SRO... (${queriedCount}/${total})`
+                  : 'Sincronização 100% concluída.';
               };
 
               const applyFilters = () => {
@@ -1165,6 +1192,7 @@
                 filteredList = list.filter((i) => {
                   if (txt && !i.obj.toLowerCase().includes(txt)) return false;
                   if (cats.length > 0 && !cats.includes(i.mot)) return false;
+                  if (cats.length === 0) return false;
                   return true;
                 });
 
@@ -1176,11 +1204,17 @@
                   filteredList.sort((a, b) => a.obj.localeCompare(b.obj));
                 }
 
-                tbody.innerHTML = '';
-                loadedCount = 0;
-                isFetching = false;
-                loadingDiv.innerText = 'Carregando...';
-                loadNextBatch();
+                renderTable();
+
+                const highPri = filteredList.filter((i) => !i.queried);
+                const lowPri = list.filter(
+                  (i) => !i.queried && !filteredList.includes(i)
+                );
+                fetchQueue = [...highPri, ...lowPri];
+
+                if (fetchQueue.length > 0 && !isFetchingAll) {
+                  startBgFetch();
+                }
               };
 
               document.getElementById('ct-filter-obj').oninput = applyFilters;
@@ -1189,49 +1223,97 @@
                 .querySelectorAll('#ct-filter-cat input')
                 .forEach((i) => (i.onchange = applyFilters));
 
-              body.onscroll = () => {
-                if (
-                  body.scrollTop + body.clientHeight >=
-                  body.scrollHeight - 100
-                ) {
-                  loadNextBatch();
-                }
+              document.getElementById('btn-sel-all').onclick = () => {
+                document
+                  .querySelectorAll('#ct-filter-cat input[type="checkbox"]')
+                  .forEach((c) => (c.checked = true));
+                applyFilters();
+              };
+              document.getElementById('btn-desel-all').onclick = () => {
+                document
+                  .querySelectorAll('#ct-filter-cat input[type="checkbox"]')
+                  .forEach((c) => (c.checked = false));
+                applyFilters();
               };
 
               window.ctShowImg = (obj, dh) => {
                 const url = `https://srointranet.correios.com.br/imagem?objeto=${obj}&dataHora=${dh}`;
+                const mId = 'ct-img-modal-' + Date.now();
                 const m = document.createElement('div');
+                m.id = mId;
                 m.style.cssText =
-                  'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(15,23,42,0.9);z-index:999999999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);';
+                  'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(15,23,42,0.9);z-index:999999999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);padding:20px;box-sizing:border-box;';
+
                 m.innerHTML = `
-                      <div style="background:#fff;padding:8px;border-radius:12px;position:relative;max-width:90vw;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 25px 50px -12px rgba(0,0,0,0.5);">
-                          <button style="position:absolute;top:-16px;right:-16px;background:#ef4444;color:#fff;border:none;border-radius:50%;width:36px;height:36px;cursor:pointer;font-weight:bold;z-index:10;font-size:16px;box-shadow:0 4px 6px rgba(0,0,0,0.2);transition:0.2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'" onclick="this.closest('div[style*=\\'position:fixed\\']').remove()">✕</button>
-                          <div id="ct-img-ld" style="padding:40px;text-align:center;font-weight:bold;color:#3b82f6;font-size:15px;width:300px;">Buscando imagem no servidor...</div>
-                          <img src="${url}" style="max-width:100%;max-height:85vh;border-radius:6px;display:none;" onload="this.style.display='block';document.getElementById('ct-img-ld').style.display='none';" onerror="document.getElementById('ct-img-ld').innerHTML='<span style=\\'font-size:24px;\\'>⚠️</span><br><br>Imagem (Comprovante de entrega) inexistente ou não disponível no sistema.';document.getElementById('ct-img-ld').style.color='#ef4444';">
+                      <div style="background:#fff;border-radius:12px;display:flex;flex-direction:column;box-shadow:0 25px 50px -12px rgba(0,0,0,0.5);width:100%;max-width:900px;height:100%;max-height:90vh;overflow:hidden;">
+                          <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 24px;border-bottom:1px solid #e2e8f0;background:#f8fafc;">
+                              <div style="font-weight:800;color:#0f172a;font-size:16px;display:flex;flex-direction:column;">
+                                  COMPROVANTE DE ENTREGA
+                                  <span style="font-size:12px;color:#64748b;font-weight:600;margin-top:2px;">${obj}</span>
+                              </div>
+                              <div style="display:flex;gap:12px;flex-shrink:0;">
+                                  <button id="btn-rot-${mId}" style="box-sizing:border-box;width:auto;min-width:max-content;height:auto;line-height:normal;background:#fff;border:1px solid #cbd5e1;border-radius:6px;color:#334155;padding:8px 16px;cursor:pointer;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;gap:6px;transition:0.2s;white-space:nowrap;flex-shrink:0;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#fff'">
+                                      <span style="font-size:18px;line-height:1;transform:rotate(-45deg);">↻</span> ROTACIONAR
+                                  </button>
+                                  <button style="box-sizing:border-box;width:auto;min-width:max-content;height:auto;line-height:normal;background:#ef4444;border:none;border-radius:6px;color:#fff;padding:8px 16px;cursor:pointer;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;gap:6px;transition:0.2s;white-space:nowrap;flex-shrink:0;" onmouseover="this.style.background='#dc2626'" onmouseout="this.style.background='#ef4444'" onclick="document.getElementById('${mId}').remove()">
+                                      FECHAR
+                                  </button>
+                              </div>
+                          </div>
+                          <div style="flex:1;background:#e2e8f0;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;padding:24px;">
+                              <div id="ct-img-ld-${mId}" style="font-weight:bold;color:#64748b;font-size:15px;display:flex;align-items:center;gap:8px;">
+                                  <span style="display:inline-block;">⌛</span> Buscando imagem no servidor...
+                              </div>
+                              <div id="wrapper-${mId}" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;">
+                                  <img id="img-${mId}" data-deg="0" src="${url}"
+                                      style="max-width:100%;max-height:100%;object-fit:contain;border-radius:4px;display:none;transition:transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s;"
+                                      onload="this.style.display='block';this.style.boxShadow='0 10px 25px -5px rgba(0,0,0,0.3)';document.getElementById('ct-img-ld-${mId}').style.display='none';"
+                                      onerror="document.getElementById('ct-img-ld-${mId}').innerHTML='⚠️ Comprovante inexistente ou não disponível no sistema.';document.getElementById('ct-img-ld-${mId}').style.color='#ef4444';this.style.display='none';">
+                              </div>
+                          </div>
                       </div>
                   `;
                 document.body.appendChild(m);
+
+                document.getElementById(`btn-rot-${mId}`).onclick = () => {
+                  const img = document.getElementById(`img-${mId}`);
+                  const wrap = document.getElementById(`wrapper-${mId}`);
+                  if (!img || img.style.display === 'none') return;
+
+                  let deg = (Number(img.dataset.deg) || 0) + 90;
+                  img.dataset.deg = deg;
+
+                  const isSideways = (deg / 90) % 2 !== 0;
+                  let scale = 1;
+
+                  if (isSideways) {
+                    const wH = wrap.clientHeight;
+                    const wW = wrap.clientWidth;
+                    if (wH < wW) {
+                      scale = wH / wW;
+                    } else {
+                      scale = wW / wH;
+                    }
+                  }
+
+                  img.style.transform = `rotate(${deg}deg) scale(${scale})`;
+                };
               };
 
-              loadNextBatch();
+              applyFilters();
+
+              const chartColors = chartLabels.map((label) =>
+                getColorForLabel(label)
+              );
 
               new window.Chart(document.getElementById(cid), {
                 type: 'pie',
                 data: {
-                  labels: Object.keys(stats),
+                  labels: chartLabels,
                   datasets: [
                     {
                       data: Object.values(stats),
-                      backgroundColor: [
-                        '#3b82f6',
-                        '#ef4444',
-                        '#10b981',
-                        '#f97316',
-                        '#8b5cf6',
-                        '#ec4899',
-                        '#14b8a6',
-                        '#eab308'
-                      ],
+                      backgroundColor: chartColors,
                       borderWidth: 0
                     }
                   ]
