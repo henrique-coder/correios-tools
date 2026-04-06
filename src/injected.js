@@ -218,17 +218,10 @@
     function GDH(ic) {
       let c = S.domDist && S.domDist !== '' ? S.domDist : S.district;
       c = c ? c.trim() : '';
-      const st = ic
-        ? 'display:flex;align-items:center;justify-content:center'
-        : 'display:flex;align-items:center;justify-content:center;flex-wrap:wrap;flex:1;';
-      if (
-        S.initialDist &&
-        S.initialDist !== '--' &&
-        c &&
-        c !== '--' &&
-        c !== S.initialDist
-      )
-        return `<div style="${st}"><span class="${ic ? 'sro-old' : 'sro-old-p'}">${S.initialDist}</span><span class="${ic ? 'sro-arrow' : 'sro-arrow-p'}">➜</span><span class="${ic ? 'sro-new' : 'sro-new-p'}">${c}</span></div>`;
+      if (S.initialDist && S.initialDist !== c && c !== '--') {
+        const o = S.initialDist;
+        return `<span class="${ic ? 'sro-old' : 'sro-old-p'}" style="${!ic ? 'opacity:0.5;font-weight:normal;margin-right:2px;font-size:0.9em' : ''}">${o}</span><span class="${ic ? 'sro-arrow' : 'sro-arrow-p'}" style="${!ic ? 'margin:0 4px;font-size:0.9em;color:#666' : ''}">&#10142;</span><span class="${ic ? 'sro-new' : 'sro-new-p'}">${c}</span>`;
+      }
       return `<span class="${ic ? 'sro-new' : 'sro-new-p'}">${c || '--'}</span>`;
     }
 
@@ -276,8 +269,11 @@
       if (S.addr.log === '--' || fullAddr.startsWith('--')) {
         el('td-end-full').innerText = fullAddr;
       } else {
+        const encodedAddr = encodeURIComponent(fullAddr)
+          .replace(/%20/g, '+')
+          .replace(/%2C/g, ',');
         el('td-end-full').innerHTML =
-          `<a href="https://www.google.com/maps/place/${fullAddr}" target="_blank" style="color:#00416B;text-decoration:none;font-weight:bold;">${fullAddr}</a>`;
+          `<a href="https://www.google.com/maps/search/${encodedAddr}" target="_blank" style="color:#00416B;text-decoration:none;font-weight:bold;">${fullAddr}</a>`;
       }
 
       el('td-cep').innerText = S.addr.cep;
@@ -484,6 +480,7 @@
         d.length > 0
       ) {
         S.district = `${d[0].rotuloDistrito} ${d[0].areaDistrito || ''}`.trim();
+        S.domDist = '';
         S.op.ord = d[0].ordemPercorrida;
         S.op.side = d[0].lado;
         up = !0;
@@ -507,15 +504,28 @@
           S.op.st = d.estacao;
           S.op.ts = d.carimbo;
           if (d.dataPrevista) S.date = d.dataPrevista;
-          if (S.pendingDist) {
-            S.district = S.pendingDist;
-            S.initialDist = S.pendingDist;
-            S.domDist = S.pendingDist;
-          }
-          if (d.distrito) {
-            S.initialDist = d.distrito;
-            S.domDist = d.distrito;
-          }
+
+          try {
+            const urlObj = new URL(u, window.location.origin);
+            const fetchUrl =
+              urlObj.pathname + '?acao=pesquisarloecobjeto&objeto=' + S.code;
+            window
+              .fetch(fetchUrl)
+              .then((r) => r.json())
+              .then((res) => {
+                if (res && (res.id || res.idLancamento)) {
+                  S.district =
+                    `${res.numeroDistrito || ''} ${res.distritoComplemento || ''}`.trim();
+                  S.domDist = S.district;
+                  S.initialDist = S.district;
+                  if (res.carteiro && res.carteiro.nome)
+                    S.op.postman = res.carteiro.nome;
+                  RDP();
+                }
+              })
+              .catch(() => {});
+          } catch (e) {}
+
           [
             'txtCep',
             'txtNumero',
@@ -581,12 +591,6 @@
     };
 
     XMLHttpRequest.prototype.send = function (b) {
-      if (this._u && this._u.toLowerCase().includes('acao=salvar') && b) {
-        try {
-          const j = JSON.parse(b);
-          if (j.distrito) S.pendingDist = j.distrito;
-        } catch (e) {}
-      }
       this.addEventListener('load', function () {
         if (this._u) {
           if (this._u.includes('lancamentoController.php?acao=listar'))
@@ -602,9 +606,13 @@
       return oS.apply(this, arguments);
     };
 
+    let atcInt = null;
+    let okInt = null;
     function ATC() {
+      if (atcInt) clearInterval(atcInt);
+      if (okInt) clearInterval(okInt);
       let t = 0;
-      const i = setInterval(() => {
+      atcInt = setInterval(() => {
         const b = document.getElementById('btnImprimirEtiquetaNao');
         if (b && b.offsetParent !== null) {
           b.click();
@@ -615,18 +623,28 @@
               view: window
             })
           );
-          clearInterval(i);
+          if (atcInt) {
+            clearInterval(atcInt);
+            atcInt = null;
+          }
           let t2 = 0;
-          const i2 = setInterval(() => {
+          okInt = setInterval(() => {
             const ok = document.querySelector('#alerta.aberto .act a');
             if (ok && ok.innerText === 'OK') {
               ok.click();
-              clearInterval(i2);
+              clearInterval(okInt);
+              okInt = null;
             }
-            if (++t2 >= 50) clearInterval(i2);
+            if (++t2 >= 50 && okInt) {
+              clearInterval(okInt);
+              okInt = null;
+            }
           }, 100);
         }
-        if (++t >= 50) clearInterval(i);
+        if (++t >= 50 && atcInt) {
+          clearInterval(atcInt);
+          atcInt = null;
+        }
       }, 200);
     }
 
@@ -675,6 +693,9 @@
       ATC();
       RDP();
       APL();
+      document.body.addEventListener('change', (e) => {
+        if (e.target && e.target.id === 'selGrade') ATC();
+      });
     }
 
     if (document.readyState === 'loading')
@@ -1060,7 +1081,7 @@
                       <option value="objeto">Objeto (A-Z)</option>
                    </select>
                 </div>
-                
+
                 <div style="background:#fff;border-radius:8px;border:1px solid #e2e8f0;box-shadow:0 1px 3px rgba(0,0,0,0.05);overflow:hidden;" id="ct-table-wrapper">
                   <table style="width:100%;border-collapse:collapse;font-size:12px;text-align:left;">
                     <thead style="background-color:#00416B !important;border-bottom:3px solid #FFE600 !important;position:sticky;top:0;z-index:10;">
