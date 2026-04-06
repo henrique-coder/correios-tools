@@ -1,0 +1,11 @@
+{
+  "name": "Correios Wizard",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:24",
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {
+      "pnpmVersion": "latest",
+      "nodeGypDependencies": true
+    }
+  },
+  "postCreateCommand": "bash .devcontainer/setup.sh"
+}
