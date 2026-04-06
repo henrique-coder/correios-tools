@@ -68,7 +68,10 @@ function checkTool(name) {
 }
 
 const ALL_BROWSERS = ['chrome', 'edge', 'firefox'];
-const targetArg = process.argv[2];
+const args = process.argv.slice(2);
+const isZip = args.includes('--zip');
+const targetArg = args.find((a) => !a.startsWith('--'));
+
 const browsers = targetArg ? [targetArg] : ALL_BROWSERS;
 
 if (browsers.some((b) => !ALL_BROWSERS.includes(b))) {
@@ -102,7 +105,7 @@ for (const browser of browsers) {
 
   manifest.version = version;
 
-  const outDir = path.join('build', browser);
+  const outDir = path.join('build', isZip ? 'temp' : 'unpacked', browser);
   if (fs.existsSync(outDir)) {
     fs.rmSync(outDir, { recursive: true, force: true });
   }
@@ -145,6 +148,22 @@ for (const browser of browsers) {
       fs.copyFileSync(path.join(iconsDir, icon), path.join(destIcons, icon));
     }
     console.log(`  ✔ icons/`);
+  }
+
+  if (isZip) {
+    const releasesDir = path.join('build', 'releases');
+    if (!fs.existsSync(releasesDir)) fs.mkdirSync(releasesDir, { recursive: true });
+    const zipPath = path.join(releasesDir, `${browser}-${version}.zip`);
+    if (fs.existsSync(zipPath)) {
+      fs.rmSync(zipPath);
+    }
+    try {
+      execSync(`cd "${outDir}" && zip -9 -r "../../releases/${browser}-${version}.zip" .`);
+      console.log(`  ✔ packaged to releases/${browser}-${version}.zip`);
+      fs.rmSync(outDir, { recursive: true, force: true });
+    } catch (e) {
+      console.error(`❌  Failed to create zip: ${e.message}`);
+    }
   }
 }
 

@@ -6,6 +6,10 @@
     "build:chrome": "node scripts/build.mjs chrome",
     "build:edge": "node scripts/build.mjs edge",
     "build:firefox": "node scripts/build.mjs firefox",
+    "build-zip": "node scripts/build.mjs --zip",
+    "build-zip:chrome": "node scripts/build.mjs chrome --zip",
+    "build-zip:edge": "node scripts/build.mjs edge --zip",
+    "build-zip:firefox": "node scripts/build.mjs firefox --zip",
     "update-libs": "curl -sL -o src/browser-polyfill.min.js https://unpkg.com/webextension-polyfill@0.12/dist/browser-polyfill.min.js && curl -sL -o src/chart.umd.min.js https://unpkg.com/chart.js@4/dist/chart.umd.min.js"
   },
   "devDependencies": {
