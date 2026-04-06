@@ -57,7 +57,7 @@ jobs:
       - name: Get Version
         id: version
         run: |
-          VERSION=$(node -e "const fs=require('fs'); console.log(JSON.parse(fs.readFileSync('build/unpacked/cw-chrome/manifest.json')).version);")
+          VERSION=$(cat build/version.txt)
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Generate Firefox update manifest

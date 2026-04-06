@@ -95,6 +95,8 @@ delete config.browser_overrides;
 const version = generateVersion();
 config.version = version;
 console.log(`📦  Version: ${version}`);
+fs.mkdirSync('build', { recursive: true });
+fs.writeFileSync(path.join('build', 'version.txt'), version);
 
 for (const browser of browsers) {
   console.log(`\n🌐  Building ${browser}...`);
@@ -130,7 +132,8 @@ for (const browser of browsers) {
       console.log(`  ✔ ${file} (copied)`);
     } else {
       const extraExterns =
-        browser === 'firefox' ? '--externs=externs/browser.js' : '';
+        (browser === 'firefox' ? '--externs=externs/browser.js ' : '') +
+        '--externs=externs/correios.js';
       execSync(
         `pnpm exec google-closure-compiler --compilation_level=ADVANCED_OPTIMIZATIONS --language_in=ECMASCRIPT_NEXT --language_out=ECMASCRIPT_2019 --rewrite_polyfills=false --assume_function_wrapper --isolation_mode=IIFE --js="${src}" --js_output_file="${dest}" --externs=node_modules/google-closure-compiler/contrib/externs/chrome.js --externs=node_modules/google-closure-compiler/contrib/externs/chrome_extensions.js ${extraExterns}`
       );
