@@ -60,9 +60,9 @@ function generateVersion() {
 
 function checkTool(name) {
   try {
-    execSync(`npx --no-install ${name} --version`, { stdio: 'ignore' });
+    execSync(`pnpm exec ${name} --version`, { stdio: 'ignore' });
   } catch {
-    console.error(`❌  '${name}' not found. Make sure you ran 'npm install'.`);
+    console.error(`❌  '${name}' not found. Make sure you ran 'pnpm install'.`);
     process.exit(1);
   }
 }
@@ -92,17 +92,6 @@ const version = generateVersion();
 config.version = version;
 console.log(`📦  Version: ${version}`);
 
-const polyfillUrl =
-  'https://unpkg.com/webextension-polyfill@0.12/dist/browser-polyfill.min.js';
-process.stdout.write('⬇️   Downloading browser polyfill...');
-const polyfillRes = await fetch(polyfillUrl);
-if (!polyfillRes.ok) {
-  console.error(`\n❌  Failed to download polyfill: ${polyfillRes.statusText}`);
-  process.exit(1);
-}
-const polyfillCode = await polyfillRes.text();
-console.log(' done');
-
 for (const browser of browsers) {
   console.log(`\n🌐  Building ${browser}...`);
 
@@ -125,24 +114,26 @@ for (const browser of browsers) {
   );
   console.log(`  ✔ manifest.json (minified)`);
 
-  fs.writeFileSync(path.join(outDir, 'browser-polyfill.min.js'), polyfillCode);
-  console.log(`  ✔ browser-polyfill.min.js`);
-
   const srcFiles = fs.readdirSync('src').filter((f) => f.endsWith('.js'));
   for (const file of srcFiles) {
     const src = path.join('src', file);
     const dest = path.join(outDir, file);
-    execSync(
-      `npx --no-install terser "${src}" --compress --mangle --output "${dest}"`
-    );
-    console.log(`  ✔ ${file} (minified)`);
+    if (file.endsWith('.min.js')) {
+      fs.copyFileSync(src, dest);
+      console.log(`  ✔ ${file} (copied)`);
+    } else {
+      execSync(
+        `pnpm exec terser "${src}" --compress --mangle --output "${dest}"`
+      );
+      console.log(`  ✔ ${file} (minified)`);
+    }
   }
 
   const cssFiles = fs.readdirSync('src').filter((f) => f.endsWith('.css'));
   for (const file of cssFiles) {
     const src = path.join('src', file);
     const dest = path.join(outDir, file);
-    execSync(`npx --no-install csso "${src}" --output "${dest}"`);
+    execSync(`pnpm exec csso "${src}" --output "${dest}"`);
     console.log(`  ✔ ${file} (minified)`);
   }
 

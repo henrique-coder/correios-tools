@@ -715,7 +715,7 @@
       if (!window.Chart) {
         await new Promise((resolve, reject) => {
           const script = document.createElement('script');
-          script.src = 'https://unpkg.com/chart.js@4/dist/chart.umd.min.js';
+          script.src = chrome.runtime.getURL('chart.umd.min.js');
           script.onload = resolve;
           script.onerror = reject;
           document.head.appendChild(script);

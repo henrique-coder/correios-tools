@@ -1,1 +1,3 @@
 src/icons/*
+src/browser-polyfill.min.js
+src/chart.umd.min.js

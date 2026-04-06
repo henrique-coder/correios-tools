@@ -64,7 +64,7 @@ all_frames = false
 # Files accessible from web pages via the extension's URL.
 
 [[web_accessible_resources]]
-resources = ["injected.js"]
+resources = ["injected.js", "chart.umd.min.js"]
 matches = ["*://*.correios.com.br/*"]
 
 # ─── Browser-Specific Overrides ────────────────────────────────────────────── #
