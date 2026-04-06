@@ -13,6 +13,7 @@
 
 import { execSync } from 'child_process';
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 import { parse } from 'smol-toml';
 
@@ -81,7 +82,7 @@ if (browsers.some((b) => !ALL_BROWSERS.includes(b))) {
   process.exit(1);
 }
 
-checkTool('terser');
+checkTool('google-closure-compiler');
 checkTool('csso');
 
 console.log(`🔨  Building for: ${browsers.join(', ')}`);
@@ -105,7 +106,10 @@ for (const browser of browsers) {
 
   manifest.version = version;
 
-  const outDir = path.join('build', isZip ? 'temp' : 'unpacked', browser);
+  const folderName = `cw-${browser}`;
+  const outDir = isZip
+    ? path.join(os.tmpdir(), folderName)
+    : path.join('build', 'unpacked', folderName);
   if (fs.existsSync(outDir)) {
     fs.rmSync(outDir, { recursive: true, force: true });
   }
@@ -125,10 +129,24 @@ for (const browser of browsers) {
       fs.copyFileSync(src, dest);
       console.log(`  ✔ ${file} (copied)`);
     } else {
+      const extraExterns =
+        browser === 'firefox' ? '--externs=externs/browser.js' : '';
       execSync(
-        `pnpm exec terser "${src}" --compress --mangle --output "${dest}"`
+        `pnpm exec google-closure-compiler --compilation_level=ADVANCED_OPTIMIZATIONS --language_in=ECMASCRIPT_NEXT --language_out=ECMASCRIPT_2019 --rewrite_polyfills=false --assume_function_wrapper --isolation_mode=IIFE --js="${src}" --js_output_file="${dest}" --externs=node_modules/google-closure-compiler/contrib/externs/chrome.js --externs=node_modules/google-closure-compiler/contrib/externs/chrome_extensions.js ${extraExterns}`
       );
       console.log(`  ✔ ${file} (minified)`);
+    }
+  }
+
+  const libsDir = path.join('src', 'libs');
+  if (fs.existsSync(libsDir)) {
+    const destLibs = path.join(outDir, 'libs');
+    fs.mkdirSync(destLibs, { recursive: true });
+    for (const lib of fs.readdirSync(libsDir)) {
+      if (lib.endsWith('.js')) {
+        fs.copyFileSync(path.join(libsDir, lib), path.join(destLibs, lib));
+        console.log(`  ✔ libs/${lib} (copied)`);
+      }
     }
   }
 
@@ -151,15 +169,18 @@ for (const browser of browsers) {
   }
 
   if (isZip) {
-    const releasesDir = path.join('build', 'releases');
-    if (!fs.existsSync(releasesDir)) fs.mkdirSync(releasesDir, { recursive: true });
-    const zipPath = path.join(releasesDir, `${browser}-${version}.zip`);
+    const zipName = `cw-${browser}.zip`;
+    const zipPath = path.join('build', zipName);
     if (fs.existsSync(zipPath)) {
       fs.rmSync(zipPath);
     }
     try {
-      execSync(`cd "${outDir}" && zip -9 -r "../../releases/${browser}-${version}.zip" .`);
-      console.log(`  ✔ packaged to releases/${browser}-${version}.zip`);
+      fs.mkdirSync('build', { recursive: true });
+      const targetZip = path.resolve(zipPath);
+      execSync(
+        `cd "${outDir}" && 7z a -tzip -mx=9 "${targetZip}" . > /dev/null`
+      );
+      console.log(`  ✔ zipped to build/${zipName}`);
       fs.rmSync(outDir, { recursive: true, force: true });
     } catch (e) {
       console.error(`❌  Failed to create zip: ${e.message}`);

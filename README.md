@@ -24,7 +24,6 @@ Extensões compiladas disponíveis na [última release](https://github.com/henri
 - **Tabela de dados operacionais** — detalhes completos do objeto: endereço, contato, serviços (AR/MP/DD), lista de indução, carteiro, estação e carimbo.
 - **Atalhos de teclado** — comandos rápidos via tecla `#` para induzir (`#CT-INDUZIROBJETO#`) ou excluir (`#CT-EXCLUIROBJETO#`) objetos sem usar o mouse.
 - **Auto-dismiss de modais** — fecha automaticamente pop-ups de impressão de etiquetas e alertas de confirmação.
-- **Inversão de layout** — botão para alternar a posição do mapa na interface.
 
 ### LOEC Suspensa (`/loecsuspensa/`)
 
@@ -33,13 +32,25 @@ Extensões compiladas disponíveis na [última release](https://github.com/henri
 ## Estrutura
 
 ```
-├── extension.config.jsonc
+├── extension.config.toml
+├── build/
+├── externs/
+├── scripts/
+│   └── build.mjs
 └── src/
     ├── background.js
     ├── content.js
     ├── injected.js
+    ├── libs/
     └── icons/
 ```
+
+## Arquitetura e Build (Produção)
+
+- **Google Closure Compiler:** Todo o código JavaScript da extensão passa por ofuscação e compressão em nível `ADVANCED_OPTIMIZATIONS`, minimizando significativamente o tempo de parse e tamanho em disco sem sacrificar as APIs (`chrome.*` e `browser.*`) graças as tipagens no `externs/`.
+- **Injeção Híbrida Inteligente:** A biblioteca do _browser-polyfill_ é embutida localmente visando estrita integridade na bridge `browser.*`, enquanto dependências analíticas secundárias como _Chart.js_ são demandadas por requisição do `unpkg` dinamicamente preservando o tamanho original da extensão.
+- **Isolamento de Estado:** Os scripts utilitários atuam sob invólucro de expressões auto-invocáveis (IIFE) estritas para neutralizar quaisquer vazamentos de variáveis globais que possam colidir com a arquitetura subjacente do site.
+- **Package Manager:** Transicionado inteiramente ao `pnpm`. Utiliza `7zip` nativo via temporário de S.O para criar release artifacts (zip archives) em compressão máxima (nível 9).
 
 ## Licença
 

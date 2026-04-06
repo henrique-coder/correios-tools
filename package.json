@@ -1,7 +1,7 @@
 {
   "scripts": {
-    "lint": "prettier --check '.github/**' 'src/**' 'scripts/**' 'extension.config.toml'",
-    "format": "prettier --write '.github/**' 'src/**' 'extension.config.toml'",
+    "lint": "prettier --check '.github/**' 'src/**' 'scripts/**' 'externs/**' 'extension.config.toml'",
+    "format": "prettier --write '.github/**' 'src/**' 'scripts/**' 'externs/**' 'extension.config.toml'",
     "build": "node scripts/build.mjs",
     "build:chrome": "node scripts/build.mjs chrome",
     "build:edge": "node scripts/build.mjs edge",
@@ -10,13 +10,13 @@
     "build-zip:chrome": "node scripts/build.mjs chrome --zip",
     "build-zip:edge": "node scripts/build.mjs edge --zip",
     "build-zip:firefox": "node scripts/build.mjs firefox --zip",
-    "update-libs": "curl -sL -o src/browser-polyfill.min.js https://unpkg.com/webextension-polyfill@0.12/dist/browser-polyfill.min.js && curl -sL -o src/chart.umd.min.js https://unpkg.com/chart.js@4/dist/chart.umd.min.js"
+    "update-libs": "curl -sL -o src/libs/browser-polyfill.min.js https://unpkg.com/webextension-polyfill@0.12/dist/browser-polyfill.min.js"
   },
   "devDependencies": {
     "csso-cli": "^4.0.2",
+    "google-closure-compiler": "^20260401.0.0",
     "prettier": "^3.8.1",
     "prettier-plugin-toml": "^2.0.6",
-    "smol-toml": "^1.6.1",
-    "terser": "^5.46.1"
+    "smol-toml": "^1.6.1"
   }
 }

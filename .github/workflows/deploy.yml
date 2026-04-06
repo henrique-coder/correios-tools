@@ -7,6 +7,9 @@ on:
       - '.github/workflows/deploy.yml'
       - 'extension.config.toml'
       - 'src/**'
+      - 'scripts/**'
+      - 'externs/**'
+      - 'package.json'
   workflow_dispatch:
 
 permissions:
@@ -25,162 +28,37 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v5
+        with:
+          version: 10
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '24'
-          cache: 'npm'
+          cache: 'pnpm'
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install
 
-      - name: Validate source files
-        run: |
-          npm i --no-save smol-toml
-
-          echo "Validating extension.config.toml..."
-          node -e "
-            const fs = require('fs');
-            const { parse } = require('smol-toml');
-            const raw = fs.readFileSync('extension.config.toml', 'utf8');
-            const config = parse(raw);
-            if (!config) throw new Error('Invalid TOML format');
-          "
-
-          echo "Validating JavaScript files..."
-          for file in src/*.js; do
-            node --check "$file" || exit 1
-          done
-
-          echo "All files valid!"
-
-      - name: Install build tools
-        run: npm install -g terser@latest csso-cli@latest
-
-      - name: Generate version
-        id: version
-        run: |
-          BUILD_DATE=$(date -u +'%Y-%-m-%-d')
-          BUILD_YEAR=$(echo "$BUILD_DATE" | cut -d'-' -f1)
-          BUILD_MONTH=$(echo "$BUILD_DATE" | cut -d'-' -f2)
-          BUILD_DAY=$(echo "$BUILD_DATE" | cut -d'-' -f3)
-
-          TODAY_START=$(date -u -d "$(date -u +%Y-%m-%d) 00:00:00" +%Y-%m-%dT%H:%M:%SZ)
-          COMMIT_COUNT=$(git log --oneline --after="$TODAY_START" | wc -l)
-          BUILD_NUMBER=$((COMMIT_COUNT > 0 ? COMMIT_COUNT - 1 : 0))
-
-          VERSION="${BUILD_YEAR}.${BUILD_MONTH}.${BUILD_DAY}.${BUILD_NUMBER}"
-          echo "Generated version: $VERSION"
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-
-      - name: Download polyfill
-        run: |
-          curl -fsSL -L "https://unpkg.com/webextension-polyfill@0.12/dist/browser-polyfill.min.js" \
-            -o /tmp/browser-polyfill.min.js
-          echo "Polyfill downloaded ($(wc -c < /tmp/browser-polyfill.min.js) bytes)"
+      - name: Install 7zip
+        run: sudo apt-get update && sudo apt-get install -y p7zip-full
 
       - name: Build and package extensions
-        env:
-          VERSION: ${{ steps.version.outputs.version }}
+        run: pnpm run update-libs && pnpm build-zip
+
+      - name: Rename zip files for release
         run: |
-          node -e "
-            const fs = require('fs');
-            const path = require('path');
-            const { parse } = require('smol-toml');
+          mv build/cw-chrome.zip correios-wizard-chrome.zip
+          mv build/cw-edge.zip correios-wizard-edge.zip
+          mv build/cw-firefox.zip correios-wizard-firefox.zip
 
-            const raw = fs.readFileSync('extension.config.toml', 'utf8');
-            const config = parse(raw);
-
-            const overrides = config.browser_overrides || {};
-            delete config.browser_overrides;
-
-            const version = process.env.VERSION;
-            config.version = version;
-
-            const browsers = ['chrome', 'edge', 'firefox'];
-
-            function isObject(item) {
-              return (item && typeof item === 'object' && !Array.isArray(item));
-            }
-
-            function mergeDeep(target, ...sources) {
-              if (!sources.length) return target;
-              const source = sources.shift();
-
-              if (isObject(target) && isObject(source)) {
-                for (const key in source) {
-                  if (isObject(source[key])) {
-                    if (!target[key]) Object.assign(target, { [key]: {} });
-                    mergeDeep(target[key], source[key]);
-                  } else {
-                    Object.assign(target, { [key]: source[key] });
-                  }
-                }
-              }
-
-              return mergeDeep(target, ...sources);
-            }
-
-            for (const browser of browsers) {
-              const manifest = JSON.parse(JSON.stringify(config));
-
-              if (overrides[browser]) {
-                mergeDeep(manifest, overrides[browser]);
-              }
-
-              const outDir = 'dist/' + browser;
-              fs.mkdirSync(outDir, { recursive: true });
-              fs.writeFileSync(
-                path.join(outDir, 'manifest.json'),
-                JSON.stringify(manifest)
-              );
-            }
-
-            console.log('Manifests generated for: ' + browsers.join(', '));
-          "
-
-          # Minify and copy files for each browser
-          for browser in chrome edge firefox; do
-            dist="dist/$browser"
-
-            # Copy polyfill
-            cp /tmp/browser-polyfill.min.js "$dist/"
-
-            # Minify JS files
-            for file in src/*.js; do
-              filename=$(basename "$file")
-              terser "$file" --compress --mangle --output "$dist/$filename"
-            done
-
-            # Minify CSS (if any)
-            shopt -s nullglob
-            for file in src/*.css; do
-              filename=$(basename "$file")
-              csso "$file" --output "$dist/$filename"
-            done
-            shopt -u nullglob
-
-            # Copy icons
-            cp -r src/icons "$dist/"
-          done
-
-          echo "All browser builds ready!"
-
-      - name: Compress with 7z
+      - name: Get Version
+        id: version
         run: |
-          sudo apt-get install -y p7zip-full > /dev/null 2>&1
-          for browser in chrome edge firefox; do
-            cd "dist/$browser"
-            7z a -tzip -mx=9 -mfb=258 -mpass=15 "../../correios-wizard-${browser}.zip" .
-            cd ../..
-          done
-
-      - name: Lint Firefox extension
-        run: |
-          echo "Linting Firefox extension..."
-          npx --yes web-ext lint --source-dir dist/firefox --self-hosted
-
-          echo "Firefox extension passed validation!"
+          VERSION=$(node -e "const fs=require('fs'); console.log(JSON.parse(fs.readFileSync('build/unpacked/cw-chrome/manifest.json')).version);")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Generate Firefox update manifest
         env:
@@ -209,7 +87,7 @@ jobs:
           body: |
             **Versão:** `${{ steps.version.outputs.version }}`
 
-            Extensão compilada e minificada para cada navegador.
+            Extensões compiladas e otimizadas.
 
             | Arquivo | Navegador |
             |---|---|

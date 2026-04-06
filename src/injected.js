@@ -1,4 +1,4 @@
-!(function () {
+(function () {
   'use strict';
   const PATH = window.location.pathname.toLowerCase();
 
@@ -154,7 +154,6 @@
 
     const K = {
       POS: 'correiostools_pos_v2',
-      LAYOUT: 'correiostools_layout_inv',
       HIDDEN: 'correiostools_panel_hide'
     };
 
@@ -201,12 +200,15 @@
     }
 
     function SP() {
-      localStorage.setItem(K.POS, JSON.stringify({ x: D.xOff, y: D.yOff }));
+      window.localStorage.setItem(
+        K.POS,
+        JSON.stringify({ x: D.xOff, y: D.yOff })
+      );
     }
 
     function LP(el) {
       try {
-        const p = JSON.parse(localStorage.getItem(K.POS));
+        const p = JSON.parse(window.localStorage.getItem(K.POS) || '{x:0,y:0}');
         if (p && typeof p.x === 'number') {
           D.xOff = p.x;
           D.yOff = p.y;
@@ -223,21 +225,6 @@
         return `<span class="${ic ? 'sro-old' : 'sro-old-p'}" style="${!ic ? 'opacity:0.5;font-weight:normal;margin-right:2px;font-size:0.9em' : ''}">${o}</span><span class="${ic ? 'sro-arrow' : 'sro-arrow-p'}" style="${!ic ? 'margin:0 4px;font-size:0.9em;color:#666' : ''}">&#10142;</span><span class="${ic ? 'sro-new' : 'sro-new-p'}">${c}</span>`;
       }
       return `<span class="${ic ? 'sro-new' : 'sro-new-p'}">${c || '--'}</span>`;
-    }
-
-    function APL() {
-      const b = document.getElementById('div-map');
-      if (!b) return;
-      const p = b.parentNode;
-      const i = localStorage.getItem(K.LAYOUT) === 'true';
-      if (i) p.prepend(b);
-      else p.append(b);
-    }
-
-    function TGL() {
-      const v = localStorage.getItem(K.LAYOUT) === 'true';
-      localStorage.setItem(K.LAYOUT, !v);
-      APL();
     }
 
     function IJT() {
@@ -370,11 +357,10 @@
       if (!c) {
         c = document.createElement('div');
         c.id = 'sro-container';
-        c.innerHTML = `<div id="sro-card" class="sro-card mode-loading"><div id="sro-header" class="sro-header" title="Segure para mover"><div class="sro-status-block"><span id="sro-icon" class="sro-icon">⏳</span><span id="sro-status" class="sro-status-text">AGUARDANDO...</span></div><div class="sro-btn-group"><span id="btn-layout-toggle" class="sro-btn-panel" title="Inverter Layout">⇄</span></div></div><div class="sro-body"><div id="sro-tracking" style="font-size:13px;color:#888;font-weight:700;letter-spacing:0.5px;margin-bottom:2px;min-height:16px"></div><div id="sro-distrito" class="sro-distrito">--</div><div style="font-size:12px;color:#666;margin-top:4px">PREVISÃO: <strong id="sro-previsao" style="color:#333">--/--/----</strong></div></div></div>`;
+        c.innerHTML = `<div id="sro-card" class="sro-card mode-loading"><div id="sro-header" class="sro-header" title="Segure para mover"><div class="sro-status-block"><span id="sro-icon" class="sro-icon">⏳</span><span id="sro-status" class="sro-status-text">AGUARDANDO...</span></div><div class="sro-btn-group"></div></div><div class="sro-body"><div id="sro-tracking" style="font-size:13px;color:#888;font-weight:700;letter-spacing:0.5px;margin-bottom:2px;min-height:16px"></div><div id="sro-distrito" class="sro-distrito">--</div><div style="font-size:12px;color:#666;margin-top:4px">PREVISÃO: <strong id="sro-previsao" style="color:#333">--/--/----</strong></div></div></div>`;
         document.body.appendChild(c);
         LP(c);
         STD(document.getElementById('sro-header'), c);
-        document.getElementById('btn-layout-toggle').onclick = TGL;
       }
       const cd = document.getElementById('sro-card');
       if (cd) {
@@ -567,11 +553,6 @@
       const r = await oF.apply(this, a);
       try {
         const u = a[0] ? a[0].toString() : '';
-        if (u.includes('lancamentoController.php?acao=listar'))
-          r.clone()
-            .json()
-            .then((j) => PRL(u, j))
-            .catch(() => {});
         if (u.toLowerCase().includes('controller.php'))
           r.clone()
             .json()
@@ -593,10 +574,6 @@
     XMLHttpRequest.prototype.send = function (b) {
       this.addEventListener('load', function () {
         if (this._u) {
-          if (this._u.includes('lancamentoController.php?acao=listar'))
-            try {
-              PRL(this._u, JSON.parse(this.responseText));
-            } catch (e) {}
           if (this._u.toLowerCase().includes('controller.php'))
             try {
               HRE(this._u, JSON.parse(this.responseText));
@@ -692,7 +669,6 @@
       WSE();
       ATC();
       RDP();
-      APL();
       document.body.addEventListener('change', (e) => {
         if (e.target && e.target.id === 'selGrade') ATC();
       });
@@ -712,10 +688,10 @@
     async function RCD(data) {
       if (!Array.isArray(data) || data.length === 0) return;
 
-      if (!window.Chart) {
+      if (!window['Chart']) {
         await new Promise((resolve, reject) => {
           const script = document.createElement('script');
-          script.src = chrome.runtime.getURL('chart.umd.min.js');
+          script.src = 'https://unpkg.com/chart.js@4/dist/chart.umd.min.js';
           script.onload = resolve;
           script.onerror = reject;
           document.head.appendChild(script);
@@ -758,8 +734,8 @@
       });
 
       distritosList.sort((a, b) => {
-        const numA = parseInt(a.numeroDistrito) || 0;
-        const numB = parseInt(b.numeroDistrito) || 0;
+        const numA = parseInt(a.numeroDistrito, 10) || 0;
+        const numB = parseInt(b.numeroDistrito, 10) || 0;
         if (numA !== numB) return numA - numB;
         const letA = (a.numeroDistrito || '').replace(/[0-9\s]/g, '').trim();
         const letB = (b.numeroDistrito || '').replace(/[0-9\s]/g, '').trim();
@@ -824,7 +800,7 @@
       `;
       refNode.parentNode.insertBefore(container, refNode);
 
-      new window.Chart(document.getElementById('chartjs-status'), {
+      new window['Chart'](document.getElementById('chartjs-status'), {
         type: 'doughnut',
         data: {
           labels: ['Vencidos', 'Vencem Hoje', 'A Vencer'],
@@ -859,7 +835,7 @@
         }
       });
 
-      new window.Chart(document.getElementById('chartjs-volume'), {
+      new window['Chart'](document.getElementById('chartjs-volume'), {
         type: 'bar',
         data: {
           labels: topDistritos.map((d) => d.numeroDistrito),
@@ -1236,7 +1212,7 @@
 
               loadNextBatch();
 
-              new window.Chart(document.getElementById(cid), {
+              new window['Chart'](document.getElementById(cid), {
                 type: 'pie',
                 data: {
                   labels: Object.keys(stats),

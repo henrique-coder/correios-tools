@@ -25,9 +25,7 @@ if (stealthMode) {
 } else {
   const script = document.createElement('script');
   script.src = api.runtime.getURL('injected.js');
-  script.onload = function () {
-    this.remove();
-  };
+  script.onload = () => script.remove();
   (document.head || document.documentElement).appendChild(script);
 }
 
