@@ -952,7 +952,7 @@
                   </div>
                 </div>
                 <div style="flex:1;display:flex;justify-content:flex-end;align-items:center;">
-                  <button id="ct-mod-reload" style="background:#3b82f6;color:#fff;border:none;border-radius:6px;padding:0 16px;height:34px;font-weight:600;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;box-shadow:0 1px 3px rgba(0,0,0,0.1);transition:background 0.2s;white-space:nowrap;flex-shrink:0;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'">↻ Atualizar Relatório</button>
+                  <button id="ct-mod-reload" style="background:#3b82f6;color:#fff;border:none;border-radius:6px;padding:0 20px;height:34px;line-height:34px;font-weight:600;font-size:13px;cursor:pointer;display:inline-block;box-shadow:0 1px 3px rgba(0,0,0,0.1);transition:background 0.2s;white-space:nowrap;width:max-content;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'">↻ Atualizar Relatório</button>
                 </div>
               </div>
               <div id="ct-mod-body" style="flex:1;overflow-y:auto;padding:24px;background:#f1f5f9;"></div>
@@ -1190,11 +1190,16 @@
 
               renderTable();
 
-              body.addEventListener('click', (e) => {
+              if (body._hasCtClick)
+                body.removeEventListener('click', body._hasCtClick);
+              let lastTxt = 0;
+              body._hasCtClick = (e) => {
                 const btnImg = e.target.closest('.ct-btn-img');
                 const btnExport = e.target.closest('.ct-btn-export');
 
                 if (btnExport) {
+                  if (Date.now() - lastTxt < 1000) return;
+                  lastTxt = Date.now();
                   const cat = btnExport.dataset.cat;
                   const catList = list
                     .filter((i) => i.mot === cat)
@@ -1269,7 +1274,8 @@
                       img.style.transform = `rotate(${rotation}deg)`;
                     });
                 }
-              });
+              };
+              body.addEventListener('click', body._hasCtClick);
 
               const fetchSRO = async () => {
                 let loadedSRO = 0;
@@ -1339,8 +1345,6 @@
                 }
               };
 
-              fetchSRO();
-
               new window['Chart'](document.getElementById(cid), {
                 type: 'pie',
                 data: {
@@ -1376,6 +1380,8 @@
                   }
                 }
               });
+
+              await fetchSRO();
             } catch (err) {
               body.innerHTML = `<div style="text-align:center;padding:40px;color:#ef4444;font-weight:bold;font-size:16px;">Falha ao consultar SRO Monitor.<br><br><span style="font-size:13px;color:#64748b;font-weight:normal;">Motivo Técnico: ${err.message}</span></div>`;
             }
