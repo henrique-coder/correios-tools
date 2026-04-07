@@ -466,7 +466,18 @@
         d.length > 0
       ) {
         S.district = `${d[0].rotuloDistrito} ${d[0].areaDistrito || ''}`.trim();
-        S.domDist = '';
+        const s = document.getElementById('selDistrito');
+        if (s) {
+          const o = s.options ? s.options[s.selectedIndex] : null;
+          const v = o ? o.text : s.value;
+          if (v && v !== 'Selecione...' && v.trim() !== '') {
+            S.domDist = v.trim();
+          } else {
+            S.domDist = '';
+          }
+        } else {
+          S.domDist = '';
+        }
         S.op.ord = d[0].ordemPercorrida;
         S.op.side = d[0].lado;
         up = !0;
@@ -655,12 +666,26 @@
     function WSE() {
       const s = document.getElementById('selDistrito');
       if (!s) return setTimeout(WSE, 1000);
-      const f = (e) => {
-        S.domDist = e.target.value;
+      const f = () => {
+        if (!s) return;
+        const o = s.options ? s.options[s.selectedIndex] : null;
+        let v = o ? o.text : s.value;
+        if (v && v.includes(' - ')) v = v.split(' - ')[0]; // Em caso de formatações
+        S.domDist =
+          v && v.trim() !== '' && v !== 'Selecione...' ? v.trim() : '';
         RDP();
       };
       s.addEventListener('change', f);
       s.addEventListener('input', f);
+
+      // Observar mutações no select caso o site o atualize via JS sem disparar eventos
+      const mo = new MutationObserver(f);
+      mo.observe(s, {
+        childList: true,
+        attributes: true,
+        characterData: true,
+        subtree: true
+      });
     }
 
     function IAP() {
@@ -926,6 +951,9 @@
                     <button id="ct-mod-next" style="background:#e2e8f0;border:1px solid #cbd5e1;color:#334155;border-radius:6px;width:34px;height:34px;cursor:pointer;font-weight:bold;font-size:16px;display:flex;align-items:center;justify-content:center;transition:0.2s;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">►</button>
                   </div>
                 </div>
+                <div style="flex:1;display:flex;justify-content:flex-end;align-items:center;">
+                  <button id="ct-mod-reload" style="background:#3b82f6;color:#fff;border:none;border-radius:6px;padding:0 16px;height:34px;font-weight:600;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;box-shadow:0 1px 3px rgba(0,0,0,0.1);transition:background 0.2s;white-space:nowrap;flex-shrink:0;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'">↻ Atualizar Relatório</button>
+                </div>
               </div>
               <div id="ct-mod-body" style="flex:1;overflow-y:auto;padding:24px;background:#f1f5f9;"></div>
             </div>
@@ -937,6 +965,7 @@
           const dtInput = document.getElementById('ct-mod-date');
           const btnPrev = document.getElementById('ct-mod-prev');
           const btnNext = document.getElementById('ct-mod-next');
+          const btnReload = document.getElementById('ct-mod-reload');
           const body = document.getElementById('ct-mod-body');
 
           const fetchAndRender = async () => {
@@ -1193,26 +1222,27 @@
                   const obj = btnImg.dataset.obj;
                   const dh = btnImg.dataset.dh;
 
-                  const url = `https://srointranet.correios.com.br/imagem?objeto=${obj}&dataHora=${dh}`;
+                  const rand = Math.floor(Math.random() * 1000000);
+                  const url = `https://srointranet.correios.com.br/imagem?objeto=${obj}&dataHora=${dh}&_t=${Date.now()}_${rand}`;
                   const m = document.createElement('div');
                   m.id = 'ct-img-modal-' + Date.now();
                   m.style.cssText =
                     'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(15,23,42,0.9);z-index:999999999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);perspective:1000px;';
 
                   m.innerHTML = `
-                      <div style="background:#fff;padding:12px;border-radius:12px;position:relative;width:98vw;height:98vh;display:flex;flex-direction:column;box-shadow:0 25px 50px -12px rgba(0,0,0,0.5);">
+                      <div style="background:#1e293b;padding:16px;border-radius:12px;position:relative;width:auto;height:auto;min-width:300px;min-height:300px;max-width:85vw;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 25px 50px -12px rgba(0,0,0,0.5);border:1px solid #334155;">
 
                           <div style="position:absolute;bottom:24px;right:24px;display:flex;gap:12px;z-index:11;">
                             <button id="${m.id}-rotL" style="background:rgba(15,23,42,0.85);color:#fff;border:1px solid rgba(255,255,255,0.2);border-radius:12px;width:54px;height:54px;cursor:pointer;font-size:24px;box-shadow:0 10px 15px rgba(0,0,0,0.3);backdrop-filter:blur(4px);transition:all 0.2s;" onmouseover="this.style.background='rgba(59,130,246,0.9)';this.style.transform='translateY(-2px)'" onmouseout="this.style.background='rgba(15,23,42,0.85)';this.style.transform='translateY(0)'" title="Rotacionar Esquerda">↺</button>
                             <button id="${m.id}-rotR" style="background:rgba(15,23,42,0.85);color:#fff;border:1px solid rgba(255,255,255,0.2);border-radius:12px;width:54px;height:54px;cursor:pointer;font-size:24px;box-shadow:0 10px 15px rgba(0,0,0,0.3);backdrop-filter:blur(4px);transition:all 0.2s;" onmouseover="this.style.background='rgba(59,130,246,0.9)';this.style.transform='translateY(-2px)'" onmouseout="this.style.background='rgba(15,23,42,0.85)';this.style.transform='translateY(0)'" title="Rotacionar Direita">↻</button>
                           </div>
 
-                          <button id="${m.id}-close" style="position:absolute;top:-12px;right:-12px;background:#ef4444;color:#fff;border:none;border-radius:50%;width:40px;height:40px;cursor:pointer;font-weight:bold;z-index:11;font-size:18px;box-shadow:0 4px 6px rgba(0,0,0,0.2);transition:transform 0.2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">✕</button>
+                          <button id="${m.id}-close" style="position:absolute;top:-16px;right:-16px;background:#ef4444;color:#fff;border:none;border-radius:50%;width:40px;height:40px;cursor:pointer;font-weight:bold;z-index:11;font-size:18px;box-shadow:0 4px 6px rgba(0,0,0,0.2);transition:transform 0.2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">✕</button>
 
-                          <div id="${m.id}-ld" style="padding:50px;text-align:center;font-weight:bold;color:#3b82f6;font-size:15px;width:100%;height:100%;display:flex;align-items:center;justify-content:center;">Buscando imagem no servidor...</div>
+                          <div id="${m.id}-ld" style="padding:50px;text-align:center;font-weight:bold;color:#60a5fa;font-size:15px;width:100%;height:100%;flex:1;display:flex;align-items:center;justify-content:center;">Buscando imagem no servidor...</div>
 
-                          <div style="overflow:hidden;border-radius:8px;display:flex;align-items:center;justify-content:center;background:#e2e8f0;flex:1;width:100%;" id="${m.id}-img-wrap">
-                            <img src="${url}" id="${m.id}-img" style="max-width:100%;max-height:100%;transition:transform 0.15s ease-out;display:none;transform-origin:center;" onload="this.style.display='block';document.getElementById('${m.id}-ld').style.display='none';this.parentElement.style.background='transparent';" onerror="document.getElementById('${m.id}-ld').innerHTML='<span style=&quot;font-size:24px;&quot;>⚠️</span><br><br>Imagem inexistente ou indisponível.';document.getElementById('${m.id}-ld').style.color='#ef4444';this.parentElement.style.display='none';">
+                          <div style="overflow:hidden;border-radius:8px;display:flex;align-items:center;justify-content:center;background:#0f172a;flex:1;width:100%;min-height:200px;" id="${m.id}-img-wrap">
+                            <img src="${url}" id="${m.id}-img" style="max-width:100%;max-height:calc(85vh - 32px);object-fit:contain;transition:transform 0.15s ease-out;display:none;transform-origin:center;" onload="this.style.display='block';document.getElementById('${m.id}-ld').style.display='none';this.parentElement.style.background='transparent';" onerror="document.getElementById('${m.id}-ld').innerHTML='<span style=&quot;font-size:24px;&quot;>⚠️</span><br><br>Imagem inexistente ou indisponível.';document.getElementById('${m.id}-ld').style.color='#ef4444';this.parentElement.style.display='none';">
                           </div>
                       </div>
                   `;
@@ -1356,11 +1386,29 @@
             dtInput.style.opacity = '0.5';
             btnPrev.style.pointerEvents = 'none';
             btnNext.style.pointerEvents = 'none';
+            btnReload.style.pointerEvents = 'none';
+            btnReload.style.opacity = '0.5';
+            btnReload.innerHTML = '⏳ Aguardando...';
+
             fetchAndRender().finally(() => {
               dtInput.style.pointerEvents = 'auto';
               dtInput.style.opacity = '1';
               btnPrev.style.pointerEvents = 'auto';
               btnNext.style.pointerEvents = 'auto';
+
+              let left = 5;
+              btnReload.innerHTML = `⏳ Aguarde ${left}s`;
+              const iv = setInterval(() => {
+                left--;
+                if (left <= 0) {
+                  clearInterval(iv);
+                  btnReload.style.pointerEvents = 'auto';
+                  btnReload.style.opacity = '1';
+                  btnReload.innerHTML = '↻ Atualizar Relatório';
+                } else {
+                  btnReload.innerHTML = `⏳ Aguarde ${left}s`;
+                }
+              }, 1000);
             });
           };
 
@@ -1375,8 +1423,26 @@
           dtInput.onchange = triggerUpdate;
           btnPrev.onclick = () => changeDate(-1);
           btnNext.onclick = () => changeDate(1);
+          btnReload.onclick = triggerUpdate;
 
-          fetchAndRender();
+          fetchAndRender().finally(() => {
+            // After initial render, disable reload button for 5 seconds to prevent spam
+            btnReload.style.pointerEvents = 'none';
+            btnReload.style.opacity = '0.5';
+            let left = 5;
+            btnReload.innerHTML = `⏳ Aguarde ${left}s`;
+            const iv = setInterval(() => {
+              left--;
+              if (left <= 0) {
+                clearInterval(iv);
+                btnReload.style.pointerEvents = 'auto';
+                btnReload.style.opacity = '1';
+                btnReload.innerHTML = '↻ Atualizar Relatório';
+              } else {
+                btnReload.innerHTML = `⏳ Aguarde ${left}s`;
+              }
+            }, 1000);
+          });
         };
         grid.appendChild(card);
       });
