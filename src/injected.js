@@ -994,7 +994,10 @@
                         (s) => `
                       <div style="background:#fff;padding:14px 18px;border-radius:6px;border-left:5px solid #3b82f6;display:flex;justify-content:space-between;align-items:center;box-shadow:0 1px 2px rgba(0,0,0,0.05);border:1px solid #e2e8f0;">
                         <span style="font-size:12px;font-weight:800;color:#334155;text-transform:uppercase;">${s[0]}</span>
-                        <span style="font-size:18px;font-weight:900;color:#0f172a;">${s[1]}</span>
+                        <div style="display:flex;align-items:center;gap:12px;">
+                          <button class="ct-btn-export" data-cat="${s[0]}" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:4px;color:#334155;padding:4px 8px;cursor:pointer;font-weight:bold;font-size:10px;transition:0.2s;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'" title="Baixar lista em .txt">📥 TXT</button>
+                          <span style="font-size:18px;font-weight:900;color:#0f172a;width:40px;text-align:right;display:inline-block;">${s[1]}</span>
+                        </div>
                       </div>`
                       )
                       .join('')}
@@ -1025,9 +1028,9 @@
                    <div>
                       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
                           <span style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;">Filtro por Categorias (Motivos Inseridos):</span>
-                          <div style="display:flex;gap:8px;">
-                              <button id="ct-cat-all" style="padding:5px 10px;font-size:11px;border-radius:4px;border:1px solid #cbd5e1;background:#f8fafc;cursor:pointer;font-weight:600;color:#334155;transition:0.2s;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f8fafc'">Selecionar Tudo</button>
-                              <button id="ct-cat-none" style="padding:5px 10px;font-size:11px;border-radius:4px;border:1px solid #cbd5e1;background:#f8fafc;cursor:pointer;font-weight:600;color:#334155;transition:0.2s;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f8fafc'">Remover Seleção</button>
+                          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                              <button id="ct-cat-all" style="padding:6px 12px;font-size:11px;border-radius:4px;border:1px solid #cbd5e1;background:#f8fafc;cursor:pointer;font-weight:600;color:#334155;transition:0.2s;white-space:nowrap;width:auto;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f8fafc'">Selecionar Tudo</button>
+                              <button id="ct-cat-none" style="padding:6px 12px;font-size:11px;border-radius:4px;border:1px solid #cbd5e1;background:#f8fafc;cursor:pointer;font-weight:600;color:#334155;transition:0.2s;white-space:nowrap;width:auto;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f8fafc'">Remover Seleção</button>
                           </div>
                       </div>
                       <div id="ct-filter-cat" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
@@ -1128,7 +1131,7 @@
                           <td style="padding:12px 20px;color:${item.sitSro ? '#ef4444' : '#94a3b8'} !important;font-weight:${item.sitSro ? '800' : '500'};font-size:11px;text-transform:uppercase;">${item.sitSro || 'Aguardando SRO...'}</td>
                           <td style="padding:12px 20px;color:#64748b !important;font-weight:600;font-size:12px;">${item.dhSro || '--'}</td>
                           <td style="padding:12px 20px;text-align:center;">
-                             ${isoDh ? `<button class="ct-btn-img" data-obj="${item.obj}" data-dh="${isoDh}" style="background:#10b981;border:none;border-radius:4px;color:#fff;padding:6px 10px;cursor:pointer;font-weight:bold;font-size:11px;transition:0.2s;" onmouseover="this.style.background='#059669'" onmouseout="this.style.background='#10b981'" title="Ver Comprovante">📷 VER</button>` : '--'}
+                             ${isoDh ? `<button class="ct-btn-img" data-obj="${item.obj}" data-dh="${isoDh}" style="background:#10b981;border:none;border-radius:4px;color:#fff;padding:6px 10px;cursor:pointer;font-weight:bold;font-size:11px;transition:0.2s;" onmouseover="this.style.background='#059669'" onmouseout="this.style.background='#10b981'" title="Ver Comprovante">VER</button>` : '--'}
                           </td>
                       </tr>
                     `;
@@ -1158,24 +1161,73 @@
 
               renderTable();
 
-              tbody.addEventListener('click', (e) => {
-                const btn = e.target.closest('.ct-btn-img');
-                if (btn) {
-                  const obj = btn.dataset.obj;
-                  const dh = btn.dataset.dh;
+              body.addEventListener('click', (e) => {
+                const btnImg = e.target.closest('.ct-btn-img');
+                const btnExport = e.target.closest('.ct-btn-export');
+
+                if (btnExport) {
+                  const cat = btnExport.dataset.cat;
+                  const catList = list.filter(i => i.mot === cat).map(i => i.obj);
+                  const mat = d.matriculaCarteiro || '00000000';
+                  const nom = (d.nomeCarteiro || 'N/A').replace(/\s+/g, '_');
+                  const sro = d.codigoSro || '00000000';
+                  
+                  const headerLine = `MATRICULA:${mat};NOME:${nom};SRO:${sro};QTD:${catList.length};CATEGORIA:${cat.replace(/\s+/g, '_')}`;
+                  const content = [headerLine, ...catList].join('\r\n');
+                  
+                  const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+                  const filename = `${mat}_${sro}_${cat.replace(/\s+/g, '_')}.txt`;
+                  const link = document.createElement('a');
+                  link.href = URL.createObjectURL(blob);
+                  link.download = filename;
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+                }
+
+                if (btnImg) {
+                  const obj = btnImg.dataset.obj;
+                  const dh = btnImg.dataset.dh;
 
                   const url = `https://srointranet.correios.com.br/imagem?objeto=${obj}&dataHora=${dh}`;
                   const m = document.createElement('div');
+                  m.id = 'ct-img-modal-' + Date.now();
                   m.style.cssText =
-                    'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(15,23,42,0.9);z-index:999999999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);';
+                    'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(15,23,42,0.9);z-index:999999999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);perspective:1000px;';
+                  
                   m.innerHTML = `
                       <div style="background:#fff;padding:8px;border-radius:12px;position:relative;max-width:90vw;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 25px 50px -12px rgba(0,0,0,0.5);">
-                          <button style="position:absolute;top:-16px;right:-16px;background:#ef4444;color:#fff;border:none;border-radius:50%;width:36px;height:36px;cursor:pointer;font-weight:bold;z-index:10;font-size:16px;box-shadow:0 4px 6px rgba(0,0,0,0.2);transition:0.2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'" onclick="this.closest('div[style*=\'position:fixed\']').remove()">✕</button>
-                          <div id="ct-img-ld" style="padding:40px;text-align:center;font-weight:bold;color:#3b82f6;font-size:15px;width:300px;">Buscando imagem no servidor...</div>
-                          <img src="${url}" style="max-width:100%;max-height:85vh;border-radius:6px;display:none;" onload="this.style.display='block';document.getElementById('ct-img-ld').style.display='none';" onerror="document.getElementById('ct-img-ld').innerHTML='<span style=\'font-size:24px;\'>⚠️</span><br><br>Imagem (Comprovante de entrega) inexistente ou não disponível no sistema.';document.getElementById('ct-img-ld').style.color='#ef4444';">
+                          
+                          <div style="position:absolute;top:8px;left:8px;display:flex;gap:8px;z-index:11;">
+                            <button id="${m.id}-rotL" style="background:#3b82f6;color:#fff;border:none;border-radius:4px;width:36px;height:36px;cursor:pointer;font-size:18px;box-shadow:0 2px 4px rgba(0,0,0,0.2);transition:background 0.2s;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'" title="Rotacionar Esquerda">↺</button>
+                            <button id="${m.id}-rotR" style="background:#3b82f6;color:#fff;border:none;border-radius:4px;width:36px;height:36px;cursor:pointer;font-size:18px;box-shadow:0 2px 4px rgba(0,0,0,0.2);transition:background 0.2s;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'" title="Rotacionar Direita">↻</button>
+                          </div>
+
+                          <button id="${m.id}-close" style="position:absolute;top:-16px;right:-16px;background:#ef4444;color:#fff;border:none;border-radius:50%;width:36px;height:36px;cursor:pointer;font-weight:bold;z-index:11;font-size:16px;box-shadow:0 4px 6px rgba(0,0,0,0.2);transition:transform 0.2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">✕</button>
+                          
+                          <div id="${m.id}-ld" style="padding:50px;text-align:center;font-weight:bold;color:#3b82f6;font-size:15px;width:300px;">Buscando imagem no servidor...</div>
+                          
+                          <div style="overflow:hidden;border-radius:6px;display:flex;align-items:center;justify-content:center;background:#e2e8f0;min-height:200px;min-width:300px;" id="${m.id}-img-wrap">
+                            <img src="${url}" id="${m.id}-img" style="max-width:100%;max-height:80vh;transition:transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);display:none;transform-origin:center;" onload="this.style.display='block';document.getElementById('${m.id}-ld').style.display='none';this.parentElement.style.background='transparent';" onerror="document.getElementById('${m.id}-ld').innerHTML='<span style=&quot;font-size:24px;&quot;>⚠️</span><br><br>Imagem inexistente ou indisponível.';document.getElementById('${m.id}-ld').style.color='#ef4444';this.parentElement.style.display='none';">
+                          </div>
                       </div>
                   `;
+                  
                   document.body.appendChild(m);
+
+                  document.getElementById(m.id + '-close').addEventListener('click', () => m.remove());
+
+                  const img = document.getElementById(m.id + '-img');
+                  let rotation = 0;
+                  
+                  document.getElementById(m.id + '-rotL').addEventListener('click', () => {
+                    rotation -= 90;
+                    img.style.transform = `rotate(${rotation}deg)`;
+                  });
+                  document.getElementById(m.id + '-rotR').addEventListener('click', () => {
+                    rotation += 90;
+                    img.style.transform = `rotate(${rotation}deg)`;
+                  });
                 }
               });
 
@@ -1241,7 +1293,7 @@
                   progDiv.style.color = '#15803d';
                   progDiv.style.borderColor = '#bbf7d0';
                   progDiv.innerHTML =
-                    '✅ Download de SRO Concluído: Todos os ' +
+                    'Download de SRO Concluído: Todos os ' +
                     list.length +
                     ' objetos carregados.';
                 }

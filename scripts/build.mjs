@@ -131,11 +131,8 @@ for (const browser of browsers) {
       fs.copyFileSync(src, dest);
       console.log(`  ✔ ${file} (copied)`);
     } else {
-      const extraExterns =
-        (browser === 'firefox' ? '--externs=externs/browser.js ' : '') +
-        '--externs=externs/correios.js';
       execSync(
-        `pnpm exec google-closure-compiler --compilation_level=SIMPLE_OPTIMIZATIONS --language_in=ECMASCRIPT_NEXT --language_out=ECMASCRIPT_2019 --rewrite_polyfills=false --assume_function_wrapper --isolation_mode=IIFE --js="${src}" --js_output_file="${dest}" --externs=node_modules/google-closure-compiler/contrib/externs/chrome.js --externs=node_modules/google-closure-compiler/contrib/externs/chrome_extensions.js ${extraExterns}`
+        `pnpm exec google-closure-compiler --compilation_level=SIMPLE_OPTIMIZATIONS --language_in=ECMASCRIPT_NEXT --language_out=ECMASCRIPT_2019 --rewrite_polyfills=false --assume_function_wrapper --isolation_mode=IIFE --js="${src}" --js_output_file="${dest}"`
       );
       console.log(`  ✔ ${file} (minified)`);
     }

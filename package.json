@@ -1,7 +1,7 @@
 {
   "scripts": {
-    "lint": "prettier --check '.github/**' 'src/**' 'scripts/**' 'externs/**' 'extension.config.toml'",
-    "format": "prettier --write '.github/**' 'src/**' 'scripts/**' 'externs/**' 'extension.config.toml'",
+    "lint": "prettier --check '.github/**' 'src/**' 'scripts/**' 'extension.config.toml'",
+    "format": "prettier --write '.github/**' 'src/**' 'scripts/**' 'extension.config.toml'",
     "build": "node scripts/build.mjs",
     "build:chrome": "node scripts/build.mjs chrome",
     "build:edge": "node scripts/build.mjs edge",
