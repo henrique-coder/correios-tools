@@ -946,41 +946,7 @@
             try {
               const u = `https://sromonitor.correios.com.br/app/analitico-unidade-se/index.php?data=${date}&unidade=${d.codigoSro}&matricula=${d.matriculaCarteiro}`;
 
-              console.groupCollapsed(
-                '%c[Correios Wizard]%c 🛰️ SRO Monitor Request',
-                'color: #3b82f6; font-weight: bold; border-radius: 4px; padding: 2px 4px; background: #eff6ff;',
-                'color: #0f172a; font-weight: bold;'
-              );
-              console.log(
-                '%cURL:%c ' + u,
-                'font-weight: bold;',
-                'font-weight: normal; color: #3b82f6;'
-              );
-              console.log(
-                '%cParams:%c',
-                'font-weight: bold;',
-                'font-weight: normal;',
-                {
-                  data: date,
-                  unidade: d.codigoSro,
-                  matricula: d.matriculaCarteiro
-                }
-              );
-
               const t = await fetchMonitor(u);
-
-              console.log(
-                '%cTamanho:%c ' + t.length + ' bytes',
-                'font-weight: bold;',
-                'font-weight: normal; color: #10b981;'
-              );
-              console.log(
-                '%cResponse:%c',
-                'font-weight: bold;',
-                'font-weight: normal;',
-                t
-              );
-              console.groupEnd();
 
               const p = new DOMParser();
               const doc = p.parseFromString(t, 'text/html');
@@ -1013,9 +979,8 @@
               });
 
               let filteredList = [...list];
-              let loadedCount = 0;
-              let isFetching = false;
               const cid = 'ct-pie-' + Date.now();
+              const cats = Object.keys(stats).sort();
 
               body.innerHTML = `
                 <div style="display:flex;flex-wrap:wrap;gap:20px;margin-bottom:24px;">
@@ -1036,26 +1001,47 @@
                   </div>
                 </div>
 
-                <div style="background:#fff;padding:16px;border-radius:8px;border:1px solid #e2e8f0;margin-bottom:16px;display:flex;gap:16px;align-items:center;flex-wrap:wrap;">
-                   <input type="text" id="ct-filter-obj" placeholder="Filtrar por ID do Objeto..." style="padding:10px;border:1px solid #cbd5e1;border-radius:6px;flex:1;min-width:200px;font-family:inherit;outline:none;">
-                   <div id="ct-filter-cat" style="display:flex;gap:8px;flex-wrap:wrap;flex:3;min-width:300px;align-items:center;">
-                      <span style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;margin-right:4px;">Categorias:</span>
-                      ${Object.keys(stats)
-                        .map(
-                          (k) => `
-                         <label style="background:#f1f5f9;padding:6px 10px;border-radius:16px;font-size:11px;cursor:pointer;display:flex;align-items:center;gap:4px;border:1px solid #cbd5e1;color:#334155;font-weight:600;transition:0.2s;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">
-                            <input type="checkbox" value="${k}" checked style="cursor:pointer;"> ${k}
-                         </label>
-                      `
-                        )
-                        .join('')}
+                <div id="ct-sro-progress" style="background:#fff;padding:16px;border-radius:8px;border:1px solid #e2e8f0;margin-bottom:16px;font-weight:bold;color:#3b82f6;display:flex;align-items:center;gap:12px;">
+                  ⏳ Sincronizando com SRO Intranet: <span id="ct-sro-count">0</span> / ${list.length} objetos carregados...
+                </div>
+
+                <div style="background:#fff;padding:16px;border-radius:8px;border:1px solid #e2e8f0;margin-bottom:16px;display:flex;flex-direction:column;gap:16px;">
+                   <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;">
+                     <div style="flex:1;min-width:200px;">
+                        <span style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;display:block;margin-bottom:6px;">Pesquisa de Objeto:</span>
+                        <input type="text" id="ct-filter-obj" placeholder="Ex: NX123456789BR..." style="width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:6px;font-family:inherit;outline:none;">
+                     </div>
+                     <div style="flex:1;min-width:200px;">
+                        <span style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;display:block;margin-bottom:6px;">Ordenação:</span>
+                        <select id="ct-sort-by" style="width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:6px;font-family:inherit;outline:none;cursor:pointer;background:#fff;">
+                          <option value="default">Padrão</option>
+                          <option value="motivo_asc">Motivo (A-Z)</option>
+                          <option value="motivo_desc">Motivo (Z-A)</option>
+                          <option value="objeto">Objeto (A-Z)</option>
+                        </select>
+                     </div>
                    </div>
-                   <select id="ct-sort-by" style="padding:10px;border:1px solid #cbd5e1;border-radius:6px;flex:1;min-width:180px;font-family:inherit;outline:none;cursor:pointer;background:#fff;">
-                      <option value="default">Ordenação Padrão</option>
-                      <option value="motivo_asc">Motivo (A-Z)</option>
-                      <option value="motivo_desc">Motivo (Z-A)</option>
-                      <option value="objeto">Objeto (A-Z)</option>
-                   </select>
+
+                   <div>
+                      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                          <span style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;">Filtro por Categorias (Motivos Inseridos):</span>
+                          <div style="display:flex;gap:8px;">
+                              <button id="ct-cat-all" style="padding:5px 10px;font-size:11px;border-radius:4px;border:1px solid #cbd5e1;background:#f8fafc;cursor:pointer;font-weight:600;color:#334155;transition:0.2s;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f8fafc'">Selecionar Tudo</button>
+                              <button id="ct-cat-none" style="padding:5px 10px;font-size:11px;border-radius:4px;border:1px solid #cbd5e1;background:#f8fafc;cursor:pointer;font-weight:600;color:#334155;transition:0.2s;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f8fafc'">Remover Seleção</button>
+                          </div>
+                      </div>
+                      <div id="ct-filter-cat" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                          ${cats
+                            .map(
+                              (k, idx) => `
+                             <label style="background:#f1f5f9;padding:6px 12px;border-radius:20px;font-size:11px;cursor:pointer;display:flex;align-items:center;gap:6px;border:1px solid #cbd5e1;color:#334155;font-weight:600;transition:0.2s;white-space:nowrap;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">
+                                <input type="checkbox" value="${k}" checked id="ct-chk-${idx}" style="cursor:pointer;margin:0;"> ${k}
+                             </label>
+                          `
+                            )
+                            .join('')}
+                      </div>
+                   </div>
                 </div>
 
                 <div style="background:#fff;border-radius:8px;border:1px solid #e2e8f0;box-shadow:0 1px 3px rgba(0,0,0,0.05);overflow:hidden;" id="ct-table-wrapper">
@@ -1071,97 +1057,38 @@
                     </thead>
                     <tbody id="ct-tbody"></tbody>
                   </table>
-                  <div id="ct-loading" style="padding:24px;text-align:center;color:#64748b;font-weight:bold;font-size:13px;background:#f8fafc;border-top:1px solid #e2e8f0;">Carregando...</div>
+                  <div id="ct-empty-msg" style="padding:24px;text-align:center;color:#64748b;font-weight:bold;font-size:13px;background:#f8fafc;border-top:1px solid #e2e8f0;display:none;">Nenhum objeto corresponde aos filtros.</div>
                 </div>
               `;
 
               const tbody = document.getElementById('ct-tbody');
-              const loadingDiv = document.getElementById('ct-loading');
+              const emptyMsg = document.getElementById('ct-empty-msg');
+              const txtFilter = document.getElementById('ct-filter-obj');
+              const sortFilter = document.getElementById('ct-sort-by');
+              const chks = Array.from(
+                document.querySelectorAll(
+                  '#ct-filter-cat input[type="checkbox"]'
+                )
+              );
 
-              const loadNextBatch = async () => {
-                if (isFetching || loadedCount >= filteredList.length) {
-                  if (loadedCount >= filteredList.length)
-                    loadingDiv.innerText =
-                      filteredList.length === 0
-                        ? 'Nenhum objeto encontrado nos filtros.'
-                        : 'Fim da lista.';
+              const renderTable = () => {
+                const txt = txtFilter.value.toLowerCase().trim();
+                const selCats = chks
+                  .filter((i) => i.checked)
+                  .map((i) => i.value);
+                const sort = sortFilter.value;
+
+                if (selCats.length === 0) {
+                  tbody.innerHTML = '';
+                  emptyMsg.style.display = 'block';
+                  emptyMsg.innerText =
+                    'Nenhuma categoria selecionada. Marque alguma para exibir.';
                   return;
                 }
-                isFetching = true;
-                loadingDiv.innerText = 'Consultando SRO Intranet... Aguarde';
-
-                const chunk = filteredList.slice(loadedCount, loadedCount + 50);
-                const idMap = {};
-                chunk.forEach((item) => {
-                  idMap[item.obj] = item;
-                });
-
-                try {
-                  const r = await fetchMonitor(
-                    'https://srointranet.correios.com.br/rastreamento?objetos=' +
-                      Object.keys(idMap).join(';')
-                  );
-                  const d2 = new DOMParser().parseFromString(r, 'text/html');
-                  d2.querySelectorAll('a[Name="Detalhes"]').forEach((a) => {
-                    const o = a.innerText.trim();
-                    const td = a.closest('td');
-                    if (td && td.parentElement) {
-                      const tds = td.parentElement.querySelectorAll('td');
-                      if (tds.length >= 4 && idMap[o]) {
-                        idMap[o].dhSro = tds[1].innerText.trim();
-                        idMap[o].sitSro = tds[3].innerText.trim();
-                      }
-                    }
-                  });
-                } catch (e) {}
-
-                chunk.forEach((item, idx) => {
-                  let isoDh = '';
-                  if (item.dhSro) {
-                    const [dPart, tPart] = item.dhSro.split(' ');
-                    if (dPart && tPart) {
-                      const [dia, mes, ano] = dPart.split('/');
-                      isoDh = `${ano}-${mes}-${dia}T${tPart}`;
-                    }
-                  }
-
-                  const tr = document.createElement('tr');
-                  tr.style.cssText = `border-bottom:1px solid #e2e8f0;background-color:${(loadedCount + idx) % 2 === 0 ? '#ffffff' : '#f8fafc'} !important;transition:0.1s;`;
-                  tr.innerHTML = `
-                          <td style="padding:12px 20px;font-weight:bold;letter-spacing:0.5px;font-size:13px;color:#00416B !important;">
-                             <a href="https://srointranet.correios.com.br/rastreamento?objetos=${item.obj}" target="_blank" style="text-decoration:none;color:#00416B !important;">${item.obj}</a>
-                          </td>
-                          <td style="padding:12px 20px;color:#000000 !important;font-weight:700;font-size:12px;">${item.mot}</td>
-                          <td style="padding:12px 20px;color:#ef4444 !important;font-weight:800;font-size:11px;text-transform:uppercase;">${item.sitSro || '--'}</td>
-                          <td style="padding:12px 20px;color:#64748b !important;font-weight:600;font-size:12px;">${item.dhSro || '--'}</td>
-                          <td style="padding:12px 20px;text-align:center;">
-                             ${isoDh ? `<button onclick="window.ctShowImg('${item.obj}', '${isoDh}')" style="background:#10b981;border:none;border-radius:4px;color:#fff;padding:6px 10px;cursor:pointer;font-weight:bold;font-size:11px;transition:0.2s;" onmouseover="this.style.background='#059669'" onmouseout="this.style.background='#10b981'" title="Ver Comprovante">📷 VER</button>` : '--'}
-                          </td>
-                      `;
-                  tbody.appendChild(tr);
-                });
-
-                loadedCount += chunk.length;
-                isFetching = false;
-                loadingDiv.innerText =
-                  loadedCount >= filteredList.length
-                    ? 'Fim da lista.'
-                    : 'Scroll down para carregar mais...';
-              };
-
-              const applyFilters = () => {
-                const txt = document
-                  .getElementById('ct-filter-obj')
-                  .value.toLowerCase()
-                  .trim();
-                const cats = Array.from(
-                  document.querySelectorAll('#ct-filter-cat input:checked')
-                ).map((i) => i.value);
-                const sort = document.getElementById('ct-sort-by').value;
 
                 filteredList = list.filter((i) => {
                   if (txt && !i.obj.toLowerCase().includes(txt)) return false;
-                  if (cats.length > 0 && !cats.includes(i.mot)) return false;
+                  if (!selCats.includes(i.mot)) return false;
                   return true;
                 });
 
@@ -1173,44 +1100,154 @@
                   filteredList.sort((a, b) => a.obj.localeCompare(b.obj));
                 }
 
-                tbody.innerHTML = '';
-                loadedCount = 0;
-                isFetching = false;
-                loadingDiv.innerText = 'Carregando...';
-                loadNextBatch();
-              };
+                if (filteredList.length === 0) {
+                  tbody.innerHTML = '';
+                  emptyMsg.style.display = 'block';
+                  emptyMsg.innerText =
+                    'Nenhum objeto corresponde aos filtros de texto/categoria.';
+                } else {
+                  emptyMsg.style.display = 'none';
 
-              document.getElementById('ct-filter-obj').oninput = applyFilters;
-              document.getElementById('ct-sort-by').onchange = applyFilters;
-              document
-                .querySelectorAll('#ct-filter-cat input')
-                .forEach((i) => (i.onchange = applyFilters));
+                  let html = '';
+                  filteredList.forEach((item, idx) => {
+                    let isoDh = '';
+                    if (item.dhSro) {
+                      const [dPart, tPart] = item.dhSro.split(' ');
+                      if (dPart && tPart) {
+                        const [dia, mes, ano] = dPart.split('/');
+                        isoDh = `${ano}-${mes}-${dia}T${tPart}`;
+                      }
+                    }
 
-              body.onscroll = () => {
-                if (
-                  body.scrollTop + body.clientHeight >=
-                  body.scrollHeight - 100
-                ) {
-                  loadNextBatch();
+                    html += `
+                      <tr style="border-bottom:1px solid #e2e8f0;background-color:${idx % 2 === 0 ? '#ffffff' : '#f8fafc'} !important;transition:0.1s;">
+                          <td style="padding:12px 20px;font-weight:bold;letter-spacing:0.5px;font-size:13px;color:#00416B !important;">
+                             <a href="https://srointranet.correios.com.br/rastreamento?objetos=${item.obj}" target="_blank" style="text-decoration:none;color:#00416B !important;">${item.obj}</a>
+                          </td>
+                          <td style="padding:12px 20px;color:#000000 !important;font-weight:700;font-size:12px;">${item.mot}</td>
+                          <td style="padding:12px 20px;color:${item.sitSro ? '#ef4444' : '#94a3b8'} !important;font-weight:${item.sitSro ? '800' : '500'};font-size:11px;text-transform:uppercase;">${item.sitSro || 'Aguardando SRO...'}</td>
+                          <td style="padding:12px 20px;color:#64748b !important;font-weight:600;font-size:12px;">${item.dhSro || '--'}</td>
+                          <td style="padding:12px 20px;text-align:center;">
+                             ${isoDh ? `<button class="ct-btn-img" data-obj="${item.obj}" data-dh="${isoDh}" style="background:#10b981;border:none;border-radius:4px;color:#fff;padding:6px 10px;cursor:pointer;font-weight:bold;font-size:11px;transition:0.2s;" onmouseover="this.style.background='#059669'" onmouseout="this.style.background='#10b981'" title="Ver Comprovante">📷 VER</button>` : '--'}
+                          </td>
+                      </tr>
+                    `;
+                  });
+                  tbody.innerHTML = html;
                 }
               };
 
-              window.ctShowImg = (obj, dh) => {
-                const url = `https://srointranet.correios.com.br/imagem?objeto=${obj}&dataHora=${dh}`;
-                const m = document.createElement('div');
-                m.style.cssText =
-                  'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(15,23,42,0.9);z-index:999999999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);';
-                m.innerHTML = `
+              txtFilter.addEventListener('input', renderTable);
+              sortFilter.addEventListener('change', renderTable);
+              chks.forEach((chk) =>
+                chk.addEventListener('change', renderTable)
+              );
+
+              document
+                .getElementById('ct-cat-all')
+                .addEventListener('click', () => {
+                  chks.forEach((c) => (c.checked = true));
+                  renderTable();
+                });
+              document
+                .getElementById('ct-cat-none')
+                .addEventListener('click', () => {
+                  chks.forEach((c) => (c.checked = false));
+                  renderTable();
+                });
+
+              renderTable();
+
+              tbody.addEventListener('click', (e) => {
+                const btn = e.target.closest('.ct-btn-img');
+                if (btn) {
+                  const obj = btn.dataset.obj;
+                  const dh = btn.dataset.dh;
+
+                  const url = `https://srointranet.correios.com.br/imagem?objeto=${obj}&dataHora=${dh}`;
+                  const m = document.createElement('div');
+                  m.style.cssText =
+                    'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(15,23,42,0.9);z-index:999999999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);';
+                  m.innerHTML = `
                       <div style="background:#fff;padding:8px;border-radius:12px;position:relative;max-width:90vw;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 25px 50px -12px rgba(0,0,0,0.5);">
-                          <button style="position:absolute;top:-16px;right:-16px;background:#ef4444;color:#fff;border:none;border-radius:50%;width:36px;height:36px;cursor:pointer;font-weight:bold;z-index:10;font-size:16px;box-shadow:0 4px 6px rgba(0,0,0,0.2);transition:0.2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'" onclick="this.closest('div[style*=\\'position:fixed\\']').remove()">✕</button>
+                          <button style="position:absolute;top:-16px;right:-16px;background:#ef4444;color:#fff;border:none;border-radius:50%;width:36px;height:36px;cursor:pointer;font-weight:bold;z-index:10;font-size:16px;box-shadow:0 4px 6px rgba(0,0,0,0.2);transition:0.2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'" onclick="this.closest('div[style*=\'position:fixed\']').remove()">✕</button>
                           <div id="ct-img-ld" style="padding:40px;text-align:center;font-weight:bold;color:#3b82f6;font-size:15px;width:300px;">Buscando imagem no servidor...</div>
-                          <img src="${url}" style="max-width:100%;max-height:85vh;border-radius:6px;display:none;" onload="this.style.display='block';document.getElementById('ct-img-ld').style.display='none';" onerror="document.getElementById('ct-img-ld').innerHTML='<span style=\\'font-size:24px;\\'>⚠️</span><br><br>Imagem (Comprovante de entrega) inexistente ou não disponível no sistema.';document.getElementById('ct-img-ld').style.color='#ef4444';">
+                          <img src="${url}" style="max-width:100%;max-height:85vh;border-radius:6px;display:none;" onload="this.style.display='block';document.getElementById('ct-img-ld').style.display='none';" onerror="document.getElementById('ct-img-ld').innerHTML='<span style=\'font-size:24px;\'>⚠️</span><br><br>Imagem (Comprovante de entrega) inexistente ou não disponível no sistema.';document.getElementById('ct-img-ld').style.color='#ef4444';">
                       </div>
                   `;
-                document.body.appendChild(m);
+                  document.body.appendChild(m);
+                }
+              });
+
+              const fetchSRO = async () => {
+                let loadedSRO = 0;
+                const batchSize = 50;
+                const countLbl = document.getElementById('ct-sro-count');
+                const progDiv = document.getElementById('ct-sro-progress');
+
+                const maxConcurrent = 3;
+                const chunks = [];
+                for (let i = 0; i < list.length; i += batchSize) {
+                  chunks.push(list.slice(i, i + batchSize));
+                }
+
+                let currentChunk = 0;
+                const worker = async () => {
+                  while (currentChunk < chunks.length) {
+                    const chunk = chunks[currentChunk++];
+                    const objs = chunk.map((c) => c.obj).join(';');
+                    try {
+                      const r = await fetchMonitor(
+                        'https://srointranet.correios.com.br/rastreamento?objetos=' +
+                          objs
+                      );
+                      const d2 = new DOMParser().parseFromString(
+                        r,
+                        'text/html'
+                      );
+                      const mapMap = {};
+                      chunk.forEach((c) => (mapMap[c.obj] = c));
+
+                      d2.querySelectorAll('a[Name="Detalhes"]').forEach((a) => {
+                        const o = a.innerText.trim();
+                        if (mapMap[o]) {
+                          const td = a.closest('td');
+                          if (td && td.parentElement) {
+                            const tds = td.parentElement.querySelectorAll('td');
+                            if (tds.length >= 4) {
+                              mapMap[o].dhSro = tds[1].innerText.trim();
+                              mapMap[o].sitSro = tds[3].innerText.trim();
+                            }
+                          }
+                        }
+                      });
+                    } catch (e) {
+                      console.error('Batch err', e);
+                    }
+                    loadedSRO += chunk.length;
+                    if (countLbl) countLbl.innerText = loadedSRO;
+                    renderTable();
+                  }
+                };
+
+                const workers = Array.from(
+                  { length: Math.min(maxConcurrent, chunks.length) },
+                  () => worker()
+                );
+                await Promise.all(workers);
+
+                if (progDiv) {
+                  progDiv.style.backgroundColor = '#f0fdf4';
+                  progDiv.style.color = '#15803d';
+                  progDiv.style.borderColor = '#bbf7d0';
+                  progDiv.innerHTML =
+                    '✅ Download de SRO Concluído: Todos os ' +
+                    list.length +
+                    ' objetos carregados.';
+                }
               };
 
-              loadNextBatch();
+              fetchSRO();
 
               new window['Chart'](document.getElementById(cid), {
                 type: 'pie',
