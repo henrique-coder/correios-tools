@@ -1167,16 +1167,20 @@
 
                 if (btnExport) {
                   const cat = btnExport.dataset.cat;
-                  const catList = list.filter(i => i.mot === cat).map(i => i.obj);
+                  const catList = list
+                    .filter((i) => i.mot === cat)
+                    .map((i) => i.obj);
                   const mat = d.matriculaCarteiro || '00000000';
-                  const nom = (d.nomeCarteiro || 'N/A').replace(/\s+/g, '_');
+                  const nom = d.nomeCarteiro || 'N/A';
                   const sro = d.codigoSro || '00000000';
-                  
-                  const headerLine = `MATRICULA:${mat};NOME:${nom};SRO:${sro};QTD:${catList.length};CATEGORIA:${cat.replace(/\s+/g, '_')}`;
+
+                  const headerLine = `Nome: "${nom}" - Matrícula: "${mat}" - Unidade: "${sro}" - Quantidade: "${catList.length}" - Categoria: "${cat}"`;
                   const content = [headerLine, ...catList].join('\r\n');
-                  
-                  const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
-                  const filename = `${mat}_${sro}_${cat.replace(/\s+/g, '_')}.txt`;
+
+                  const blob = new Blob([content], {
+                    type: 'text/plain;charset=utf-8'
+                  });
+                  const filename = `${sro}_${mat}_${cat.replace(/\s+/g, '_')}.txt`;
                   const link = document.createElement('a');
                   link.href = URL.createObjectURL(blob);
                   link.download = filename;
@@ -1194,40 +1198,46 @@
                   m.id = 'ct-img-modal-' + Date.now();
                   m.style.cssText =
                     'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(15,23,42,0.9);z-index:999999999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);perspective:1000px;';
-                  
+
                   m.innerHTML = `
-                      <div style="background:#fff;padding:8px;border-radius:12px;position:relative;max-width:90vw;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 25px 50px -12px rgba(0,0,0,0.5);">
-                          
-                          <div style="position:absolute;top:8px;left:8px;display:flex;gap:8px;z-index:11;">
-                            <button id="${m.id}-rotL" style="background:#3b82f6;color:#fff;border:none;border-radius:4px;width:36px;height:36px;cursor:pointer;font-size:18px;box-shadow:0 2px 4px rgba(0,0,0,0.2);transition:background 0.2s;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'" title="Rotacionar Esquerda">↺</button>
-                            <button id="${m.id}-rotR" style="background:#3b82f6;color:#fff;border:none;border-radius:4px;width:36px;height:36px;cursor:pointer;font-size:18px;box-shadow:0 2px 4px rgba(0,0,0,0.2);transition:background 0.2s;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'" title="Rotacionar Direita">↻</button>
+                      <div style="background:#fff;padding:12px;border-radius:12px;position:relative;width:98vw;height:98vh;display:flex;flex-direction:column;box-shadow:0 25px 50px -12px rgba(0,0,0,0.5);">
+
+                          <div style="position:absolute;bottom:24px;right:24px;display:flex;gap:12px;z-index:11;">
+                            <button id="${m.id}-rotL" style="background:rgba(15,23,42,0.85);color:#fff;border:1px solid rgba(255,255,255,0.2);border-radius:12px;width:54px;height:54px;cursor:pointer;font-size:24px;box-shadow:0 10px 15px rgba(0,0,0,0.3);backdrop-filter:blur(4px);transition:all 0.2s;" onmouseover="this.style.background='rgba(59,130,246,0.9)';this.style.transform='translateY(-2px)'" onmouseout="this.style.background='rgba(15,23,42,0.85)';this.style.transform='translateY(0)'" title="Rotacionar Esquerda">↺</button>
+                            <button id="${m.id}-rotR" style="background:rgba(15,23,42,0.85);color:#fff;border:1px solid rgba(255,255,255,0.2);border-radius:12px;width:54px;height:54px;cursor:pointer;font-size:24px;box-shadow:0 10px 15px rgba(0,0,0,0.3);backdrop-filter:blur(4px);transition:all 0.2s;" onmouseover="this.style.background='rgba(59,130,246,0.9)';this.style.transform='translateY(-2px)'" onmouseout="this.style.background='rgba(15,23,42,0.85)';this.style.transform='translateY(0)'" title="Rotacionar Direita">↻</button>
                           </div>
 
-                          <button id="${m.id}-close" style="position:absolute;top:-16px;right:-16px;background:#ef4444;color:#fff;border:none;border-radius:50%;width:36px;height:36px;cursor:pointer;font-weight:bold;z-index:11;font-size:16px;box-shadow:0 4px 6px rgba(0,0,0,0.2);transition:transform 0.2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">✕</button>
-                          
-                          <div id="${m.id}-ld" style="padding:50px;text-align:center;font-weight:bold;color:#3b82f6;font-size:15px;width:300px;">Buscando imagem no servidor...</div>
-                          
-                          <div style="overflow:hidden;border-radius:6px;display:flex;align-items:center;justify-content:center;background:#e2e8f0;min-height:200px;min-width:300px;" id="${m.id}-img-wrap">
-                            <img src="${url}" id="${m.id}-img" style="max-width:100%;max-height:80vh;transition:transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);display:none;transform-origin:center;" onload="this.style.display='block';document.getElementById('${m.id}-ld').style.display='none';this.parentElement.style.background='transparent';" onerror="document.getElementById('${m.id}-ld').innerHTML='<span style=&quot;font-size:24px;&quot;>⚠️</span><br><br>Imagem inexistente ou indisponível.';document.getElementById('${m.id}-ld').style.color='#ef4444';this.parentElement.style.display='none';">
+                          <button id="${m.id}-close" style="position:absolute;top:-12px;right:-12px;background:#ef4444;color:#fff;border:none;border-radius:50%;width:40px;height:40px;cursor:pointer;font-weight:bold;z-index:11;font-size:18px;box-shadow:0 4px 6px rgba(0,0,0,0.2);transition:transform 0.2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">✕</button>
+
+                          <div id="${m.id}-ld" style="padding:50px;text-align:center;font-weight:bold;color:#3b82f6;font-size:15px;width:100%;height:100%;display:flex;align-items:center;justify-content:center;">Buscando imagem no servidor...</div>
+
+                          <div style="overflow:hidden;border-radius:8px;display:flex;align-items:center;justify-content:center;background:#e2e8f0;flex:1;width:100%;" id="${m.id}-img-wrap">
+                            <img src="${url}" id="${m.id}-img" style="max-width:100%;max-height:100%;transition:transform 0.15s ease-out;display:none;transform-origin:center;" onload="this.style.display='block';document.getElementById('${m.id}-ld').style.display='none';this.parentElement.style.background='transparent';" onerror="document.getElementById('${m.id}-ld').innerHTML='<span style=&quot;font-size:24px;&quot;>⚠️</span><br><br>Imagem inexistente ou indisponível.';document.getElementById('${m.id}-ld').style.color='#ef4444';this.parentElement.style.display='none';">
                           </div>
                       </div>
                   `;
-                  
+
                   document.body.appendChild(m);
 
-                  document.getElementById(m.id + '-close').addEventListener('click', () => m.remove());
+                  document
+                    .getElementById(m.id + '-close')
+                    .addEventListener('click', () => m.remove());
 
                   const img = document.getElementById(m.id + '-img');
                   let rotation = 0;
-                  
-                  document.getElementById(m.id + '-rotL').addEventListener('click', () => {
-                    rotation -= 90;
-                    img.style.transform = `rotate(${rotation}deg)`;
-                  });
-                  document.getElementById(m.id + '-rotR').addEventListener('click', () => {
-                    rotation += 90;
-                    img.style.transform = `rotate(${rotation}deg)`;
-                  });
+
+                  document
+                    .getElementById(m.id + '-rotL')
+                    .addEventListener('click', () => {
+                      rotation -= 90;
+                      img.style.transform = `rotate(${rotation}deg)`;
+                    });
+                  document
+                    .getElementById(m.id + '-rotR')
+                    .addEventListener('click', () => {
+                      rotation += 90;
+                      img.style.transform = `rotate(${rotation}deg)`;
+                    });
                 }
               });
 
