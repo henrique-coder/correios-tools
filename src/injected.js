@@ -832,16 +832,24 @@
           <div id="ct-arq-export" style="margin-top:16px;display:none;border-top:1px solid #e2e8f0;padding-top:16px;">
             <h4 style="margin:0 0 12px 0;font-size:13px;color:#475569;">Filtros e Exportação:</h4>
             <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:16px;">
-              <select id="ct-arq-dist-filter" style="padding:6px 12px;border:1px solid #cbd5e1;border-radius:6px;font-family:inherit;font-size:13px;outline:none;">
+              <select id="ct-arq-grade-filter" style="flex:1;min-width:140px;padding:6px 12px;border:1px solid #cbd5e1;border-radius:6px;font-family:inherit;font-size:13px;outline:none;">
+                <option value="">Todas as Grades</option>
+              </select>
+              <select id="ct-arq-side-filter" style="flex:1;min-width:140px;padding:6px 12px;border:1px solid #cbd5e1;border-radius:6px;font-family:inherit;font-size:13px;outline:none;">
+                <option value="">Todos os Lados</option>
+              </select>
+              <select id="ct-arq-dist-filter" style="flex:1;min-width:160px;padding:6px 12px;border:1px solid #cbd5e1;border-radius:6px;font-family:inherit;font-size:13px;outline:none;">
                 <option value="">Todos os Distritos</option>
               </select>
-              <select id="ct-arq-export-mode" style="padding:6px 12px;border:1px solid #cbd5e1;border-radius:6px;font-family:inherit;font-size:13px;outline:none;">
+              <select id="ct-arq-export-mode" style="flex:1;min-width:200px;padding:6px 12px;border:1px solid #cbd5e1;border-radius:6px;font-family:inherit;font-size:13px;outline:none;">
                 <option value="1">📋 Apenas Objetos</option>
                 <option value="2">📍 Apenas Endereços</option>
-                <option value="3">📦 Objetos e Endereços</option>
+                <option value="3" selected>📦 Objetos e Endereços</option>
               </select>
-              <button id="ct-arq-btn-copy" style="padding:6px 16px;background:#3b82f6;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px;transition:0.2s;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'">Copiar Conteúdo</button>
-              <button id="ct-arq-btn-txt" style="padding:6px 16px;background:#334155;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px;transition:0.2s;" onmouseover="this.style.background='#1e293b'" onmouseout="this.style.background='#334155'">Salvar TXT</button>
+              <div style="display:flex;gap:8px;flex:1;min-width:260px;">
+                <button id="ct-arq-btn-copy" style="flex:1;white-space:nowrap;padding:8px 12px;background:#3b82f6;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:12px;transition:0.2s;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'">📋 Copiar Conteúdo</button>
+                <button id="ct-arq-btn-txt" style="flex:1;white-space:nowrap;padding:8px 12px;background:#334155;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:12px;transition:0.2s;" onmouseover="this.style.background='#1e293b'" onmouseout="this.style.background='#334155'">📥 Salvar TXT</button>
+              </div>
             </div>
           </div>
           <div id="ct-arq-result" style="margin-top:16px;display:none;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px;max-height:400px;overflow-y:auto;">
@@ -982,10 +990,51 @@
           window._ctArqLastData = { cat: EXPORT_CAT, objs: allObjs };
           exportEl.style.display = 'block';
 
+          window._parseDist = (dStr) => {
+            const match = (dStr || '').match(/^(\d)(\d*)\s*([a-zA-Z]*)/i);
+            if (match)
+              return {
+                grade: match[1],
+                side: match[3] ? match[3].toUpperCase() : ''
+              };
+            return { grade: '', side: '' };
+          };
+
           const distFilterEl = document.getElementById('ct-arq-dist-filter');
-          const dists = [...new Set(allObjs.map(o => o.dist))].sort();
-          distFilterEl.innerHTML = '<option value="">Todos os Distritos</option>' + dists.map(d => `<option value="${d}">${d}</option>`).join('');
-          
+          const gradeFilterEl = document.getElementById('ct-arq-grade-filter');
+          const sideFilterEl = document.getElementById('ct-arq-side-filter');
+
+          const dists = [...new Set(allObjs.map((o) => o.dist))].sort();
+          const grades = [
+            ...new Set(
+              allObjs
+                .map((o) => window._parseDist(o.dist).grade)
+                .filter(Boolean)
+            )
+          ].sort();
+          const sides = [
+            ...new Set(
+              allObjs.map((o) => window._parseDist(o.dist).side).filter(Boolean)
+            )
+          ].sort();
+
+          if (distFilterEl)
+            distFilterEl.innerHTML =
+              '<option value="">Todos os Distritos</option>' +
+              dists.map((d) => `<option value="${d}">${d}</option>`).join('');
+          if (gradeFilterEl)
+            gradeFilterEl.innerHTML =
+              '<option value="">Todas as Grades</option>' +
+              grades
+                .map((g) => `<option value="${g}">Grade ${g}</option>`)
+                .join('');
+          if (sideFilterEl)
+            sideFilterEl.innerHTML =
+              '<option value="">Todos os Lados</option>' +
+              sides
+                .map((s) => `<option value="${s}">Lado ${s}</option>`)
+                .join('');
+
           exportEl.style.display = 'block';
           renderArqTable();
         }
@@ -995,69 +1044,119 @@
       };
 
       const renderArqTable = () => {
-         const resultEl = document.getElementById('ct-arq-result');
-         const d = window._ctArqLastData;
-         if (!d || !d.objs || d.objs.length === 0) {
-            resultEl.innerHTML = '<div style="padding:10px;text-align:center;color:#ef4444;">Nenhum objeto encontrado na categoria especificada!</div>';
-            return;
-         }
+        const resultEl = document.getElementById('ct-arq-result');
+        const d = window._ctArqLastData;
+        if (!d || !d.objs || d.objs.length === 0) {
+          resultEl.innerHTML =
+            '<div style="padding:10px;text-align:center;color:#ef4444;">Nenhum objeto encontrado na categoria especificada!</div>';
+          return;
+        }
 
-         const mode = document.getElementById('ct-arq-export-mode').value;
-         const distFilter = document.getElementById('ct-arq-dist-filter').value;
-         
-         const filteredObjs = distFilter ? d.objs.filter(o => o.dist === distFilter) : d.objs;
+        const mode =
+          document.getElementById('ct-arq-export-mode')?.value || '3';
+        const distFilter = document.getElementById('ct-arq-dist-filter')?.value;
+        const gradeFilter = document.getElementById(
+          'ct-arq-grade-filter'
+        )?.value;
+        const sideFilter = document.getElementById('ct-arq-side-filter')?.value;
 
-         if (filteredObjs.length === 0) {
-            resultEl.innerHTML = '<div style="padding:10px;text-align:center;color:#ef4444;">Nenhum objeto retornado para este filtro.</div>';
-            return;
-         }
+        const filteredObjs = d.objs.filter((o) => {
+          if (distFilter && o.dist !== distFilter) return false;
+          if (gradeFilter || sideFilter) {
+            const parsed = window._parseDist
+              ? window._parseDist(o.dist)
+              : { grade: '', side: '' };
+            if (gradeFilter && parsed.grade !== gradeFilter) return false;
+            if (sideFilter && parsed.side !== sideFilter) return false;
+          }
+          return true;
+        });
 
-         let html = `<div style="margin-bottom:12px;font-weight:bold;color:#334155;border-bottom:1px solid #e2e8f0;padding-bottom:8px;">Pré-visualização: ${filteredObjs.length} objetos</div>`;
-         html += '<table style="width:100%;border-collapse:collapse;font-size:12px;text-align:left;">';
-         
-         if (mode === '1') {
-             html += '<thead><tr style="color:#64748b;"><th style="padding:8px;border-bottom:2px solid #cbd5e1;">Distrito</th><th style="padding:8px;border-bottom:2px solid #cbd5e1;">Objeto</th></tr></thead><tbody>';
-         } else if (mode === '2') {
-             html += '<thead><tr style="color:#64748b;"><th style="padding:8px;border-bottom:2px solid #cbd5e1;">Distrito</th><th style="padding:8px;border-bottom:2px solid #cbd5e1;">Endereço</th></tr></thead><tbody>';
-         } else {
-             html += '<thead><tr style="color:#64748b;"><th style="padding:8px;border-bottom:2px solid #cbd5e1;">Distrito</th><th style="padding:8px;border-bottom:2px solid #cbd5e1;">Objeto</th><th style="padding:8px;border-bottom:2px solid #cbd5e1;">Demais Dados</th></tr></thead><tbody>';
-         }
+        if (filteredObjs.length === 0) {
+          resultEl.innerHTML =
+            '<div style="padding:10px;text-align:center;color:#ef4444;">Nenhum objeto retornado para este filtro.</div>';
+          return;
+        }
 
-         for (const o of filteredObjs) {
-            html += `<tr style="border-bottom:1px solid #f1f5f9;">
-                 <td style="padding:8px;font-weight:bold;width:80px;">${o.dist}</td>`;
-            if (mode === '1') {
-                 html += `<td style="padding:8px;color:${o.cor || 'inherit'};font-weight:bold;">${o.objeto || '--'}</td>`;
-            } else if (mode === '2') {
-                 html += `<td style="padding:8px;color:#475569;">${o.endereco || ''} - ${o.cep || ''}</td>`;
-            } else {
-                 html += `<td style="padding:8px;color:${o.cor || 'inherit'};font-weight:bold;width:140px;">${o.objeto || '--'}</td>
-                 <td style="padding:8px;color:#475569;">
-                   <div style="margin-bottom:4px;">${o.endereco || ''} - ${o.cep || ''}</div>
-                   <div style="font-size:11px;color:#94a3b8;">Max. Entrega: ${o.dataMaximaEntrega ? o.dataMaximaEntrega.replace('T', ' ') : ''}</div>
-                 </td>`;
-            }
-            html += `</tr>`;
-         }
-         html += '</tbody></table>';
-         resultEl.innerHTML = html;
+        let html = `<div style="margin-bottom:12px;font-weight:bold;color:#334155;border-bottom:1px solid #e2e8f0;padding-bottom:8px;">Pré-visualização: ${filteredObjs.length} objetos</div>`;
+        html +=
+          '<table style="width:100%;border-collapse:collapse;font-size:12px;text-align:left;">';
+
+        if (mode === '1') {
+          html +=
+            '<thead><tr style="color:#64748b;"><th style="padding:8px;border-bottom:2px solid #cbd5e1;">Distrito</th><th style="padding:8px;border-bottom:2px solid #cbd5e1;">Objeto</th></tr></thead><tbody>';
+        } else if (mode === '2') {
+          html +=
+            '<thead><tr style="color:#64748b;"><th style="padding:8px;border-bottom:2px solid #cbd5e1;">Distrito</th><th style="padding:8px;border-bottom:2px solid #cbd5e1;">Endereço</th></tr></thead><tbody>';
+        } else {
+          html +=
+            '<thead><tr style="color:#64748b;"><th style="padding:8px;border-bottom:2px solid #cbd5e1;">Distrito</th><th style="padding:8px;border-bottom:2px solid #cbd5e1;">Objeto</th><th style="padding:8px;border-bottom:2px solid #cbd5e1;">Demais Dados</th></tr></thead><tbody>';
+        }
+
+        for (const o of filteredObjs) {
+          html += `<tr style="border-bottom:1px solid #f1f5f9;">
+               <td style="padding:8px;font-weight:bold;width:80px;">${o.dist}</td>`;
+          if (mode === '1') {
+            html += `<td style="padding:8px;color:${o.cor || 'inherit'};font-weight:bold;">${o.objeto || '--'}</td>`;
+          } else if (mode === '2') {
+            html += `<td style="padding:8px;color:#475569;">${o.endereco || ''} - ${o.cep || ''}</td>`;
+          } else {
+            html += `<td style="padding:8px;color:${o.cor || 'inherit'};font-weight:bold;width:140px;">${o.objeto || '--'}</td>
+               <td style="padding:8px;color:#475569;">
+                 <div style="margin-bottom:4px;">${o.endereco || ''} - ${o.cep || ''}</div>
+                 <div style="font-size:11px;color:#94a3b8;">Max. Entrega: ${o.dataMaximaEntrega ? o.dataMaximaEntrega.replace('T', ' ') : ''}</div>
+               </td>`;
+          }
+          html += `</tr>`;
+        }
+        html += '</tbody></table>';
+        resultEl.innerHTML = html;
       };
 
-      document.getElementById('ct-arq-export-mode')?.addEventListener('change', renderArqTable);
-      document.getElementById('ct-arq-dist-filter')?.addEventListener('change', renderArqTable);
+      document
+        .getElementById('ct-arq-export-mode')
+        ?.addEventListener('change', renderArqTable);
+      document
+        .getElementById('ct-arq-dist-filter')
+        ?.addEventListener('change', renderArqTable);
 
-      const formatExport = (data, mode, distFilter) => {
+      const formatExport = (
+        data,
+        mode,
+        distFilter,
+        gradeFilter,
+        sideFilter
+      ) => {
         if (!data || !data.objs || data.objs.length === 0) return '';
-        const filteredObjs = distFilter ? data.objs.filter(o => o.dist === distFilter) : data.objs;
+
+        const filteredObjs = data.objs.filter((o) => {
+          if (distFilter && o.dist !== distFilter) return false;
+          if (gradeFilter || sideFilter) {
+            const parsed = window._parseDist
+              ? window._parseDist(o.dist)
+              : { grade: '', side: '' };
+            if (gradeFilter && parsed.grade !== gradeFilter) return false;
+            if (sideFilter && parsed.side !== sideFilter) return false;
+          }
+          return true;
+        });
+
         if (filteredObjs.length === 0) return '';
-        
+
         const groups = {};
         for (const o of filteredObjs) {
-          const k = o.dist + '-' + (o.sro||'') + '-' + (o.nom||'') + '-' + (o.mat||'');
+          const k =
+            o.dist +
+            '-' +
+            (o.sro || '') +
+            '-' +
+            (o.nom || '') +
+            '-' +
+            (o.mat || '');
           if (!groups[k]) groups[k] = [];
           groups[k].push(o);
         }
-        
+
         let out = [];
         for (const k in groups) {
           const groupObjs = groups[k];
@@ -1065,49 +1164,99 @@
           const mat = first.mat || '00000000';
           const nom = first.nom || 'N/A';
           const sro = first.sro || '00000000';
-          
-          out.push(`Nome: ${nom} - Matrícula: ${mat} - Unidade: ${sro} - Quantidade: ${groupObjs.length} - Categoria: ${data.cat} - Distrito: ${first.dist}`);
-          
+
+          out.push(
+            `Nome: ${nom} - Matrícula: ${mat} - Unidade: ${sro} - Quantidade: ${groupObjs.length} - Categoria: ${data.cat} - Distrito: ${first.dist}`
+          );
+
           for (const o of groupObjs) {
-             let line = '';
-             if (mode === '1') {
-                line = o.objeto || '--';
-             } else if (mode === '2') {
-                line = `${o.endereco||''} ${o.cep||''}`.trim();
-             } else {
-                line = `${(o.objeto||'--').padEnd(15, ' ')} - ${o.endereco||''} ${o.cep||''}`.trim();
-             }
-             out.push(line);
+            let line = '';
+            if (mode === '1') {
+              line = o.objeto || '--';
+            } else if (mode === '2') {
+              line = `${o.endereco || ''} ${o.cep || ''}`.trim();
+            } else {
+              line =
+                `${(o.objeto || '--').padEnd(15, ' ')} - ${o.endereco || ''} ${o.cep || ''}`.trim();
+            }
+            out.push(line);
           }
         }
         return out.join('\r\n');
       };
 
       document
+        .getElementById('ct-arq-export-mode')
+        ?.addEventListener('change', renderArqTable);
+      document
+        .getElementById('ct-arq-dist-filter')
+        ?.addEventListener('change', renderArqTable);
+      document
+        .getElementById('ct-arq-grade-filter')
+        ?.addEventListener('change', renderArqTable);
+      document
+        .getElementById('ct-arq-side-filter')
+        ?.addEventListener('change', renderArqTable);
+
+      document
         .getElementById('ct-arq-btn-copy')
         ?.addEventListener('click', () => {
-           const mode = document.getElementById('ct-arq-export-mode').value;
-           const distFilter = document.getElementById('ct-arq-dist-filter').value;
-           const txt = formatExport(window._ctArqLastData, mode, distFilter);
-           if (!txt) return;
-           navigator.clipboard.writeText(txt);
+          const mode =
+            document.getElementById('ct-arq-export-mode')?.value || '3';
+          const distFilter =
+            document.getElementById('ct-arq-dist-filter')?.value;
+          const gradeFilter = document.getElementById(
+            'ct-arq-grade-filter'
+          )?.value;
+          const sideFilter =
+            document.getElementById('ct-arq-side-filter')?.value;
+
+          const txt = formatExport(
+            window._ctArqLastData,
+            mode,
+            distFilter,
+            gradeFilter,
+            sideFilter
+          );
+          if (!txt) return;
+          navigator.clipboard.writeText(txt);
         });
 
       document
         .getElementById('ct-arq-btn-txt')
         ?.addEventListener('click', () => {
-           const mode = document.getElementById('ct-arq-export-mode').value;
-           const distFilter = document.getElementById('ct-arq-dist-filter').value;
-           const txt = formatExport(window._ctArqLastData, mode, distFilter);
-           if (!txt) return;
-           const blob = new Blob([txt], { type: 'text/plain;charset=utf-8' });
-           const link = document.createElement('a');
-           link.href = URL.createObjectURL(blob);
-           let distSlug = distFilter ? distFilter.replace(/\s+/g, '_') : 'Todos';
-           link.download = `Export_${window._ctArqLastData.cat}_${distSlug}.txt`;
-           document.body.appendChild(link);
-           link.click();
-           document.body.removeChild(link);
+          const mode =
+            document.getElementById('ct-arq-export-mode')?.value || '3';
+          const distFilter =
+            document.getElementById('ct-arq-dist-filter')?.value;
+          const gradeFilter = document.getElementById(
+            'ct-arq-grade-filter'
+          )?.value;
+          const sideFilter =
+            document.getElementById('ct-arq-side-filter')?.value;
+
+          const txt = formatExport(
+            window._ctArqLastData,
+            mode,
+            distFilter,
+            gradeFilter,
+            sideFilter
+          );
+          if (!txt) return;
+
+          const blob = new Blob([txt], { type: 'text/plain;charset=utf-8' });
+          const link = document.createElement('a');
+          link.href = URL.createObjectURL(blob);
+
+          let n = `Export_${window._ctArqLastData.cat}`;
+          if (gradeFilter) n += '_G' + gradeFilter;
+          if (sideFilter) n += '_L' + sideFilter;
+          if (distFilter) n += '_' + distFilter.replace(/\s+/g, '_');
+
+          link.download = n + '.txt';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
         });
 
       document
