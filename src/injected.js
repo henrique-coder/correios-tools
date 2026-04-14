@@ -842,9 +842,9 @@
                 <option value="">Todos os Distritos</option>
               </select>
               <select id="ct-arq-export-mode" style="flex:1;min-width:200px;padding:6px 12px;border:1px solid #cbd5e1;border-radius:6px;font-family:inherit;font-size:13px;outline:none;">
+                <option value="3" selected>📦 Objetos e Endereços</option>
                 <option value="1">📋 Apenas Objetos</option>
                 <option value="2">📍 Apenas Endereços</option>
-                <option value="3" selected>📦 Objetos e Endereços</option>
               </select>
               <div style="display:flex;gap:8px;flex:1;min-width:260px;">
                 <button id="ct-arq-btn-copy" style="flex:1;white-space:nowrap;padding:8px 12px;background:#3b82f6;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:12px;transition:0.2s;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'">📋 Copiar Conteúdo</button>
