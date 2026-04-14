@@ -1043,7 +1043,7 @@
         btn.disabled = false;
       };
 
-            const getArqFilters = () => ({
+      const getArqFilters = () => ({
         mode: document.getElementById('ct-arq-export-mode')?.value || '3',
         dist: document.getElementById('ct-arq-dist-filter')?.value,
         grade: document.getElementById('ct-arq-grade-filter')?.value,
@@ -1055,7 +1055,9 @@
         return data.objs.filter((o) => {
           if (filters.dist && o.dist !== filters.dist) return false;
           if (filters.grade || filters.side) {
-            const parsed = window._parseDist ? window._parseDist(o.dist) : { grade: '', side: '' };
+            const parsed = window._parseDist
+              ? window._parseDist(o.dist)
+              : { grade: '', side: '' };
             if (filters.grade && parsed.grade !== filters.grade) return false;
             if (filters.side && parsed.side !== filters.side) return false;
           }
