@@ -824,12 +824,24 @@
         </div>
         <div style="margin-top:24px;background:#fff;padding:16px;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
           <h4 style="margin:0 0 16px 0;font-size:14px;color:#334155;">Ações Rápidas (Listar Objetos)</h4>
-          <div style="display:flex;gap:12px;">
-            <button id="btn-arq-hoje" style="padding:8px 16px;background:#f97316;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px;box-shadow:0 1px 3px rgba(0,0,0,0.1);">Vencem Hoje (Laranja)</button>
-            <button id="btn-arq-vencidos" style="padding:8px 16px;background:#ef4444;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px;box-shadow:0 1px 3px rgba(0,0,0,0.1);">Vencidos (Vermelho)</button>
-            <button id="btn-arq-avencer" style="padding:8px 16px;background:#10b981;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px;box-shadow:0 1px 3px rgba(0,0,0,0.1);">A Vencer (Verde)</button>
+          <div style="display:flex;gap:12px;flex-wrap:wrap;">
+            <button id="btn-arq-hoje" style="flex:1;min-width:180px;white-space:normal;padding:8px 16px;background:#f97316;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px;box-shadow:0 1px 3px rgba(0,0,0,0.1);">Vencem Hoje (Laranja)</button>
+            <button id="btn-arq-vencidos" style="flex:1;min-width:180px;white-space:normal;padding:8px 16px;background:#ef4444;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px;box-shadow:0 1px 3px rgba(0,0,0,0.1);">Vencidos (Vermelho)</button>
+            <button id="btn-arq-avencer" style="flex:1;min-width:180px;white-space:normal;padding:8px 16px;background:#10b981;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px;box-shadow:0 1px 3px rgba(0,0,0,0.1);">A Vencer (Verde)</button>
           </div>
           <div id="ct-arq-result" style="margin-top:16px;display:none;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px;max-height:400px;overflow-y:auto;">
+          </div>
+          <div id="ct-arq-export" style="margin-top:16px;display:none;border-top:1px solid #e2e8f0;padding-top:16px;">
+            <h4 style="margin:0 0 12px 0;font-size:13px;color:#475569;">Modo de Exportação Padrão:</h4>
+            <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
+              <select id="ct-arq-export-mode" style="padding:6px 12px;border:1px solid #cbd5e1;border-radius:6px;font-family:inherit;font-size:13px;outline:none;">
+                <option value="1">📋 Apenas Objetos</option>
+                <option value="2">📍 Apenas Endereços</option>
+                <option value="3">📦 Objetos e Endereços</option>
+              </select>
+              <button id="ct-arq-btn-copy" style="padding:6px 16px;background:#3b82f6;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px;transition:0.2s;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'">Copy (Copiar)</button>
+              <button id="ct-arq-btn-txt" style="padding:6px 16px;background:#334155;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px;transition:0.2s;" onmouseover="this.style.background='#1e293b'" onmouseout="this.style.background='#334155'">Salvar TXT</button>
+            </div>
           </div>
         </div>
       `;
@@ -841,10 +853,15 @@
         btn.innerText = 'Buscando...';
         btn.disabled = true;
 
+        const EXPORT_CAT = catType.toUpperCase();
+        window._ctArqLastData = null;
+
         const resultEl = document.getElementById('ct-arq-result');
+        const exportEl = document.getElementById('ct-arq-export');
         resultEl.style.display = 'block';
+        exportEl.style.display = 'none';
         resultEl.innerHTML =
-          '<div style="text-align:center;padding:20px;color:#64748b;">Consultando objetos em lotes... Por favor, aguarde.</div>';
+          '<div style="text-align:center;padding:20px;color:#3b82f6;font-weight:bold;">⏳ Inicializando busca...<br><div style="font-size:12px;color:#64748b;margin-top:8px;" id="ct-arq-progress">0 / 0 distritos consultados</div></div>';
 
         const origTable = document.getElementById('tabela-rotulos');
         let targetColor = null;
@@ -882,16 +899,22 @@
         });
 
         let allObjs = [];
+        let done = 0;
+        let success = 0;
+        let failed = 0;
+        const total = distsToQuery.length;
+        const maxEntPlaceholder = document.getElementById('ct-arq-progress');
+
         for (const dist of distsToQuery) {
           try {
             const rsp = await fetch(
               `https://sroweb.correios.com.br/app/entregaexternaautomatica/loecsuspensa/controllers/objetoController.php?acao=listar&idLancamento=${dist.idLancamento}`
             );
             const arr = await rsp.json();
+            success++;
 
             for (const obj of arr) {
               const c = normalizeColor(obj.cor);
-
               let match = false;
               if (targetColor && c) {
                 if (c === targetColor) match = true;
@@ -902,7 +925,6 @@
                     targetColor.replace(/[^0-9,]/g, '')
                 )
                   match = true;
-                // specific fixes
                 else if (catType === 'hoje' && c.includes('196,94,24'))
                   match = true;
               } else {
@@ -931,16 +953,32 @@
               }
 
               if (match) {
-                allObjs.push({ dist: dist.numeroDistrito, ...obj });
+                allObjs.push({
+                  dist: dist.numeroDistrito,
+                  mat: dist.matriculaCarteiro,
+                  nom: dist.nomeCarteiro,
+                  sro: dist.codigoSro,
+                  ...obj
+                });
               }
             }
-          } catch (e) {}
+          } catch (e) {
+            failed++;
+          }
+          done++;
+          if (maxEntPlaceholder) {
+            maxEntPlaceholder.innerHTML = `Consultando: ${done} / ${total} concluídos <br><span style="color:#10b981;">Sucesso: ${success}</span> | <span style="color:#ef4444;">Falha: ${failed}</span>`;
+          }
         }
 
         if (allObjs.length === 0) {
           resultEl.innerHTML =
             '<div style="padding:10px;text-align:center;color:#ef4444;">Nenhum objeto encontrado na categoria especificada! Tente buscar manualmente nas listas expandidas.</div>';
+          exportEl.style.display = 'none';
         } else {
+          window._ctArqLastData = { cat: EXPORT_CAT, objs: allObjs };
+          exportEl.style.display = 'block';
+
           let html = `<div style="margin-bottom:12px;font-weight:bold;color:#334155;border-bottom:1px solid #e2e8f0;padding-bottom:8px;">Total de Objetos Encontrados: ${allObjs.length}</div>`;
           html +=
             '<table style="width:100%;border-collapse:collapse;font-size:12px;text-align:left;">';
@@ -963,6 +1001,74 @@
         btn.innerText = oldText;
         btn.disabled = false;
       };
+
+      const formatExport = (data, mode) => {
+        if (!data || !data.objs || data.objs.length === 0) return '';
+        const groups = {};
+        for (const o of data.objs) {
+          const k =
+            o.dist +
+            '|' +
+            (o.sro || '') +
+            '|' +
+            (o.nom || '') +
+            '|' +
+            (o.mat || '');
+          if (!groups[k]) groups[k] = [];
+          groups[k].push(o);
+        }
+
+        let out = [];
+        for (const k in groups) {
+          const groupObjs = groups[k];
+          const first = groupObjs[0];
+          const mat = first.mat || '00000000';
+          const nom = first.nom || 'N/A';
+          const sro = first.sro || '00000000';
+
+          out.push(
+            `Nome: ${nom} - Matrícula: ${mat} - Unidade: ${sro} - Quantidade: ${groupObjs.length} - Categoria: ${data.cat}`
+          );
+
+          for (const o of groupObjs) {
+            let line = '';
+            if (mode === '1') {
+              line = o.objeto || '--';
+            } else if (mode === '2') {
+              line = `${o.endereco || ''} ${o.cep || ''}`.trim();
+            } else {
+              line =
+                `${(o.objeto || '--').padEnd(15, ' ')} | ${o.endereco || ''} ${o.cep || ''}`.trim();
+            }
+            out.push(line);
+          }
+        }
+        return out.join('\r\n');
+      };
+
+      document
+        .getElementById('ct-arq-btn-copy')
+        ?.addEventListener('click', () => {
+          const mode = document.getElementById('ct-arq-export-mode').value;
+          const txt = formatExport(window._ctArqLastData, mode);
+          if (!txt) return;
+          navigator.clipboard.writeText(txt);
+        });
+
+      document
+        .getElementById('ct-arq-btn-txt')
+        ?.addEventListener('click', () => {
+          const mode = document.getElementById('ct-arq-export-mode').value;
+          const txt = formatExport(window._ctArqLastData, mode);
+          if (!txt) return;
+          const blob = new Blob([txt], { type: 'text/plain;charset=utf-8' });
+          const link = document.createElement('a');
+          link.href = URL.createObjectURL(blob);
+          link.download = `Export_${window._ctArqLastData.cat}.txt`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        });
 
       document
         .getElementById('btn-arq-hoje')
@@ -1173,8 +1279,8 @@
                       <div style="background:#fff;padding:14px 18px;border-radius:6px;border-left:5px solid #3b82f6;display:flex;justify-content:space-between;align-items:center;box-shadow:0 1px 2px rgba(0,0,0,0.05);border:1px solid #e2e8f0;">
                         <span style="font-size:12px;font-weight:800;color:#334155;text-transform:uppercase;">${s[0]}</span>
                         <div style="display:flex;align-items:center;gap:12px;">
-                          <button class="ct-btn-export" data-cat="${s[0]}" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:4px;color:#334155;padding:4px 8px;cursor:pointer;font-weight:bold;font-size:10px;transition:0.2s;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'" title="Baixar lista em .txt">📥 TXT</button>
-                          <span style="font-size:18px;font-weight:900;color:#0f172a;width:40px;text-align:right;display:inline-block;">${s[1]}</span>
+                          <button class="ct-btn-copy" data-cat="${s[0]}" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:4px;color:#3b82f6;padding:4px 8px;cursor:pointer;font-weight:bold;font-size:10px;transition:0.2s;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'" title="Copiar para a Área de Transferência">📋</button>
+                          <button class="ct-btn-export" data-cat="${s[0]}" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:4px;color:#334155;padding:4px 8px;cursor:pointer;font-weight:bold;font-size:10px;transition:0.2s;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'" title="Baixar lista em .txt">📥 TXT</button>                         <span style="font-size:18px;font-weight:900;color:#0f172a;width:40px;text-align:right;display:inline-block;">${s[1]}</span>
                         </div>
                       </div>`
                       )
@@ -1345,11 +1451,13 @@
               body._hasCtClick = (e) => {
                 const btnImg = e.target.closest('.ct-btn-img');
                 const btnExport = e.target.closest('.ct-btn-export');
+                const btnCopy = e.target.closest('.ct-btn-copy');
 
-                if (btnExport) {
+                if (btnExport || btnCopy) {
                   if (Date.now() - lastTxt < 1000) return;
                   lastTxt = Date.now();
-                  const cat = btnExport.dataset.cat;
+                  const targetBtn = btnExport || btnCopy;
+                  const cat = targetBtn.dataset.cat;
                   const catList = list
                     .filter((i) => i.mot === cat)
                     .map((i) => i.obj);
@@ -1357,19 +1465,23 @@
                   const nom = d.nomeCarteiro || 'N/A';
                   const sro = d.codigoSro || '00000000';
 
-                  const headerLine = `Nome: "${nom}" - Matrícula: "${mat}" - Unidade: "${sro}" - Quantidade: "${catList.length}" - Categoria: "${cat}"`;
+                  const headerLine = `Nome: ${nom} - Matrícula: ${mat} - Unidade: ${sro} - Quantidade: ${catList.length} - Categoria: ${cat}`;
                   const content = [headerLine, ...catList].join('\r\n');
 
-                  const blob = new Blob([content], {
-                    type: 'text/plain;charset=utf-8'
-                  });
-                  const filename = `${sro}_${mat}_${cat.replace(/\s+/g, '_')}.txt`;
-                  const link = document.createElement('a');
-                  link.href = URL.createObjectURL(blob);
-                  link.download = filename;
-                  document.body.appendChild(link);
-                  link.click();
-                  document.body.removeChild(link);
+                  if (btnCopy) {
+                    navigator.clipboard.writeText(content);
+                  } else {
+                    const blob = new Blob([content], {
+                      type: 'text/plain;charset=utf-8'
+                    });
+                    const filename = `${sro}_${mat}_${cat.replace(/\s+/g, '_')}.txt`;
+                    const link = document.createElement('a');
+                    link.href = URL.createObjectURL(blob);
+                    link.download = filename;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                  }
                 }
 
                 if (btnImg) {
