@@ -1237,7 +1237,13 @@
             })
           );
 
-          let printContent = '';
+          let printContent = `
+            <div style="margin-bottom:10px; padding: 5px 15px 10px 15px; border: 1px solid #cbd5e1; border-radius: 4px; background: #fafafa;">
+              <p style="margin:0 0 5px 0; color:#0f172a; font-size:13px; font-weight:bold;">Observações:</p>
+              <div style="border-bottom:1px solid #cbd5e1; height:15px; margin-bottom:15px;"></div>
+              <div style="border-bottom:1px solid #cbd5e1; height:15px; margin-bottom:5px;"></div>
+            </div>
+          `;
 
           for (const dist of sortedDists) {
             const groupObjs = distGroups[dist];
@@ -1249,9 +1255,9 @@
             const first = groupObjs[0];
 
             printContent += `
-            <div class="print-dist-group" style="margin-bottom: 25px; page-break-inside: avoid;">
-              <div style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px; margin-bottom: 12px; font-size: 13px; color: #334155; display: flex; flex-direction: column; gap: 8px;">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div class="print-dist-group" style="margin-bottom: 25px;">
+              <div style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px; margin-bottom: 12px; font-size: 13px; color: #334155; display: flex; flex-direction: column; gap: 8px; align-items: center; text-align: center; page-break-after: avoid; break-after: avoid;">
+                <div style="display: flex; justify-content: center; flex-wrap: wrap; gap: 20px; align-items: center; width: 100%;">
                   <div style="font-size: 16px; font-weight: bold; color: #0f172a;">Distrito: ${dist}</div>
                   <div style="display:flex; gap: 15px; font-size: 12px;">
                     <span><strong>Mat:</strong> ${first.mat || '--'}</span>
@@ -1259,11 +1265,11 @@
                     <span style="background:#e2e8f0; padding:2px 8px; border-radius:20px; font-weight:bold;">Total: ${groupObjs.length}</span>
                   </div>
                 </div>
-                <div style="font-size: 12px; border-top: 1px dashed #cbd5e1; padding-top: 8px;">
+                <div style="font-size: 12px; border-top: 1px dashed #cbd5e1; padding-top: 8px; width: 100%;">
                   <span><strong>Carteiro:</strong> ${first.nom || 'N/A'}</span>
                 </div>
               </div>
-              <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px 15px;">
+              <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 10px 25px; page-break-before: avoid; break-before: avoid;">
           `;
 
             for (const o of groupObjs) {
@@ -1274,16 +1280,16 @@
               if (m) {
                 objDisplay = `
                 <span style="background:#dbeafe;color:#1e3a8a;border-radius:3px;padding:1px 3px;font-weight:bold;">${m[1]}</span>
-                <span style="margin:0 1px;">${m[2]}</span><span style="display:inline-block;width:1.5px;"></span><span style="margin:0 1px;">${m[3]}</span>
-                <span style="background:#fef9c3;color:#1e40af;border-radius:3px;padding:1px 3px;font-weight:bold;margin:0 1px;">${m[4]}</span>
-                <span style="font-weight:bold;margin-left:1px;">${m[5]}</span>
+                <span style="letter-spacing:-0.5px;"> ${m[2]} ${m[3]} </span>
+                <span style="background:#fef9c3;color:#1e40af;border-radius:3px;padding:1px 3px;font-weight:bold;">${m[4]}</span>
+                <span> ${m[5]}</span>
               `;
               } else {
                 objDisplay = `<span style="font-weight:bold;">${objDisplay}</span>`;
               }
 
               printContent += `
-                <div style="display: flex; align-items: center; gap: 8px; border-bottom: 1px dashed #e2e8f0; padding-bottom: 4px; font-family: monospace; font-size: 14px;">
+                <div style="display: flex; align-items: center; gap: 6px; border-bottom: 1px dashed #e2e8f0; padding-bottom: 4px; font-family: monospace; font-size: 14px; min-width: 180px; justify-content: center;">
                   <div style="width:16px;height:16px;border:2px solid #94a3b8;border-radius:3px;vertical-align:middle;box-sizing:border-box;"></div>
                   <div>${objDisplay}</div>
                 </div>
@@ -1296,19 +1302,19 @@
 
           const overlayHtml = `
           <div id="print-overlay" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,0.8);z-index:999999;backdrop-filter:blur(4px);display:flex;flex-direction:column;align-items:center;padding:20px;overflow-y:auto;font-family:Arial,sans-serif;">
-            <div style="width: 100%; max-width: 210mm; display:flex; justify-content:space-between; align-items:center; margin-bottom: 15px; position: sticky; top: 0; z-index: 10; background: #fff; padding: 15px 25px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            <div style="width: 100%; max-width: 230mm; display:flex; flex-direction:column; gap: 10px; justify-content:center; align-items:center; text-align:center; margin-bottom: 15px; position: sticky; top: 0; z-index: 10; background: #fff; padding: 15px 25px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
               <div>
-                <h3 style="margin:0;color:#0f172a;font-size:18px;">📄 Pré-visualização de Impressão</h3>
+                <h3 style="margin:0;color:#0f172a;font-size:18px;">Pré-visualização de Impressão</h3>
                 <div style="font-size:12px;color:#64748b;margin-top:4px;">Verifique os dados antes de gerar o PDF/A4.</div>
               </div>
-              <div style="display:flex;gap:12px;flex-shrink:0;">
-                <button id="btn-do-print" style="white-space:nowrap;padding:10px 20px;background:#2563eb;color:#fff;border:none;border-radius:6px;font-weight:bold;cursor:pointer;font-size:14px;box-shadow:0 2px 4px rgba(37,99,235,0.3);transition:0.2s;">🖨️ Enviar para Impressão</button>
-                <button id="btn-close-print" style="white-space:nowrap;padding:10px 16px;background:#ef4444;color:#fff;border:none;border-radius:6px;font-weight:bold;cursor:pointer;font-size:14px;box-shadow:0 2px 4px rgba(239,68,68,0.3);">❌ Fechar</button>
+              <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;">
+                <button id="btn-do-print" style="white-space:nowrap;padding:10px 20px;background:#2563eb;color:#fff;border:none;border-radius:6px;font-weight:bold;cursor:pointer;font-size:14px;box-shadow:0 2px 4px rgba(37,99,235,0.3);transition:0.2s; box-sizing:border-box; min-width: max-content;">🖨️ Enviar para Impressão</button>
+                <button id="btn-close-print" style="white-space:nowrap;padding:10px 16px;background:#ef4444;color:#fff;border:none;border-radius:6px;font-weight:bold;cursor:pointer;font-size:14px;box-shadow:0 2px 4px rgba(239,68,68,0.3); box-sizing:border-box; min-width: max-content;">❌ Fechar</button>
               </div>
             </div>
             
-            <div style="box-shadow:0 10px 25px rgba(0,0,0,0.3); border-radius:4px; background:#fff; overflow:hidden;">
-            <div id="print-a4-surface" style="width:210mm; min-height:297mm; background:#fff; padding:10mm 15mm; box-sizing:border-box;">
+            <div style="box-shadow:0 10px 25px rgba(0,0,0,0.3); border-radius:4px; background:#fff; overflow:hidden; max-height:297mm; margin-bottom: 50px;">
+            <div id="print-a4-surface" style="width:210mm; background-color:#fff; padding:10mm 15mm; box-sizing:border-box; position:relative;">
               <div style="text-align:center; border-bottom: 3px solid #0f172a; border-top: 3px solid #0f172a; padding-top: 10px; padding-bottom: 10px; margin-top: -10px; margin-bottom: 20px;">
                 <h1 style="margin:0; color:#0f172a; font-size:24px; text-transform:uppercase; letter-spacing:1px;">Relatório Analítico de Objetos - ${data.cat}</h1>
                 <p style="margin:8px 0 0 0; color:#475569; font-size:14px;"><strong>Gerado em:</strong> ${dateStr} | <strong>Total de Objetos:</strong> ${filteredObjs.length}</p>
@@ -1332,20 +1338,51 @@
           document
             .getElementById('btn-do-print')
             .addEventListener('click', () => {
-              if (window.printJS) {
-                printJS({
-                  printable: 'print-a4-surface',
-                  type: 'html',
-                  targetStyles: ['*'],
-                  documentTitle: 'Correios Wizard - Relatório A4',
-                  style:
-                    '@page { size: A4 portrait; margin: 10mm; } body { margin:0; }'
-                });
-              } else {
-                alert(
-                  'A biblioteca de impressão ainda não carregou perfeitamente. Tente novamente em 2 segundos.'
-                );
-              }
+              
+              // The preview relies on overflow:hidden to show 1 page, we temporarily remove it to get full HTML.
+              const surfaceContainer = document.getElementById('print-a4-surface').parentElement;
+              surfaceContainer.style.maxHeight = 'none';
+              surfaceContainer.style.overflow = 'visible';
+              
+              const prtHtml = document.getElementById('print-a4-surface').outerHTML;
+              
+              surfaceContainer.style.maxHeight = '297mm';
+              surfaceContainer.style.overflow = 'hidden';
+
+              const iframe = document.createElement('iframe');
+              iframe.style.position = 'fixed';
+              iframe.style.right = '0';
+              iframe.style.bottom = '0';
+              iframe.style.width = '0';
+              iframe.style.height = '0';
+              iframe.style.border = '0';
+              document.body.appendChild(iframe);
+              
+              const doc = iframe.contentWindow.document;
+              doc.open();
+              doc.write(`
+                  <html>
+                  <head>
+                      <title>Correios Wizard - Relatório A4</title>
+                      <style>
+                          @page { size: A4 portrait; margin: 10mm; }
+                          body { margin: 0; font-family: Arial, sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; background: #fff; }
+                          .print-dist-group { page-break-after: auto; break-after: auto; }
+                          .print-dist-group > div:first-child { page-break-after: avoid; break-after: avoid; }
+                      </style>
+                  </head>
+                  <body>
+                      ${prtHtml}
+                  </body>
+                  </html>
+              `);
+              doc.close();
+              
+              setTimeout(() => {
+                  iframe.contentWindow.focus();
+                  iframe.contentWindow.print();
+                  setTimeout(() => document.body.removeChild(iframe), 2000);
+              }, 400);
             });
         });
 
