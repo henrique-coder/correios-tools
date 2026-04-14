@@ -1043,6 +1043,26 @@
         btn.disabled = false;
       };
 
+            const getArqFilters = () => ({
+        mode: document.getElementById('ct-arq-export-mode')?.value || '3',
+        dist: document.getElementById('ct-arq-dist-filter')?.value,
+        grade: document.getElementById('ct-arq-grade-filter')?.value,
+        side: document.getElementById('ct-arq-side-filter')?.value
+      });
+
+      const getFilteredObjs = (data, filters) => {
+        if (!data || !data.objs) return [];
+        return data.objs.filter((o) => {
+          if (filters.dist && o.dist !== filters.dist) return false;
+          if (filters.grade || filters.side) {
+            const parsed = window._parseDist ? window._parseDist(o.dist) : { grade: '', side: '' };
+            if (filters.grade && parsed.grade !== filters.grade) return false;
+            if (filters.side && parsed.side !== filters.side) return false;
+          }
+          return true;
+        });
+      };
+
       const renderArqTable = () => {
         const resultEl = document.getElementById('ct-arq-result');
         const d = window._ctArqLastData;
@@ -1052,25 +1072,9 @@
           return;
         }
 
-        const mode =
-          document.getElementById('ct-arq-export-mode')?.value || '3';
-        const distFilter = document.getElementById('ct-arq-dist-filter')?.value;
-        const gradeFilter = document.getElementById(
-          'ct-arq-grade-filter'
-        )?.value;
-        const sideFilter = document.getElementById('ct-arq-side-filter')?.value;
-
-        const filteredObjs = d.objs.filter((o) => {
-          if (distFilter && o.dist !== distFilter) return false;
-          if (gradeFilter || sideFilter) {
-            const parsed = window._parseDist
-              ? window._parseDist(o.dist)
-              : { grade: '', side: '' };
-            if (gradeFilter && parsed.grade !== gradeFilter) return false;
-            if (sideFilter && parsed.side !== sideFilter) return false;
-          }
-          return true;
-        });
+        const filters = getArqFilters();
+        const mode = filters.mode;
+        const filteredObjs = getFilteredObjs(d, filters);
 
         if (filteredObjs.length === 0) {
           resultEl.innerHTML =
@@ -1120,26 +1124,10 @@
         .getElementById('ct-arq-dist-filter')
         ?.addEventListener('change', renderArqTable);
 
-      const formatExport = (
-        data,
-        mode,
-        distFilter,
-        gradeFilter,
-        sideFilter
-      ) => {
+      const formatExport = (data, filters) => {
         if (!data || !data.objs || data.objs.length === 0) return '';
-
-        const filteredObjs = data.objs.filter((o) => {
-          if (distFilter && o.dist !== distFilter) return false;
-          if (gradeFilter || sideFilter) {
-            const parsed = window._parseDist
-              ? window._parseDist(o.dist)
-              : { grade: '', side: '' };
-            if (gradeFilter && parsed.grade !== gradeFilter) return false;
-            if (sideFilter && parsed.side !== sideFilter) return false;
-          }
-          return true;
-        });
+        const mode = filters.mode;
+        const filteredObjs = getFilteredObjs(data, filters);
 
         if (filteredObjs.length === 0) return '';
 
@@ -1158,7 +1146,11 @@
         }
 
         let out = [];
+        let isFirstGroup = true;
         for (const k in groups) {
+          if (!isFirstGroup) out.push('');
+          isFirstGroup = false;
+
           const groupObjs = groups[k];
           const first = groupObjs[0];
           const mat = first.mat || '00000000';
@@ -1177,7 +1169,7 @@
               line = `${o.endereco || ''} ${o.cep || ''}`.trim();
             } else {
               line =
-                `${(o.objeto || '--').padEnd(15, ' ')} - ${o.endereco || ''} ${o.cep || ''}`.trim();
+                `${o.objeto || '--'} - ${o.endereco || ''} ${o.cep || ''}`.trim();
             }
             out.push(line);
           }
@@ -1201,23 +1193,8 @@
       document
         .getElementById('ct-arq-btn-copy')
         ?.addEventListener('click', () => {
-          const mode =
-            document.getElementById('ct-arq-export-mode')?.value || '3';
-          const distFilter =
-            document.getElementById('ct-arq-dist-filter')?.value;
-          const gradeFilter = document.getElementById(
-            'ct-arq-grade-filter'
-          )?.value;
-          const sideFilter =
-            document.getElementById('ct-arq-side-filter')?.value;
-
-          const txt = formatExport(
-            window._ctArqLastData,
-            mode,
-            distFilter,
-            gradeFilter,
-            sideFilter
-          );
+          const filters = getArqFilters();
+          const txt = formatExport(window._ctArqLastData, filters);
           if (!txt) return;
           navigator.clipboard.writeText(txt);
         });
@@ -1225,23 +1202,8 @@
       document
         .getElementById('ct-arq-btn-txt')
         ?.addEventListener('click', () => {
-          const mode =
-            document.getElementById('ct-arq-export-mode')?.value || '3';
-          const distFilter =
-            document.getElementById('ct-arq-dist-filter')?.value;
-          const gradeFilter = document.getElementById(
-            'ct-arq-grade-filter'
-          )?.value;
-          const sideFilter =
-            document.getElementById('ct-arq-side-filter')?.value;
-
-          const txt = formatExport(
-            window._ctArqLastData,
-            mode,
-            distFilter,
-            gradeFilter,
-            sideFilter
-          );
+          const filters = getArqFilters();
+          const txt = formatExport(window._ctArqLastData, filters);
           if (!txt) return;
 
           const blob = new Blob([txt], { type: 'text/plain;charset=utf-8' });
@@ -1249,9 +1211,9 @@
           link.href = URL.createObjectURL(blob);
 
           let n = `Export_${window._ctArqLastData.cat}`;
-          if (gradeFilter) n += '_G' + gradeFilter;
-          if (sideFilter) n += '_L' + sideFilter;
-          if (distFilter) n += '_' + distFilter.replace(/\s+/g, '_');
+          if (filters.grade) n += '_G' + filters.grade;
+          if (filters.side) n += '_L' + filters.side;
+          if (filters.dist) n += '_' + filters.dist.replace(/\s+/g, '_');
 
           link.download = n + '.txt';
           document.body.appendChild(link);
