@@ -1238,7 +1238,7 @@
           );
 
           let printContent = `
-            <div style="margin-bottom:10px; padding: 5px 15px 10px 15px; border: 1px solid #cbd5e1; border-radius: 4px; background: #fafafa;">
+            <div style="margin-bottom:45px; padding: 5px 15px 10px 15px; border: 1px solid #cbd5e1; border-radius: 4px; background: #fafafa;">
               <p style="margin:0 0 5px 0; color:#0f172a; font-size:13px; font-weight:bold;">Observações:</p>
               <div style="border-bottom:1px solid #cbd5e1; height:15px; margin-bottom:15px;"></div>
               <div style="border-bottom:1px solid #cbd5e1; height:15px; margin-bottom:5px;"></div>
