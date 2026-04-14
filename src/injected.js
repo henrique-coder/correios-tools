@@ -822,8 +822,157 @@
           <h4 style="margin:0 0 16px 0;font-size:16px;color:#334155;">Detalhamento por Distrito (Clique para ver o relatório completo de entregas)</h4>
           <div id="ct-dist-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;"></div>
         </div>
+        <div style="margin-top:24px;background:#fff;padding:16px;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
+          <h4 style="margin:0 0 16px 0;font-size:14px;color:#334155;">Ações Rápidas (Listar Objetos)</h4>
+          <div style="display:flex;gap:12px;">
+            <button id="btn-arq-hoje" style="padding:8px 16px;background:#f97316;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px;box-shadow:0 1px 3px rgba(0,0,0,0.1);">Vencem Hoje (Laranja)</button>
+            <button id="btn-arq-vencidos" style="padding:8px 16px;background:#ef4444;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px;box-shadow:0 1px 3px rgba(0,0,0,0.1);">Vencidos (Vermelho)</button>
+            <button id="btn-arq-avencer" style="padding:8px 16px;background:#10b981;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px;box-shadow:0 1px 3px rgba(0,0,0,0.1);">A Vencer (Verde)</button>
+          </div>
+          <div id="ct-arq-result" style="margin-top:16px;display:none;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px;max-height:400px;overflow-y:auto;">
+          </div>
+        </div>
       `;
       refNode.parentNode.insertBefore(container, refNode);
+
+      const arqFetch = async (catType) => {
+        const btn = document.getElementById('btn-arq-' + catType);
+        const oldText = btn.innerText;
+        btn.innerText = 'Buscando...';
+        btn.disabled = true;
+
+        const resultEl = document.getElementById('ct-arq-result');
+        resultEl.style.display = 'block';
+        resultEl.innerHTML =
+          '<div style="text-align:center;padding:20px;color:#64748b;">Consultando objetos em lotes... Por favor, aguarde.</div>';
+
+        const origTable = document.getElementById('tabela-rotulos');
+        let targetColor = null;
+        if (origTable) {
+          const rows = origTable.querySelectorAll('tbody tr');
+          let colIdx = catType === 'hoje' ? 4 : catType === 'vencidos' ? 3 : 5;
+          for (const tr of rows) {
+            const tds = tr.querySelectorAll('td');
+            if (tds.length > colIdx) {
+              const cell = tds[colIdx];
+              const span = cell.querySelector('span') || cell;
+              const valText = span.innerText || cell.innerText || '0';
+              const val = parseInt(valText.replace(/[^0-9]/g, ''), 10) || 0;
+              if (val > 0) {
+                targetColor =
+                  span.style && span.style.color
+                    ? span.style.color
+                    : window.getComputedStyle
+                      ? window.getComputedStyle(span).color
+                      : null;
+                break;
+              }
+            }
+          }
+        }
+
+        const normalizeColor = (c) =>
+          c ? c.toString().replace(/\s+/g, '').toLowerCase() : '';
+        targetColor = normalizeColor(targetColor);
+
+        let distsToQuery = distritosList.filter((d) => {
+          if (catType === 'hoje') return PN(d.qtdeHoje) > 0;
+          if (catType === 'vencidos') return PN(d.qtdeVencido) > 0;
+          return PN(d.qtdeAVencer) > 0;
+        });
+
+        let allObjs = [];
+        for (const dist of distsToQuery) {
+          try {
+            const rsp = await fetch(
+              `https://sroweb.correios.com.br/app/entregaexternaautomatica/loecsuspensa/controllers/objetoController.php?acao=listar&idLancamento=${dist.idLancamento}`
+            );
+            const arr = await rsp.json();
+
+            for (const obj of arr) {
+              const c = normalizeColor(obj.cor);
+
+              let match = false;
+              if (targetColor && c) {
+                if (c === targetColor) match = true;
+                else if (
+                  c.includes('rgb') &&
+                  targetColor.includes('rgb') &&
+                  c.replace(/[^0-9,]/g, '') ===
+                    targetColor.replace(/[^0-9,]/g, '')
+                )
+                  match = true;
+                // specific fixes
+                else if (catType === 'hoje' && c.includes('196,94,24'))
+                  match = true;
+              } else {
+                if (
+                  catType === 'hoje' &&
+                  (c.includes('196,94,24') ||
+                    c.includes('orange') ||
+                    c.includes('#c45e18') ||
+                    c.includes('#f97316'))
+                )
+                  match = true;
+                if (
+                  catType === 'vencidos' &&
+                  (c === 'red' ||
+                    c.includes('#ef4444') ||
+                    c.includes('255,0,0'))
+                )
+                  match = true;
+                if (
+                  catType === 'avencer' &&
+                  (c === 'green' ||
+                    c.includes('#10b981') ||
+                    c.includes('0,128,0'))
+                )
+                  match = true;
+              }
+
+              if (match) {
+                allObjs.push({ dist: dist.numeroDistrito, ...obj });
+              }
+            }
+          } catch (e) {}
+        }
+
+        if (allObjs.length === 0) {
+          resultEl.innerHTML =
+            '<div style="padding:10px;text-align:center;color:#ef4444;">Nenhum objeto encontrado na categoria especificada! Tente buscar manualmente nas listas expandidas.</div>';
+        } else {
+          let html = `<div style="margin-bottom:12px;font-weight:bold;color:#334155;border-bottom:1px solid #e2e8f0;padding-bottom:8px;">Total de Objetos Encontrados: ${allObjs.length}</div>`;
+          html +=
+            '<table style="width:100%;border-collapse:collapse;font-size:12px;text-align:left;">';
+          html +=
+            '<thead><tr style="color:#64748b;"><th style="padding:8px;border-bottom:2px solid #cbd5e1;">Distrito</th><th style="padding:8px;border-bottom:2px solid #cbd5e1;">Objeto</th><th style="padding:8px;border-bottom:2px solid #cbd5e1;">Demais Dados</th></tr></thead><tbody>';
+          for (const o of allObjs) {
+            html += `<tr style="border-bottom:1px solid #f1f5f9;">
+                 <td style="padding:8px;font-weight:bold;width:80px;">${o.dist}</td>
+                 <td style="padding:8px;color:${o.cor || 'inherit'};font-weight:bold;width:140px;">${o.objeto || '--'}</td>
+                 <td style="padding:8px;color:#475569;">
+                   <div style="margin-bottom:4px;">${o.endereco || ''} - ${o.cep || ''}</div>
+                   <div style="font-size:11px;color:#94a3b8;">Max. Entrega: ${o.dataMaximaEntrega ? o.dataMaximaEntrega.replace('T', ' ') : ''}</div>
+                 </td>
+               </tr>`;
+          }
+          html += '</tbody></table>';
+          resultEl.innerHTML = html;
+        }
+
+        btn.innerText = oldText;
+        btn.disabled = false;
+      };
+
+      document
+        .getElementById('btn-arq-hoje')
+        ?.addEventListener('click', () => arqFetch('hoje'));
+      document
+        .getElementById('btn-arq-vencidos')
+        ?.addEventListener('click', () => arqFetch('vencidos'));
+      document
+        .getElementById('btn-arq-avencer')
+        ?.addEventListener('click', () => arqFetch('avencer'));
 
       new window['Chart'](document.getElementById('chartjs-status'), {
         type: 'doughnut',
