@@ -825,30 +825,31 @@
         <div style="margin-top:24px;background:#fff;padding:16px;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
           <h4 style="margin:0 0 16px 0;font-size:14px;color:#334155;">Ações Rápidas (Listar Objetos)</h4>
           <div style="display:flex;gap:12px;flex-wrap:wrap;">
-            <button id="btn-arq-hoje" style="flex:1;min-width:180px;white-space:normal;padding:8px 16px;background:#f97316;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px;box-shadow:0 1px 3px rgba(0,0,0,0.1);">Vencem Hoje</button>
-            <button id="btn-arq-vencidos" style="flex:1;min-width:180px;white-space:normal;padding:8px 16px;background:#ef4444;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px;box-shadow:0 1px 3px rgba(0,0,0,0.1);">Vencidos</button>
-            <button id="btn-arq-avencer" style="flex:1;min-width:180px;white-space:normal;padding:8px 16px;background:#10b981;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px;box-shadow:0 1px 3px rgba(0,0,0,0.1);">A Vencer</button>
+            <button id="btn-arq-hoje" style="flex:1;padding:8px 16px;background:#f97316;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px;box-shadow:0 1px 3px rgba(0,0,0,0.1);">Vencem Hoje</button>
+            <button id="btn-arq-vencidos" style="flex:1;padding:8px 16px;background:#ef4444;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px;box-shadow:0 1px 3px rgba(0,0,0,0.1);">Vencidos</button>
+            <button id="btn-arq-avencer" style="flex:1;padding:8px 16px;background:#10b981;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px;box-shadow:0 1px 3px rgba(0,0,0,0.1);">A Vencer</button>
           </div>
           <div id="ct-arq-export" style="margin-top:16px;display:none;border-top:1px solid #e2e8f0;padding-top:16px;">
             <h4 style="margin:0 0 12px 0;font-size:13px;color:#475569;">Filtros e Exportação:</h4>
-            <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:16px;">
-              <select id="ct-arq-grade-filter" style="flex:1;min-width:140px;padding:6px 12px;border:1px solid #cbd5e1;border-radius:6px;font-family:inherit;font-size:13px;outline:none;">
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:16px;">
+              <select id="ct-arq-grade-filter" style="flex:1;min-width:100px;padding:6px 12px;border:1px solid #cbd5e1;border-radius:6px;font-family:inherit;font-size:13px;outline:none;">
                 <option value="">Todas as Grades</option>
               </select>
-              <select id="ct-arq-side-filter" style="flex:1;min-width:140px;padding:6px 12px;border:1px solid #cbd5e1;border-radius:6px;font-family:inherit;font-size:13px;outline:none;">
+              <select id="ct-arq-side-filter" style="flex:1;min-width:100px;padding:6px 12px;border:1px solid #cbd5e1;border-radius:6px;font-family:inherit;font-size:13px;outline:none;">
                 <option value="">Todos os Lados</option>
               </select>
-              <select id="ct-arq-dist-filter" style="flex:1;min-width:160px;padding:6px 12px;border:1px solid #cbd5e1;border-radius:6px;font-family:inherit;font-size:13px;outline:none;">
+              <select id="ct-arq-dist-filter" style="flex:1;min-width:120px;padding:6px 12px;border:1px solid #cbd5e1;border-radius:6px;font-family:inherit;font-size:13px;outline:none;">
                 <option value="">Todos os Distritos</option>
               </select>
-              <select id="ct-arq-export-mode" style="flex:1;min-width:200px;padding:6px 12px;border:1px solid #cbd5e1;border-radius:6px;font-family:inherit;font-size:13px;outline:none;">
+              <select id="ct-arq-export-mode" style="flex:1;min-width:150px;padding:6px 12px;border:1px solid #cbd5e1;border-radius:6px;font-family:inherit;font-size:13px;outline:none;">
                 <option value="3" selected>📦 Objetos e Endereços</option>
                 <option value="1">📋 Apenas Objetos</option>
                 <option value="2">📍 Apenas Endereços</option>
               </select>
-              <div style="display:flex;gap:8px;flex:1;min-width:260px;">
-                <button id="ct-arq-btn-copy" style="flex:1;white-space:nowrap;padding:8px 12px;background:#3b82f6;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:12px;transition:0.2s;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'">📋 Copiar Conteúdo</button>
-                <button id="ct-arq-btn-txt" style="flex:1;white-space:nowrap;padding:8px 12px;background:#334155;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:12px;transition:0.2s;" onmouseover="this.style.background='#1e293b'" onmouseout="this.style.background='#334155'">📥 Salvar TXT</button>
+              <div style="display:flex;gap:8px;flex:1;min-width:max-content;flex-wrap:nowrap;">
+                <button id="ct-arq-btn-print" style="white-space:nowrap;flex:1;min-width:max-content;padding:8px 12px;background:#10b981;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:12px;transition:0.2s;" onmouseover="this.style.background='#059669'" onmouseout="this.style.background='#10b981'">🖨️ Imprimir</button>
+                <button id="ct-arq-btn-copy" style="white-space:nowrap;flex:1;min-width:max-content;padding:8px 12px;background:#3b82f6;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:12px;transition:0.2s;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'">📋 Copiar Conteúdo</button>
+                <button id="ct-arq-btn-txt" style="white-space:nowrap;flex:1;min-width:max-content;padding:8px 12px;background:#334155;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:12px;transition:0.2s;" onmouseover="this.style.background='#1e293b'" onmouseout="this.style.background='#334155'">📥 Salvar TXT</button>
               </div>
             </div>
           </div>
@@ -1201,6 +1202,154 @@
           navigator.clipboard.writeText(txt);
         });
 
+      // Load PrintJS
+      if (!document.getElementById('printjs-lib')) {
+        const sc = document.createElement('script');
+        sc.id = 'printjs-lib';
+        sc.src = 'https://unpkg.com/print-js/dist/print.js';
+        document.head.appendChild(sc);
+        const lk = document.createElement('link');
+        lk.rel = 'stylesheet';
+        lk.href = 'https://unpkg.com/print-js/dist/print.css';
+        document.head.appendChild(lk);
+      }
+
+      document
+        .getElementById('ct-arq-btn-print')
+        ?.addEventListener('click', () => {
+          const filters = getArqFilters();
+          const data = window._ctArqLastData;
+          const filteredObjs = getFilteredObjs(data, filters);
+          if (filteredObjs.length === 0) return;
+
+          // Group by District First
+          const distGroups = {};
+          for (const o of filteredObjs) {
+            if (!distGroups[o.dist]) distGroups[o.dist] = [];
+            distGroups[o.dist].push(o);
+          }
+
+          // Sort district keys
+          const sortedDists = Object.keys(distGroups).sort((a, b) =>
+            a.localeCompare(b, undefined, {
+              numeric: true,
+              sensitivity: 'base'
+            })
+          );
+
+          let printContent = '';
+
+          for (const dist of sortedDists) {
+            const groupObjs = distGroups[dist];
+            // Sort alphabetically by object
+            groupObjs.sort((a, b) =>
+              (a.objeto || '').localeCompare(b.objeto || '')
+            );
+
+            const first = groupObjs[0];
+
+            printContent += `
+            <div class="print-dist-group" style="margin-bottom: 25px; page-break-inside: avoid;">
+              <div style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px; margin-bottom: 12px; font-size: 13px; color: #334155; display: flex; flex-direction: column; gap: 8px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <div style="font-size: 16px; font-weight: bold; color: #0f172a;">Distrito: ${dist}</div>
+                  <div style="display:flex; gap: 15px; font-size: 12px;">
+                    <span><strong>Mat:</strong> ${first.mat || '--'}</span>
+                    <span><strong>Und:</strong> ${first.sro || '--'}</span>
+                    <span style="background:#e2e8f0; padding:2px 8px; border-radius:20px; font-weight:bold;">Total: ${groupObjs.length}</span>
+                  </div>
+                </div>
+                <div style="font-size: 12px; border-top: 1px dashed #cbd5e1; padding-top: 8px;">
+                  <span><strong>Carteiro:</strong> ${first.nom || 'N/A'}</span>
+                </div>
+              </div>
+              <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px 15px;">
+          `;
+
+            for (const o of groupObjs) {
+              let objDisplay = o.objeto || '--';
+              const m = objDisplay.match(
+                /^([A-Z]{2})(\d{3})(\d{3})(\d{3})([A-Z]{2})$/i
+              );
+              if (m) {
+                objDisplay = `
+                <span style="background:#dbeafe;color:#1e3a8a;border-radius:3px;padding:1px 3px;font-weight:bold;">${m[1]}</span>
+                <span style="margin:0 1px;">${m[2]}</span><span style="display:inline-block;width:1.5px;"></span><span style="margin:0 1px;">${m[3]}</span>
+                <span style="background:#fef9c3;color:#1e40af;border-radius:3px;padding:1px 3px;font-weight:bold;margin:0 1px;">${m[4]}</span>
+                <span style="font-weight:bold;margin-left:1px;">${m[5]}</span>
+              `;
+              } else {
+                objDisplay = `<span style="font-weight:bold;">${objDisplay}</span>`;
+              }
+
+              printContent += `
+                <div style="display: flex; align-items: center; gap: 8px; border-bottom: 1px dashed #e2e8f0; padding-bottom: 4px; font-family: monospace; font-size: 14px;">
+                  <div style="width:16px;height:16px;border:2px solid #94a3b8;border-radius:3px;vertical-align:middle;box-sizing:border-box;"></div>
+                  <div>${objDisplay}</div>
+                </div>
+            `;
+            }
+            printContent += `</div></div>`;
+          }
+
+          const dateStr = new Date().toLocaleString('pt-BR');
+
+          const overlayHtml = `
+          <div id="print-overlay" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,0.8);z-index:999999;backdrop-filter:blur(4px);display:flex;flex-direction:column;align-items:center;padding:20px;overflow-y:auto;font-family:Arial,sans-serif;">
+            <div style="width: 100%; max-width: 210mm; display:flex; justify-content:space-between; align-items:center; margin-bottom: 15px; position: sticky; top: 0; z-index: 10; background: #fff; padding: 15px 25px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+              <div>
+                <h3 style="margin:0;color:#0f172a;font-size:18px;">📄 Pré-visualização de Impressão</h3>
+                <div style="font-size:12px;color:#64748b;margin-top:4px;">Verifique os dados antes de gerar o PDF/A4.</div>
+              </div>
+              <div style="display:flex;gap:12px;flex-shrink:0;">
+                <button id="btn-do-print" style="white-space:nowrap;padding:10px 20px;background:#2563eb;color:#fff;border:none;border-radius:6px;font-weight:bold;cursor:pointer;font-size:14px;box-shadow:0 2px 4px rgba(37,99,235,0.3);transition:0.2s;">🖨️ Enviar para Impressão</button>
+                <button id="btn-close-print" style="white-space:nowrap;padding:10px 16px;background:#ef4444;color:#fff;border:none;border-radius:6px;font-weight:bold;cursor:pointer;font-size:14px;box-shadow:0 2px 4px rgba(239,68,68,0.3);">❌ Fechar</button>
+              </div>
+            </div>
+            
+            <div style="box-shadow:0 10px 25px rgba(0,0,0,0.3); border-radius:4px; background:#fff; overflow:hidden;">
+            <div id="print-a4-surface" style="width:210mm; min-height:297mm; background:#fff; padding:10mm 15mm; box-sizing:border-box;">
+              <div style="text-align:center; border-bottom: 3px solid #0f172a; border-top: 3px solid #0f172a; padding-top: 10px; padding-bottom: 10px; margin-top: -10px; margin-bottom: 20px;">
+                <h1 style="margin:0; color:#0f172a; font-size:24px; text-transform:uppercase; letter-spacing:1px;">Relatório Analítico de Objetos - ${data.cat}</h1>
+                <p style="margin:8px 0 0 0; color:#475569; font-size:14px;"><strong>Gerado em:</strong> ${dateStr} | <strong>Total de Objetos:</strong> ${filteredObjs.length}</p>
+              </div>
+              ${printContent}
+            </div>
+            </div>
+          </div>
+        `;
+
+          const div = document.createElement('div');
+          div.innerHTML = overlayHtml;
+          document.body.appendChild(div.firstElementChild);
+
+          document
+            .getElementById('btn-close-print')
+            .addEventListener('click', () => {
+              document.getElementById('print-overlay').remove();
+            });
+
+          document
+            .getElementById('btn-do-print')
+            .addEventListener('click', () => {
+              if (window.printJS) {
+                printJS({
+                  printable: 'print-a4-surface',
+                  type: 'html',
+                  targetStyles: ['*'],
+                  documentTitle: 'Correios Wizard - Relatório A4',
+                  style:
+                    '@page { size: A4 portrait; margin: 10mm; } body { margin:0; }'
+                });
+              } else {
+                alert(
+                  'A biblioteca de impressão ainda não carregou perfeitamente. Tente novamente em 2 segundos.'
+                );
+              }
+            });
+        });
+
+      // Maintain old listeners
       document
         .getElementById('ct-arq-btn-txt')
         ?.addEventListener('click', () => {
@@ -1447,11 +1596,11 @@
 
                 <div style="background:#fff;padding:16px;border-radius:8px;border:1px solid #e2e8f0;margin-bottom:16px;display:flex;flex-direction:column;gap:16px;">
                    <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;">
-                     <div style="flex:1;min-width:200px;">
+                     <div style="flex:1;min-width:150px;">
                         <span style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;display:block;margin-bottom:6px;">Pesquisa de Objeto:</span>
                         <input type="text" id="ct-filter-obj" placeholder="Ex: NX123456789BR..." style="width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:6px;font-family:inherit;outline:none;">
                      </div>
-                     <div style="flex:1;min-width:200px;">
+                     <div style="flex:1;min-width:150px;">
                         <span style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;display:block;margin-bottom:6px;">Ordenação:</span>
                         <select id="ct-sort-by" style="width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:6px;font-family:inherit;outline:none;cursor:pointer;background:#fff;">
                           <option value="default">Padrão</option>
