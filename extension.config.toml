@@ -54,7 +54,9 @@ default_icon = { "16" = "icons/icon16.png", "32" = "icons/icon32.png", "48" = "i
 [[content_scripts]]
 matches = [
   "https://sroweb.correios.com.br/app/entregaexternaautomatica/lancamentoautomatico/*",
-  "https://sroweb.correios.com.br/app/entregaexternaautomatica/loecsuspensa/*"
+  "https://sroweblab.correios.com.br/app/entregaexternaautomatica/lancamentoautomatico/*",
+  "https://sroweb.correios.com.br/app/entregaexternaautomatica/loecsuspensa/*",
+  "https://sroweblab.correios.com.br/app/entregaexternaautomatica/loecsuspensa/*"
 ]
 js = ["libs/browser-polyfill.min.js", "content.js"]
 run_at = "document_start"
