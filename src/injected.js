@@ -825,9 +825,9 @@
         <div style="margin-top:24px;background:#fff;padding:16px;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
           <h4 style="margin:0 0 16px 0;font-size:14px;color:#334155;">Ações Rápidas (Listar Objetos)</h4>
           <div style="display:flex;gap:12px;flex-wrap:wrap;">
-            <button id="btn-arq-hoje" style="flex:1;min-width:180px;white-space:normal;padding:8px 16px;background:#f97316;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px;box-shadow:0 1px 3px rgba(0,0,0,0.1);">Vencem Hoje (Laranja)</button>
-            <button id="btn-arq-vencidos" style="flex:1;min-width:180px;white-space:normal;padding:8px 16px;background:#ef4444;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px;box-shadow:0 1px 3px rgba(0,0,0,0.1);">Vencidos (Vermelho)</button>
-            <button id="btn-arq-avencer" style="flex:1;min-width:180px;white-space:normal;padding:8px 16px;background:#10b981;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px;box-shadow:0 1px 3px rgba(0,0,0,0.1);">A Vencer (Verde)</button>
+            <button id="btn-arq-hoje" style="flex:1;min-width:180px;white-space:normal;padding:8px 16px;background:#f97316;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px;box-shadow:0 1px 3px rgba(0,0,0,0.1);">Vencem Hoje</button>
+            <button id="btn-arq-vencidos" style="flex:1;min-width:180px;white-space:normal;padding:8px 16px;background:#ef4444;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px;box-shadow:0 1px 3px rgba(0,0,0,0.1);">Vencidos</button>
+            <button id="btn-arq-avencer" style="flex:1;min-width:180px;white-space:normal;padding:8px 16px;background:#10b981;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px;box-shadow:0 1px 3px rgba(0,0,0,0.1);">A Vencer</button>
           </div>
           <div id="ct-arq-export" style="margin-top:16px;display:none;border-top:1px solid #e2e8f0;padding-top:16px;">
             <h4 style="margin:0 0 12px 0;font-size:13px;color:#475569;">Filtros e Exportação:</h4>
