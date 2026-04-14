@@ -1255,7 +1255,7 @@
             const first = groupObjs[0];
 
             printContent += `
-            <div class="print-dist-group" style="margin-bottom: 25px;">
+            <div class="print-dist-group" style="margin-bottom: 45px;">
               <div style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px; margin-bottom: 12px; font-size: 13px; color: #334155; display: flex; flex-direction: column; gap: 8px; align-items: center; text-align: center; page-break-after: avoid; break-after: avoid;">
                 <div style="display: flex; justify-content: center; flex-wrap: wrap; gap: 20px; align-items: center; width: 100%;">
                   <div style="font-size: 16px; font-weight: bold; color: #0f172a;">Distrito: ${dist}</div>
@@ -1313,8 +1313,8 @@
               </div>
             </div>
             
-            <div style="box-shadow:0 10px 25px rgba(0,0,0,0.3); border-radius:4px; background:#fff; overflow:hidden; max-height:297mm; margin-bottom: 50px;">
-            <div id="print-a4-surface" style="width:210mm; background-color:#fff; padding:10mm 15mm; box-sizing:border-box; position:relative;">
+            <div style="box-shadow:0 10px 25px rgba(0,0,0,0.3); border-radius:4px; background:#fff; overflow:hidden; max-height:297mm; min-height: 297mm; margin-bottom: 50px;">
+            <div id="print-a4-surface" style="width:210mm; min-height:297mm; background-color:#fff; padding:10mm 15mm; box-sizing:border-box; position:relative;">
               <div style="text-align:center; border-bottom: 3px solid #0f172a; border-top: 3px solid #0f172a; padding-top: 10px; padding-bottom: 10px; margin-top: -10px; margin-bottom: 20px;">
                 <h1 style="margin:0; color:#0f172a; font-size:24px; text-transform:uppercase; letter-spacing:1px;">Relatório Analítico de Objetos - ${data.cat}</h1>
                 <p style="margin:8px 0 0 0; color:#475569; font-size:14px;"><strong>Gerado em:</strong> ${dateStr} | <strong>Total de Objetos:</strong> ${filteredObjs.length}</p>
@@ -1338,14 +1338,15 @@
           document
             .getElementById('btn-do-print')
             .addEventListener('click', () => {
-              
               // The preview relies on overflow:hidden to show 1 page, we temporarily remove it to get full HTML.
-              const surfaceContainer = document.getElementById('print-a4-surface').parentElement;
+              const surfaceContainer =
+                document.getElementById('print-a4-surface').parentElement;
               surfaceContainer.style.maxHeight = 'none';
               surfaceContainer.style.overflow = 'visible';
-              
-              const prtHtml = document.getElementById('print-a4-surface').outerHTML;
-              
+
+              const prtHtml =
+                document.getElementById('print-a4-surface').outerHTML;
+
               surfaceContainer.style.maxHeight = '297mm';
               surfaceContainer.style.overflow = 'hidden';
 
@@ -1357,7 +1358,7 @@
               iframe.style.height = '0';
               iframe.style.border = '0';
               document.body.appendChild(iframe);
-              
+
               const doc = iframe.contentWindow.document;
               doc.open();
               doc.write(`
@@ -1377,11 +1378,11 @@
                   </html>
               `);
               doc.close();
-              
+
               setTimeout(() => {
-                  iframe.contentWindow.focus();
-                  iframe.contentWindow.print();
-                  setTimeout(() => document.body.removeChild(iframe), 2000);
+                iframe.contentWindow.focus();
+                iframe.contentWindow.print();
+                setTimeout(() => document.body.removeChild(iframe), 2000);
               }, 400);
             });
         });
