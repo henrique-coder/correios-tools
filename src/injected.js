@@ -853,6 +853,20 @@
                 <button id="ct-arq-btn-txt" style="white-space:nowrap;flex:1;min-width:max-content;padding:8px 12px;background:#334155;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:12px;transition:0.2s;" onmouseover="this.style.background='#1e293b'" onmouseout="this.style.background='#334155'">📥 Salvar TXT</button>
               </div>
             </div>
+            <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:16px;border-top:1px dashed #cbd5e1;padding-top:12px;">
+              <div style="flex:2;min-width:250px;position:relative;" id="ct-arq-sro-dropdown-container">
+                <label style="display:block;font-size:11px;color:#64748b;font-weight:bold;margin-bottom:4px;text-transform:uppercase;">Filtro Master SRO (Excluir Situações):</label>
+                <div id="ct-arq-sro-multi-select" style="padding:6px 12px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;background:#f8fafc;cursor:pointer;user-select:none;color:#475569;display:flex;justify-content:space-between;align-items:center;">
+                  <span id="ct-arq-sro-multi-select-label">Carregando situações...</span>
+                  <span style="font-size:10px;">▼</span>
+                </div>
+                <div id="ct-arq-sro-multi-list" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #cbd5e1;box-shadow:0 4px 6px rgba(0,0,0,0.1);border-radius:6px;z-index:99;max-height:200px;overflow-y:auto;margin-top:4px;padding:8px;"></div>
+              </div>
+              <div style="flex:1;min-width:200px;">
+                <label style="display:block;font-size:11px;color:#64748b;font-weight:bold;margin-bottom:4px;text-transform:uppercase;">Ignorar Texto SRO (Regex simples / vírgula):</label>
+                <input type="text" id="ct-arq-sro-ignore-text" placeholder="Ex: ausente, entregue" style="width:100%;padding:6px 12px;border:1px solid #cbd5e1;border-radius:6px;font-family:inherit;font-size:13px;outline:none;box-sizing:border-box;">
+              </div>
+            </div>
           </div>
           <div id="ct-arq-result" style="margin-top:16px;display:none;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px;max-height:400px;overflow-y:auto;">
           </div>
@@ -1049,6 +1063,7 @@
           exportEl.style.display = 'block';
           window._sroIntranetCache = window._sroIntranetCache || {};
           window._sroIntranetCacheId = window._sroIntranetCacheId || Date.now();
+          refreshSroMasterFilters();
           renderArqTable();
         }
 
@@ -1056,15 +1071,33 @@
         btn.disabled = false;
       };
 
-      const getArqFilters = () => ({
-        mode: document.getElementById('ct-arq-export-mode')?.value || '3',
-        dist: document.getElementById('ct-arq-dist-filter')?.value,
-        grade: document.getElementById('ct-arq-grade-filter')?.value,
-        side: document.getElementById('ct-arq-side-filter')?.value
-      });
+      const getArqFilters = () => {
+        let excludes = [];
+        document.querySelectorAll('.ct-arq-sro-chk').forEach((c) => {
+          if (!c.checked) excludes.push(c.value);
+        });
+        return {
+          mode: document.getElementById('ct-arq-export-mode')?.value || '3',
+          dist: document.getElementById('ct-arq-dist-filter')?.value,
+          grade: document.getElementById('ct-arq-grade-filter')?.value,
+          side: document.getElementById('ct-arq-side-filter')?.value,
+          sroExcludes: excludes,
+          sroIgnoreText:
+            document.getElementById('ct-arq-sro-ignore-text')?.value || ''
+        };
+      };
 
       const getFilteredObjs = (data, filters) => {
         if (!data || !data.objs) return [];
+
+        let ignoreList = [];
+        if (filters.sroIgnoreText) {
+          ignoreList = filters.sroIgnoreText
+            .split(',')
+            .map((s) => s.trim().toLowerCase())
+            .filter(Boolean);
+        }
+
         return data.objs.filter((o) => {
           if (filters.dist && o.dist !== filters.dist) return false;
           if (filters.grade || filters.side) {
@@ -1074,7 +1107,83 @@
             if (filters.grade && parsed.grade !== filters.grade) return false;
             if (filters.side && parsed.side !== filters.side) return false;
           }
+
+          if (filters.mode !== '2') {
+            const sroVal = window._sroIntranetCache?.[o.objeto];
+            if (sroVal && sroVal.sit) {
+              const sitStr = sroVal.sit.toUpperCase();
+              if (filters.sroExcludes.includes(sitStr)) return false;
+
+              if (ignoreList.length > 0) {
+                const lowerSit = sroVal.sit.toLowerCase();
+                for (const ig of ignoreList) {
+                  if (lowerSit.includes(ig)) return false;
+                }
+              }
+            }
+          }
+
           return true;
+        });
+      };
+
+      const refreshSroMasterFilters = () => {
+        const d = window._ctArqLastData;
+        if (!d || !d.objs) return;
+        const availableSits = new Set();
+        d.objs.forEach((o) => {
+          const s = window._sroIntranetCache?.[o.objeto];
+          if (s && s.sit) availableSits.add(s.sit.toUpperCase());
+        });
+
+        const listEl = document.getElementById('ct-arq-sro-multi-list');
+        const labelEl = document.getElementById(
+          'ct-arq-sro-multi-select-label'
+        );
+        if (!listEl || !labelEl) return;
+
+        const sorted = Array.from(availableSits).sort();
+
+        // Preserve un-checked states so it doesn't reset when new SRO comes in
+        const currentUnchecked = new Set();
+        document.querySelectorAll('.ct-arq-sro-chk').forEach((c) => {
+          if (!c.checked) currentUnchecked.add(c.value);
+        });
+
+        if (sorted.length === 0) {
+          labelEl.innerText = 'Carregando situações.../Nenhuma visível';
+          listEl.innerHTML =
+            '<div style="padding:4px 8px;font-size:12px;color:#94a3b8;">Nenhuma situação SRO carregada.</div>';
+          return;
+        }
+
+        let html = '';
+        sorted.forEach((sit) => {
+          const isChecked = !currentUnchecked.has(sit) ? 'checked' : '';
+          html += `<label style="display:flex;align-items:center;gap:6px;padding:4px 8px;cursor:pointer;font-size:12px;color:#334155;transition:0.1s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
+                <input type="checkbox" class="ct-arq-sro-chk" value="${sit}" ${isChecked}>
+                <span>${sit}</span>
+            </label>`;
+        });
+        listEl.innerHTML = html;
+
+        const updateLabel = () => {
+          const boxes = document.querySelectorAll('.ct-arq-sro-chk');
+          const total = boxes.length;
+          const checked = Array.from(boxes).filter((b) => b.checked).length;
+          if (total === 0) labelEl.innerText = 'Nenhuma situação carregada';
+          else if (checked === total)
+            labelEl.innerText = `Todas as ${total} situações selecionadas`;
+          else
+            labelEl.innerText = `${checked} de ${total} situações selecionadas`;
+        };
+        updateLabel();
+
+        document.querySelectorAll('.ct-arq-sro-chk').forEach((c) => {
+          c.addEventListener('change', () => {
+            updateLabel();
+            renderArqTable();
+          });
         });
       };
 
@@ -1167,8 +1276,13 @@
                       'https://srointranet.correios.com.br/rastreamento?objetos=' +
                         objs
                     );
-                    const cleanHTML = t.replace(/<img[^>]*>/gi, '').replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
-                    const d2 = new DOMParser().parseFromString(cleanHTML, 'text/html');
+                    const cleanHTML = t
+                      .replace(/<img[^>]*>/gi, '')
+                      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
+                    const d2 = new DOMParser().parseFromString(
+                      cleanHTML,
+                      'text/html'
+                    );
                     d2.querySelectorAll('a[Name="Detalhes"]').forEach((a) => {
                       const objCode = a.innerText.trim();
                       const td = a.closest('td');
@@ -1192,6 +1306,7 @@
                   doneList += chunk.length;
                   if (prog)
                     prog.innerText = `Sincronizando SRO Intranet... ${doneList}/${list.length}`;
+                  refreshSroMasterFilters();
                 }
               } finally {
                 window._isFetchingArqSro = false;
@@ -1201,6 +1316,7 @@
                     if (prog) prog.style.display = 'none';
                   }, 3000);
                 }
+                renderArqTable();
               }
             })();
           }
@@ -1219,6 +1335,7 @@
         ?.addEventListener('click', () => {
           window._sroIntranetCache = {};
           window._sroIntranetCacheId = Date.now();
+          refreshSroMasterFilters();
           renderArqTable();
         });
 
@@ -1287,6 +1404,29 @@
       document
         .getElementById('ct-arq-side-filter')
         ?.addEventListener('change', renderArqTable);
+      document
+        .getElementById('ct-arq-sro-ignore-text')
+        ?.addEventListener('input', renderArqTable);
+
+      document
+        .getElementById('ct-arq-sro-multi-select')
+        ?.addEventListener('click', (e) => {
+          const list = document.getElementById('ct-arq-sro-multi-list');
+          if (list) {
+            list.style.display =
+              list.style.display === 'none' ? 'block' : 'none';
+          }
+        });
+      // Close dropdown if clicked outside
+      document.addEventListener('click', (e) => {
+        const container = document.getElementById(
+          'ct-arq-sro-dropdown-container'
+        );
+        if (container && !container.contains(e.target)) {
+          const list = document.getElementById('ct-arq-sro-multi-list');
+          if (list) list.style.display = 'none';
+        }
+      });
 
       document
         .getElementById('ct-arq-btn-copy')
@@ -2022,7 +2162,9 @@
                         'https://srointranet.correios.com.br/rastreamento?objetos=' +
                           objs
                       );
-                      const cleanHTML = r.replace(/<img[^>]*>/gi, '').replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
+                      const cleanHTML = r
+                        .replace(/<img[^>]*>/gi, '')
+                        .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
                       const d2 = new DOMParser().parseFromString(
                         cleanHTML,
                         'text/html'
