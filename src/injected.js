@@ -872,7 +872,7 @@
             </div>
             <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:16px;border-top:1px dashed #cbd5e1;padding-top:12px;">
               <div style="flex:2;min-width:250px;position:relative;" id="ct-arq-sro-dropdown-container">
-                <label style="display:block;font-size:11px;color:#64748b;font-weight:bold;margin-bottom:4px;text-transform:uppercase;">Filtro Master SRO (Excluir Situações):</label>
+                <label style="display:block;font-size:11px;color:#64748b;font-weight:bold;margin-bottom:4px;text-transform:uppercase;">Filtro SRO (Excluir Situações):</label>
                 <div id="ct-arq-sro-multi-select" style="padding:6px 12px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;background:#f8fafc;cursor:pointer;user-select:none;color:#475569;display:flex;justify-content:space-between;align-items:center;">
                   <span id="ct-arq-sro-multi-select-label">Carregando situações...</span>
                   <span style="font-size:10px;">▼</span>
@@ -1147,11 +1147,26 @@
         });
       };
 
-      const refreshSroMasterFilters = () => {
+      const refreshSroMasterFilters = (resetAll = false) => {
         const d = __cwStore.ctArqLastData;
         if (!d || !d.objs) return;
+
+        const filters = getArqFilters();
+
+        const preFilteredObjs = d.objs.filter((o) => {
+          if (filters.dist && o.dist !== filters.dist) return false;
+          if (filters.grade || filters.side) {
+            const parsed = __cwStore.parseDist
+              ? __cwStore.parseDist(o.dist)
+              : { grade: '', side: '' };
+            if (filters.grade && parsed.grade !== filters.grade) return false;
+            if (filters.side && parsed.side !== filters.side) return false;
+          }
+          return true;
+        });
+
         const availableSits = new Set();
-        d.objs.forEach((o) => {
+        preFilteredObjs.forEach((o) => {
           const s = __cwStore.sroIntranetCache?.[o.objeto];
           if (s && s.sit) availableSits.add(s.sit.toUpperCase());
         });
@@ -1165,9 +1180,11 @@
         const sorted = Array.from(availableSits).sort();
 
         const currentUnchecked = new Set();
-        document.querySelectorAll('.ct-arq-sro-chk').forEach((c) => {
-          if (!c.checked) currentUnchecked.add(c.value);
-        });
+        if (!resetAll) {
+          document.querySelectorAll('.ct-arq-sro-chk').forEach((c) => {
+            if (!c.checked) currentUnchecked.add(c.value);
+          });
+        }
 
         if (sorted.length === 0) {
           labelEl.innerText = 'Carregando situações.../Nenhuma visível';
@@ -1497,13 +1514,22 @@
         ?.addEventListener('change', renderArqTable);
       document
         .getElementById('ct-arq-dist-filter')
-        ?.addEventListener('change', renderArqTable);
+        ?.addEventListener('change', () => {
+          refreshSroMasterFilters(true);
+          renderArqTable();
+        });
       document
         .getElementById('ct-arq-grade-filter')
-        ?.addEventListener('change', renderArqTable);
+        ?.addEventListener('change', () => {
+          refreshSroMasterFilters(true);
+          renderArqTable();
+        });
       document
         .getElementById('ct-arq-side-filter')
-        ?.addEventListener('change', renderArqTable);
+        ?.addEventListener('change', () => {
+          refreshSroMasterFilters(true);
+          renderArqTable();
+        });
       document
         .getElementById('ct-arq-sro-ignore-text')
         ?.addEventListener('input', renderArqTable);
@@ -1569,10 +1595,24 @@
           );
 
           let printContent = `
-            <div style="margin-bottom:45px; padding: 5px 15px 10px 15px; border: 1px solid #cbd5e1; border-radius: 4px; background: #fafafa;">
-              <p style="margin:0 0 5px 0; color:#0f172a; font-size:13px; font-weight:bold;">Observações:</p>
-              <div style="border-bottom:1px solid #cbd5e1; height:15px; margin-bottom:15px;"></div>
-              <div style="border-bottom:1px solid #cbd5e1; height:15px; margin-bottom:5px;"></div>
+            <div style="display: flex; justify-content: space-between; gap: 15px; margin-bottom: 45px; align-items: stretch;">
+              <div style="flex: 2; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 4px; background: #fafafa; display: flex; flex-direction: column;">
+                <p style="margin:0; color:#0f172a; font-size:13px; font-weight:bold;">Observações:</p>
+                <div style="border-bottom:1px solid #cbd5e1; margin-top: 18px;"></div>
+                <div style="border-bottom:1px solid #cbd5e1; margin-top: 12px;"></div>
+              </div>
+              <div style="flex: 2.5; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 4px; background: #fafafa; display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+                <p style="margin:0; color:#0f172a; font-size:13px; font-weight:bold; white-space:nowrap;">Resultado da Busca:</p>
+                <div style="display: flex; align-items: center; gap: 6px; white-space:nowrap;">
+                  <div style="width: 14px; height: 14px; border: 1px solid #94a3b8; background: #fff;"></div>
+                  <span style="font-size:12px; color:#334155; font-weight:600;">100% Encontrados</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 6px; white-space:nowrap;">
+                  <div style="width: 14px; height: 14px; border: 1px solid #94a3b8; background: #fff;"></div>
+                  <span style="font-size:12px; color:#334155; font-weight:600;">Faltou objetos, Qtd:</span>
+                  <div style="width: 40px; border-bottom: 1px solid #94a3b8; height: 14px;"></div>
+                </div>
+              </div>
             </div>
           `;
 
