@@ -1596,21 +1596,23 @@
 
           let printContent = `
             <div style="display: flex; justify-content: space-between; gap: 15px; margin-bottom: 45px; align-items: stretch;">
-              <div style="flex: 2; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 4px; background: #fafafa; display: flex; flex-direction: column;">
+              <div style="flex: 1.5; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 4px; background: #fafafa; display: flex; flex-direction: column;">
                 <p style="margin:0; color:#0f172a; font-size:13px; font-weight:bold;">Observações:</p>
                 <div style="border-bottom:1px solid #cbd5e1; margin-top: 18px;"></div>
-                <div style="border-bottom:1px solid #cbd5e1; margin-top: 12px;"></div>
+                <div style="border-bottom:1px solid #cbd5e1; margin-top: 16px;"></div>
               </div>
-              <div style="flex: 2.5; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 4px; background: #fafafa; display: flex; align-items: center; justify-content: space-between; gap: 10px;">
-                <p style="margin:0; color:#0f172a; font-size:13px; font-weight:bold; white-space:nowrap;">Resultado da Busca:</p>
-                <div style="display: flex; align-items: center; gap: 6px; white-space:nowrap;">
-                  <div style="width: 14px; height: 14px; border: 1px solid #94a3b8; background: #fff;"></div>
-                  <span style="font-size:12px; color:#334155; font-weight:600;">100% Encontrados</span>
-                </div>
-                <div style="display: flex; align-items: center; gap: 6px; white-space:nowrap;">
-                  <div style="width: 14px; height: 14px; border: 1px solid #94a3b8; background: #fff;"></div>
-                  <span style="font-size:12px; color:#334155; font-weight:600;">Faltou objetos, Qtd:</span>
-                  <div style="width: 40px; border-bottom: 1px solid #94a3b8; height: 14px;"></div>
+              <div style="flex: 1; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 4px; background: #fafafa; display: flex; flex-direction: column; justify-content: space-around;">
+                <p style="margin:0 0 10px 0; color:#0f172a; font-size:13px; font-weight:bold; white-space:nowrap;">Resultado da busca:</p>
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+                  <div style="display: flex; align-items: center; gap: 6px; white-space:nowrap;">
+                    <div style="width: 14px; height: 14px; border: 1px solid #94a3b8; background: #fff;"></div>
+                    <span style="font-size:12px; color:#334155; font-weight:600;">100% Encontrados</span>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 6px; white-space:nowrap;">
+                    <div style="width: 14px; height: 14px; border: 1px solid #94a3b8; background: #fff;"></div>
+                    <span style="font-size:12px; color:#334155; font-weight:600;">Faltou objetos, Qtd:</span>
+                    <div style="width: 30px; border-bottom: 1px solid #94a3b8; height: 14px;"></div>
+                  </div>
                 </div>
               </div>
             </div>
