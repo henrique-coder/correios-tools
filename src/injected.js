@@ -688,7 +688,7 @@
         if (!s) return;
         const o = s.options ? s.options[s.selectedIndex] : null;
         let v = o ? o.text : s.value;
-        if (v && v.includes(' - ')) v = v.split(' - ')[0]; // Em caso de formatações
+        if (v && v.includes(' - ')) v = v.split(' - ')[0];
         S.domDist =
           v && v.trim() !== '' && v !== 'Selecione...' ? v.trim() : '';
         RDP();
@@ -696,7 +696,6 @@
       s.addEventListener('change', f);
       s.addEventListener('input', f);
 
-      // Observar mutações no select caso o site o atualize via JS sem disparar eventos
       const mo = new MutationObserver(f);
       mo.observe(s, {
         childList: true,
@@ -1165,7 +1164,6 @@
 
         const sorted = Array.from(availableSits).sort();
 
-        // Preserve un-checked states so it doesn't reset when new SRO comes in
         const currentUnchecked = new Set();
         document.querySelectorAll('.ct-arq-sro-chk').forEach((c) => {
           if (!c.checked) currentUnchecked.add(c.value);
@@ -1257,15 +1255,19 @@
             ? `<span style="color:${sroVal.includes('Entregue') ? '#10b981' : sroVal.includes('Saiu') ? '#f97316' : '#64748b'};font-weight:bold;font-size:10px;text-transform:uppercase;">${sroVal}</span>`
             : `<span style="color:#94a3b8;font-size:10px;">Buscando...</span>`;
 
+          const objLink = o.objeto
+            ? `<a href="https://srointranet.correios.com.br/rastreamento?objetos=${o.objeto}" target="_blank" style="text-decoration:none;color:${o.cor || 'inherit'};">${o.objeto}</a>`
+            : '--';
+
           html += `<tr style="border-bottom:1px solid #f1f5f9;">
                <td style="padding:8px;font-weight:bold;width:80px;">${o.dist}</td>`;
           if (mode === '1') {
-            html += `<td style="padding:8px;color:${o.cor || 'inherit'};font-weight:bold;">${o.objeto || '--'}</td>
+            html += `<td style="padding:8px;color:${o.cor || 'inherit'};font-weight:bold;">${objLink}</td>
                      <td style="padding:8px;" id="sro-st-${o.objeto}">${sroDisplay}</td>`;
           } else if (mode === '2') {
             html += `<td style="padding:8px;color:#475569;">${o.endereco || ''} - ${o.cep || ''}</td>`;
           } else {
-            html += `<td style="padding:8px;color:${o.cor || 'inherit'};font-weight:bold;width:140px;">${o.objeto || '--'}</td>
+            html += `<td style="padding:8px;color:${o.cor || 'inherit'};font-weight:bold;width:140px;">${objLink}</td>
                <td style="padding:8px;color:#475569;">
                  <div style="margin-bottom:4px;">${o.endereco || ''} - ${o.cep || ''}</div>
                  <div style="font-size:11px;color:#94a3b8;">Max. Entrega: ${o.dataMaximaEntrega ? o.dataMaximaEntrega.replace('T', ' ') : ''}</div>
@@ -1277,75 +1279,147 @@
         html += '</tbody></table>';
         resultEl.innerHTML = html;
 
+        __cwStore.currentArqRenderId = Symbol();
+        const myRenderId = __cwStore.currentArqRenderId;
+
         if (objsToFetch.length > 0) {
           const prog = document.getElementById('ct-arq-sro-progress');
           if (prog) prog.style.display = 'block';
-          if (!__cwStore.isFetchingArqSro) {
-            __cwStore.isFetchingArqSro = true;
-            (async () => {
-              try {
-                const batchSize = 50;
-                const list = [...new Set(objsToFetch)];
-                const myId = __cwStore.sroIntranetCacheId;
-                let doneList = 0;
-                for (let i = 0; i < list.length; i += batchSize) {
-                  if (__cwStore.sroIntranetCacheId !== myId) break;
-                  const chunk = list.slice(i, i + batchSize);
+          const myId = __cwStore.sroIntranetCacheId;
+
+          (async () => {
+            try {
+              const batchSize = 50;
+              const list = [...new Set(objsToFetch)];
+              const chunks = [];
+              for (let i = 0; i < list.length; i += batchSize)
+                chunks.push(list.slice(i, i + batchSize));
+
+              let chunkIdx = 0;
+              let doneList = 0;
+
+              const worker = async () => {
+                while (chunkIdx < chunks.length) {
+                  if (
+                    __cwStore.currentArqRenderId !== myRenderId ||
+                    __cwStore.sroIntranetCacheId !== myId
+                  )
+                    break;
+
+                  const chunk = chunks[chunkIdx++];
                   const objs = chunk.join(';');
-                  try {
-                    const t = await fetchMonitor(
-                      'https://srointranet.correios.com.br/rastreamento?objetos=' +
-                        objs
-                    );
-                    const cleanHTML = t
-                      .replace(/<img[^>]*>/gi, '')
-                      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
-                    const d2 = new DOMParser().parseFromString(
-                      cleanHTML,
-                      'text/html'
-                    );
-                    d2.querySelectorAll('a[Name="Detalhes"]').forEach((a) => {
-                      const objCode = a.innerText.trim();
-                      const td = a.closest('td');
-                      if (td && td.parentElement) {
-                        const tds = td.parentElement.querySelectorAll('td');
-                        if (tds.length >= 4) {
-                          const dh = tds[1].innerText.trim();
-                          const sit = tds[3].innerText.trim();
-                          __cwStore.sroIntranetCache[objCode] = { dh, sit };
-                          if (
-                            Object.keys(__cwStore.sroIntranetCache).length >
-                            5000
-                          )
-                            __cwStore.sroIntranetCache = {};
-                          const tdEl = document.getElementById(
-                            'sro-st-' + objCode
-                          );
-                          if (tdEl)
-                            tdEl.innerHTML = `<span style="color:${sit.includes('Entregue') ? '#10b981' : sit.includes('Saiu') ? '#f97316' : '#64748b'};font-weight:bold;font-size:10px;text-transform:uppercase;">${sit}</span>`;
+                  let tries = 0;
+                  let success = false;
+
+                  while (tries < 3 && !success) {
+                    if (
+                      __cwStore.currentArqRenderId !== myRenderId ||
+                      __cwStore.sroIntranetCacheId !== myId
+                    )
+                      break;
+                    try {
+                      const t = await fetchMonitor(
+                        'https://srointranet.correios.com.br/rastreamento?objetos=' +
+                          objs
+                      );
+                      if (
+                        !t ||
+                        t.trim() === '' ||
+                        t.includes('Request Entity Too Large') ||
+                        t.includes('Method Not Allowed')
+                      )
+                        throw new Error('Invalid response');
+
+                      const cleanHTML = t
+                        .replace(/<img[^>]*>/gi, '')
+                        .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
+                      const d2 = new DOMParser().parseFromString(
+                        cleanHTML,
+                        'text/html'
+                      );
+                      let foundAny = false;
+
+                      d2.querySelectorAll('a[Name="Detalhes"]').forEach((a) => {
+                        const objCode = a.innerText.trim();
+                        const td = a.closest('td');
+                        if (td && td.parentElement) {
+                          const tds = td.parentElement.querySelectorAll('td');
+                          if (tds.length >= 4) {
+                            foundAny = true;
+                            const dh = tds[1].innerText.trim();
+                            const sit = tds[3].innerText.trim();
+                            __cwStore.sroIntranetCache[objCode] = { dh, sit };
+                            if (
+                              Object.keys(__cwStore.sroIntranetCache).length >
+                              5000
+                            )
+                              __cwStore.sroIntranetCache = {};
+                          }
                         }
+                      });
+
+                      if (!foundAny && r.includes('Nenhum objeto encontrado')) {
+                        success = true;
+                      } else if (!foundAny && cleanHTML.length < 500) {
+                        throw new Error('Insufficient data');
+                      } else {
+                        success = true;
                       }
-                    });
-                  } catch (ex) {
-                    console.error(ex);
+                    } catch (ex) {
+                      tries++;
+                      await new Promise((r) => setTimeout(r, 1000));
+                    }
                   }
+
+                  if (
+                    success &&
+                    __cwStore.currentArqRenderId === myRenderId &&
+                    __cwStore.sroIntranetCacheId === myId
+                  ) {
+                    for (const o of chunk) {
+                      const tdEl = document.getElementById('sro-st-' + o);
+                      if (tdEl && __cwStore.sroIntranetCache[o]) {
+                        const sit = __cwStore.sroIntranetCache[o].sit;
+                        tdEl.innerHTML = `<span style="color:${sit.includes('Entregue') ? '#10b981' : sit.includes('Saiu') ? '#f97316' : '#64748b'};font-weight:bold;font-size:10px;text-transform:uppercase;">${sit}</span>`;
+                      }
+                    }
+                  }
+
                   doneList += chunk.length;
-                  if (prog)
+                  if (
+                    prog &&
+                    __cwStore.currentArqRenderId === myRenderId &&
+                    __cwStore.sroIntranetCacheId === myId
+                  ) {
                     prog.innerText = `Sincronizando SRO Intranet... ${doneList}/${list.length}`;
-                  refreshSroMasterFilters();
+                  }
                 }
-              } finally {
-                __cwStore.isFetchingArqSro = false;
+              };
+
+              const workers = Array.from(
+                { length: Math.min(2, chunks.length) },
+                () => worker()
+              );
+              await Promise.all(workers);
+
+              if (
+                __cwStore.currentArqRenderId === myRenderId &&
+                __cwStore.sroIntranetCacheId === myId
+              ) {
+                refreshSroMasterFilters();
+              }
+            } finally {
+              if (__cwStore.currentArqRenderId === myRenderId) {
                 if (prog) {
                   prog.innerText = 'Sincronizado';
                   setTimeout(() => {
-                    if (prog) prog.style.display = 'none';
+                    if (prog && __cwStore.currentArqRenderId === myRenderId)
+                      prog.style.display = 'none';
                   }, 3000);
                 }
-                renderArqTable();
               }
-            })();
-          }
+            }
+          })();
         }
       };
 
@@ -1443,7 +1517,6 @@
               list.style.display === 'none' ? 'block' : 'none';
           }
         });
-      // Close dropdown if clicked outside
       document.addEventListener('click', (e) => {
         const container = document.getElementById(
           'ct-arq-sro-dropdown-container'
@@ -1463,7 +1536,6 @@
           navigator.clipboard.writeText(txt);
         });
 
-      // Load PrintJS
       if (!document.getElementById('printjs-lib')) {
         const sc = document.createElement('script');
         sc.id = 'printjs-lib';
@@ -1483,14 +1555,12 @@
           const filteredObjs = getFilteredObjs(data, filters);
           if (filteredObjs.length === 0) return;
 
-          // Group by District First
           const distGroups = {};
           for (const o of filteredObjs) {
             if (!distGroups[o.dist]) distGroups[o.dist] = [];
             distGroups[o.dist].push(o);
           }
 
-          // Sort district keys
           const sortedDists = Object.keys(distGroups).sort((a, b) =>
             a.localeCompare(b, undefined, {
               numeric: true,
@@ -1508,7 +1578,6 @@
 
           for (const dist of sortedDists) {
             const groupObjs = distGroups[dist];
-            // Sort alphabetically by object
             groupObjs.sort((a, b) =>
               (a.objeto || '').localeCompare(b.objeto || '')
             );
@@ -1599,7 +1668,6 @@
           document
             .getElementById('btn-do-print')
             .addEventListener('click', () => {
-              // The preview relies on overflow:hidden to show 1 page, we temporarily remove it to get full HTML.
               const surfaceContainer =
                 document.getElementById('print-a4-surface').parentElement;
               surfaceContainer.style.maxHeight = 'none';
@@ -1648,7 +1716,6 @@
             });
         });
 
-      // Maintain old listeners
       document
         .getElementById('ct-arq-btn-txt')
         ?.addEventListener('click', () => {
@@ -2008,7 +2075,7 @@
                     }
 
                     html += `
-                      <tr style="border-bottom:1px solid #e2e8f0;background-color:${idx % 2 === 0 ? '#ffffff' : '#f8fafc'} !important;transition:0.1s;">
+                      <tr data-obj="${item.obj}" style="border-bottom:1px solid #e2e8f0;background-color:${idx % 2 === 0 ? '#ffffff' : '#f8fafc'} !important;transition:0.1s;">
                           <td style="padding:12px 20px;font-weight:bold;letter-spacing:0.5px;font-size:13px;color:#00416B !important;">
                              <a href="https://srointranet.correios.com.br/rastreamento?objetos=${item.obj}" target="_blank" style="text-decoration:none;color:#00416B !important;">${item.obj}</a>
                           </td>
@@ -2022,6 +2089,173 @@
                     `;
                   });
                   tbody.innerHTML = html;
+                }
+
+                __cwStore.currentModRenderId = Symbol();
+                const myRenderId = __cwStore.currentModRenderId;
+
+                const progDiv = document.getElementById('ct-sro-progress');
+
+                const objsToFetch = filteredList.filter((i) => {
+                  const ck = __cwStore.sroIntranetCache?.[i.obj];
+                  if (ck && ck.sit) {
+                    i.sitSro = ck.sit;
+                    i.dhSro = ck.dh;
+                    return false;
+                  }
+                  return true;
+                });
+
+                if (objsToFetch.length === 0) {
+                  if (progDiv) {
+                    progDiv.style.backgroundColor = '#f0fdf4';
+                    progDiv.style.color = '#15803d';
+                    progDiv.style.borderColor = '#bbf7d0';
+                    progDiv.innerHTML = `✅ Todos os ${filteredList.length} objetos visíveis carregados.`;
+                  }
+                } else {
+                  if (progDiv) {
+                    progDiv.style.backgroundColor = '#fff';
+                    progDiv.style.color = '#3b82f6';
+                    progDiv.style.borderColor = '#e2e8f0';
+                    progDiv.innerHTML = `⏳ Sincronizando com SRO Intranet: <span id="ct-sro-count">0</span> / ${objsToFetch.length} novos objetos...`;
+                  }
+
+                  (async () => {
+                    const batches = [];
+                    for (let i = 0; i < objsToFetch.length; i += 50)
+                      batches.push(objsToFetch.slice(i, i + 50));
+                    let chunkIdx = 0;
+                    let doneCount = 0;
+
+                    const worker = async () => {
+                      while (chunkIdx < batches.length) {
+                        if (__cwStore.currentModRenderId !== myRenderId) break;
+                        const batch = batches[chunkIdx++];
+                        const objs = batch.map((c) => c.obj).join(';');
+                        let tries = 0,
+                          success = false;
+
+                        while (tries < 3 && !success) {
+                          if (__cwStore.currentModRenderId !== myRenderId)
+                            break;
+                          try {
+                            const r = await fetchMonitor(
+                              'https://srointranet.correios.com.br/rastreamento?objetos=' +
+                                objs
+                            );
+                            if (
+                              !r ||
+                              r.trim() === '' ||
+                              r.includes('Request Entity Too Large') ||
+                              r.includes('Method Not Allowed')
+                            )
+                              throw new Error('Invalid');
+                            const cleanHTML = r
+                              .replace(/<img[^>]*>/gi, '')
+                              .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
+                            const d2 = new DOMParser().parseFromString(
+                              cleanHTML,
+                              'text/html'
+                            );
+                            let foundAny = false;
+
+                            d2.querySelectorAll('a[Name="Detalhes"]').forEach(
+                              (a) => {
+                                const objCode = a.innerText.trim();
+                                const td = a.closest('td');
+                                if (td && td.parentElement) {
+                                  const tds =
+                                    td.parentElement.querySelectorAll('td');
+                                  if (tds.length >= 4) {
+                                    foundAny = true;
+                                    const dh = tds[1].innerText.trim();
+                                    const sit = tds[3].innerText.trim();
+                                    __cwStore.sroIntranetCache[objCode] = {
+                                      dh,
+                                      sit
+                                    };
+                                  }
+                                }
+                              }
+                            );
+
+                            if (
+                              Object.keys(__cwStore.sroIntranetCache).length >
+                              5000
+                            )
+                              __cwStore.sroIntranetCache = {};
+                            if (
+                              !foundAny &&
+                              r.includes('Nenhum objeto encontrado')
+                            ) {
+                              success = true;
+                            } else if (!foundAny && cleanHTML.length < 500) {
+                              throw new Error('Insufficient');
+                            } else {
+                              success = true;
+                            }
+                          } catch (e) {
+                            tries++;
+                            await new Promise((res) => setTimeout(res, 1000));
+                          }
+                        }
+
+                        if (
+                          success &&
+                          __cwStore.currentModRenderId === myRenderId
+                        ) {
+                          for (const o of batch) {
+                            if (__cwStore.sroIntranetCache[o.obj]) {
+                              const tr = tbody.querySelector(
+                                `tr[data-obj="${o.obj}"]`
+                              );
+                              if (tr) {
+                                const tds = tr.querySelectorAll('td');
+                                if (tds.length >= 4) {
+                                  const sitStr =
+                                    __cwStore.sroIntranetCache[o.obj].sit;
+                                  tds[2].innerHTML = sitStr;
+                                  tds[2].style.color = sitStr.includes(
+                                    'Entregue'
+                                  )
+                                    ? '#10b981'
+                                    : sitStr.includes('Saiu')
+                                      ? '#f97316'
+                                      : '#64748b';
+                                  tds[2].style.cssText += ' !important';
+                                  tds[3].innerText =
+                                    __cwStore.sroIntranetCache[o.obj].dh;
+                                }
+                              }
+                            }
+                          }
+                        }
+
+                        doneCount += batch.length;
+                        if (__cwStore.currentModRenderId === myRenderId) {
+                          const curLbl =
+                            document.getElementById('ct-sro-count');
+                          if (curLbl) curLbl.innerText = doneCount;
+                        }
+                      }
+                    };
+
+                    const workers = Array.from(
+                      { length: Math.min(2, batches.length) },
+                      () => worker()
+                    );
+                    await Promise.all(workers);
+
+                    if (__cwStore.currentModRenderId === myRenderId) {
+                      if (progDiv) {
+                        progDiv.style.backgroundColor = '#f0fdf4';
+                        progDiv.style.color = '#15803d';
+                        progDiv.style.borderColor = '#bbf7d0';
+                        progDiv.innerHTML = `✅ Todos os ${filteredList.length} objetos visíveis carregados.`;
+                      }
+                    }
+                  })();
                 }
               };
 
@@ -2139,114 +2373,6 @@
               };
               body.addEventListener('click', body._hasCtClick);
 
-              const fetchSRO = async () => {
-                __cwStore.sroIntranetCache = __cwStore.sroIntranetCache || {};
-                let loadedSRO = 0;
-                const batchSize = 50;
-                const countLbl = document.getElementById('ct-sro-count');
-                const progDiv = document.getElementById('ct-sro-progress');
-
-                const maxConcurrent = 3;
-                const objsToFetchList = list.filter((c) => {
-                  if (__cwStore.sroIntranetCache[c.obj]) {
-                    c.sitSro = __cwStore.sroIntranetCache[c.obj].sit;
-                    c.dhSro = __cwStore.sroIntranetCache[c.obj].dh;
-                    loadedSRO++;
-                    return false;
-                  }
-                  return true;
-                });
-
-                if (countLbl) countLbl.innerText = loadedSRO;
-                renderTable();
-
-                if (objsToFetchList.length === 0) {
-                  if (progDiv) {
-                    progDiv.style.backgroundColor = '#f0fdf4';
-                    progDiv.style.color = '#15803d';
-                    progDiv.style.borderColor = '#bbf7d0';
-                    progDiv.innerHTML =
-                      'Download de SRO Concluído: Todos os ' +
-                      list.length +
-                      ' objetos carregados (cache).';
-                  }
-                  return;
-                }
-
-                const chunks = [];
-                for (let i = 0; i < objsToFetchList.length; i += batchSize) {
-                  chunks.push(objsToFetchList.slice(i, i + batchSize));
-                }
-
-                let currentChunk = 0;
-                const worker = async () => {
-                  while (currentChunk < chunks.length) {
-                    const chunk = chunks[currentChunk++];
-                    const objs = chunk.map((c) => c.obj).join(';');
-                    try {
-                      const r = await fetchMonitor(
-                        'https://srointranet.correios.com.br/rastreamento?objetos=' +
-                          objs
-                      );
-                      const cleanHTML = r
-                        .replace(/<img[^>]*>/gi, '')
-                        .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
-                      const d2 = new DOMParser().parseFromString(
-                        cleanHTML,
-                        'text/html'
-                      );
-                      const mapMap = {};
-                      chunk.forEach((c) => (mapMap[c.obj] = c));
-
-                      d2.querySelectorAll('a[Name="Detalhes"]').forEach((a) => {
-                        const o = a.innerText.trim();
-                        if (mapMap[o]) {
-                          const td = a.closest('td');
-                          if (td && td.parentElement) {
-                            const tds = td.parentElement.querySelectorAll('td');
-                            if (tds.length >= 4) {
-                              mapMap[o].dhSro = tds[1].innerText.trim();
-                              mapMap[o].sitSro = tds[3].innerText.trim();
-                              __cwStore.sroIntranetCache[o] = {
-                                dh: mapMap[o].dhSro,
-                                sit: mapMap[o].sitSro
-                              };
-                              if (
-                                Object.keys(__cwStore.sroIntranetCache).length >
-                                5000
-                              ) {
-                                __cwStore.sroIntranetCache = {};
-                              }
-                            }
-                          }
-                        }
-                      });
-                    } catch (e) {
-                      console.error('Batch err', e);
-                    }
-                    loadedSRO += chunk.length;
-                    if (countLbl) countLbl.innerText = loadedSRO;
-                    renderTable();
-                  }
-                };
-
-                const workers = Array.from(
-                  { length: Math.min(maxConcurrent, chunks.length) },
-                  () => worker()
-                );
-                await Promise.all(workers);
-
-                if (progDiv) {
-                  progDiv.style.backgroundColor = '#f0fdf4';
-                  progDiv.style.color = '#15803d';
-                  progDiv.style.borderColor = '#bbf7d0';
-                  progDiv.innerHTML =
-                    'Download de SRO Concluído: Todos os ' +
-                    list.length +
-                    ' objetos carregados.';
-                }
-              };
-
               new window['Chart'](document.getElementById(cid), {
                 type: 'pie',
                 data: {
@@ -2282,8 +2408,6 @@
                   }
                 }
               });
-
-              await fetchSRO();
             } catch (err) {
               body.innerHTML = `<div style="text-align:center;padding:40px;color:#ef4444;font-weight:bold;font-size:16px;">Falha ao consultar SRO Monitor.<br><br><span style="font-size:13px;color:#64748b;font-weight:normal;">Motivo Técnico: ${err.message}</span></div>`;
             }
@@ -2334,7 +2458,6 @@
           btnReload.onclick = triggerUpdate;
 
           fetchAndRender().finally(() => {
-            // After initial render, disable reload button for 5 seconds to prevent spam
             btnReload.style.pointerEvents = 'none';
             btnReload.style.opacity = '0.5';
             let left = 5;
