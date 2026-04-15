@@ -26,7 +26,11 @@ permissions = []
 # ─── Host Permissions ──────────────────────────────────────────────────────── #
 # URL patterns the extension needs access to (shared across all browsers).
 
-host_permissions = ["https://*.correios.com.br/*"]
+host_permissions = [
+  "https://srointranet.correios.com.br/*",
+  "https://sroweb.correios.com.br/*",
+  "https://sromonitor.correios.com.br/*"
+]
 
 # ─── Icons ─────────────────────────────────────────────────────────────────── #
 # Paths are relative to the extension root directory.
@@ -54,9 +58,7 @@ default_icon = { "16" = "icons/icon16.png", "32" = "icons/icon32.png", "48" = "i
 [[content_scripts]]
 matches = [
   "https://sroweb.correios.com.br/app/entregaexternaautomatica/lancamentoautomatico/*",
-  "https://sroweblab.correios.com.br/app/entregaexternaautomatica/lancamentoautomatico/*",
   "https://sroweb.correios.com.br/app/entregaexternaautomatica/loecsuspensa/*",
-  "https://sroweblab.correios.com.br/app/entregaexternaautomatica/loecsuspensa/*"
 ]
 js = ["libs/browser-polyfill.min.js", "content.js"]
 run_at = "document_start"
