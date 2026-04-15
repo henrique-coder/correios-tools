@@ -846,6 +846,7 @@
                 <option value="1">📋 Apenas Objetos</option>
                 <option value="2">📍 Apenas Endereços</option>
               </select>
+              <button id="ct-arq-btn-reload-sro" style="flex:1;min-width:max-content;padding:8px 12px;background:#3b82f6;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:12px;transition:0.2s;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'">↻ Recarregar SRO</button>
               <div style="display:flex;gap:8px;flex:1;min-width:max-content;flex-wrap:nowrap;">
                 <button id="ct-arq-btn-print" style="white-space:nowrap;flex:1;min-width:max-content;padding:8px 12px;background:#10b981;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:12px;transition:0.2s;" onmouseover="this.style.background='#059669'" onmouseout="this.style.background='#10b981'">🖨️ Imprimir</button>
                 <button id="ct-arq-btn-copy" style="white-space:nowrap;flex:1;min-width:max-content;padding:8px 12px;background:#3b82f6;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:12px;transition:0.2s;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'">📋 Copiar Conteúdo</button>
@@ -864,6 +865,15 @@
         const oldText = btn.innerText;
         btn.innerText = 'Buscando...';
         btn.disabled = true;
+
+        if (document.getElementById('ct-arq-grade-filter'))
+          document.getElementById('ct-arq-grade-filter').value = '';
+        if (document.getElementById('ct-arq-side-filter'))
+          document.getElementById('ct-arq-side-filter').value = '';
+        if (document.getElementById('ct-arq-dist-filter'))
+          document.getElementById('ct-arq-dist-filter').value = '';
+        if (document.getElementById('ct-arq-export-mode'))
+          document.getElementById('ct-arq-export-mode').value = '3';
 
         const EXPORT_CAT = catType.toUpperCase();
         window._ctArqLastData = null;
@@ -919,10 +929,10 @@
 
         for (const dist of distsToQuery) {
           try {
-            const rsp = await fetch(
+            const t = await fetchMonitor(
               `https://sroweb.correios.com.br/app/entregaexternaautomatica/loecsuspensa/controllers/objetoController.php?acao=listar&idLancamento=${dist.idLancamento}`
             );
-            const arr = await rsp.json();
+            const arr = JSON.parse(t);
             success++;
 
             for (const obj of arr) {
@@ -1037,6 +1047,8 @@
                 .join('');
 
           exportEl.style.display = 'block';
+          window._sroIntranetCache = window._sroIntranetCache || {};
+          window._sroIntranetCacheId = window._sroIntranetCacheId || Date.now();
           renderArqTable();
         }
 
@@ -1085,26 +1097,41 @@
           return;
         }
 
-        let html = `<div style="margin-bottom:12px;font-weight:bold;color:#334155;border-bottom:1px solid #e2e8f0;padding-bottom:8px;">Pré-visualização: ${filteredObjs.length} objetos</div>`;
+        let html = `<div style="margin-bottom:12px;font-weight:bold;color:#334155;border-bottom:1px solid #e2e8f0;padding-bottom:8px;display:flex;justify-content:space-between;align-items:center;">
+            <span>Pré-visualização: ${filteredObjs.length} objetos</span>
+            <span id="ct-arq-sro-progress" style="font-size:11px;color:#10b981;font-weight:600;display:none;">Sincronizando SRO Intranet...</span>
+          </div>`;
         html +=
           '<table style="width:100%;border-collapse:collapse;font-size:12px;text-align:left;">';
 
         if (mode === '1') {
           html +=
-            '<thead><tr style="color:#64748b;"><th style="padding:8px;border-bottom:2px solid #cbd5e1;">Distrito</th><th style="padding:8px;border-bottom:2px solid #cbd5e1;">Objeto</th></tr></thead><tbody>';
+            '<thead><tr style="color:#64748b;"><th style="padding:8px;border-bottom:2px solid #cbd5e1;">Distrito</th><th style="padding:8px;border-bottom:2px solid #cbd5e1;">Objeto</th><th style="padding:8px;border-bottom:2px solid #cbd5e1;">Situação SRO</th></tr></thead><tbody>';
         } else if (mode === '2') {
           html +=
             '<thead><tr style="color:#64748b;"><th style="padding:8px;border-bottom:2px solid #cbd5e1;">Distrito</th><th style="padding:8px;border-bottom:2px solid #cbd5e1;">Endereço</th></tr></thead><tbody>';
         } else {
           html +=
-            '<thead><tr style="color:#64748b;"><th style="padding:8px;border-bottom:2px solid #cbd5e1;">Distrito</th><th style="padding:8px;border-bottom:2px solid #cbd5e1;">Objeto</th><th style="padding:8px;border-bottom:2px solid #cbd5e1;">Demais Dados</th></tr></thead><tbody>';
+            '<thead><tr style="color:#64748b;"><th style="padding:8px;border-bottom:2px solid #cbd5e1;">Distrito</th><th style="padding:8px;border-bottom:2px solid #cbd5e1;">Objeto</th><th style="padding:8px;border-bottom:2px solid #cbd5e1;">Demais Dados</th><th style="padding:8px;border-bottom:2px solid #cbd5e1;">Situação SRO</th></tr></thead><tbody>';
         }
 
+        const objsToFetch = [];
+
         for (const o of filteredObjs) {
+          const sroData = window._sroIntranetCache?.[o.objeto] || null;
+          const sroVal = sroData ? sroData.sit : null;
+          if (!sroVal && o.objeto && mode !== '2') {
+            objsToFetch.push(o.objeto);
+          }
+          const sroDisplay = sroVal
+            ? `<span style="color:${sroVal.includes('Entregue') ? '#10b981' : sroVal.includes('Saiu') ? '#f97316' : '#64748b'};font-weight:bold;font-size:10px;text-transform:uppercase;">${sroVal}</span>`
+            : `<span style="color:#94a3b8;font-size:10px;">Buscando...</span>`;
+
           html += `<tr style="border-bottom:1px solid #f1f5f9;">
                <td style="padding:8px;font-weight:bold;width:80px;">${o.dist}</td>`;
           if (mode === '1') {
-            html += `<td style="padding:8px;color:${o.cor || 'inherit'};font-weight:bold;">${o.objeto || '--'}</td>`;
+            html += `<td style="padding:8px;color:${o.cor || 'inherit'};font-weight:bold;">${o.objeto || '--'}</td>
+                     <td style="padding:8px;" id="sro-st-${o.objeto}">${sroDisplay}</td>`;
           } else if (mode === '2') {
             html += `<td style="padding:8px;color:#475569;">${o.endereco || ''} - ${o.cep || ''}</td>`;
           } else {
@@ -1112,12 +1139,72 @@
                <td style="padding:8px;color:#475569;">
                  <div style="margin-bottom:4px;">${o.endereco || ''} - ${o.cep || ''}</div>
                  <div style="font-size:11px;color:#94a3b8;">Max. Entrega: ${o.dataMaximaEntrega ? o.dataMaximaEntrega.replace('T', ' ') : ''}</div>
-               </td>`;
+               </td>
+               <td style="padding:8px;width:160px;" id="sro-st-${o.objeto}">${sroDisplay}</td>`;
           }
           html += `</tr>`;
         }
         html += '</tbody></table>';
         resultEl.innerHTML = html;
+
+        if (objsToFetch.length > 0) {
+          const prog = document.getElementById('ct-arq-sro-progress');
+          if (prog) prog.style.display = 'block';
+          if (!window._isFetchingArqSro) {
+            window._isFetchingArqSro = true;
+            (async () => {
+              try {
+                const batchSize = 50;
+                const list = [...new Set(objsToFetch)];
+                const myId = window._sroIntranetCacheId;
+                let doneList = 0;
+                for (let i = 0; i < list.length; i += batchSize) {
+                  if (window._sroIntranetCacheId !== myId) break;
+                  const chunk = list.slice(i, i + batchSize);
+                  const objs = chunk.join(';');
+                  try {
+                    const t = await fetchMonitor(
+                      'https://srointranet.correios.com.br/rastreamento?objetos=' +
+                        objs
+                    );
+                    const cleanHTML = t.replace(/<img[^>]*>/gi, '').replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
+                    const d2 = new DOMParser().parseFromString(cleanHTML, 'text/html');
+                    d2.querySelectorAll('a[Name="Detalhes"]').forEach((a) => {
+                      const objCode = a.innerText.trim();
+                      const td = a.closest('td');
+                      if (td && td.parentElement) {
+                        const tds = td.parentElement.querySelectorAll('td');
+                        if (tds.length >= 4) {
+                          const dh = tds[1].innerText.trim();
+                          const sit = tds[3].innerText.trim();
+                          window._sroIntranetCache[objCode] = { dh, sit };
+                          const tdEl = document.getElementById(
+                            'sro-st-' + objCode
+                          );
+                          if (tdEl)
+                            tdEl.innerHTML = `<span style="color:${sit.includes('Entregue') ? '#10b981' : sit.includes('Saiu') ? '#f97316' : '#64748b'};font-weight:bold;font-size:10px;text-transform:uppercase;">${sit}</span>`;
+                        }
+                      }
+                    });
+                  } catch (ex) {
+                    console.error(ex);
+                  }
+                  doneList += chunk.length;
+                  if (prog)
+                    prog.innerText = `Sincronizando SRO Intranet... ${doneList}/${list.length}`;
+                }
+              } finally {
+                window._isFetchingArqSro = false;
+                if (prog) {
+                  prog.innerText = 'Sincronizado';
+                  setTimeout(() => {
+                    if (prog) prog.style.display = 'none';
+                  }, 3000);
+                }
+              }
+            })();
+          }
+        }
       };
 
       document
@@ -1126,6 +1213,14 @@
       document
         .getElementById('ct-arq-dist-filter')
         ?.addEventListener('change', renderArqTable);
+
+      document
+        .getElementById('ct-arq-btn-reload-sro')
+        ?.addEventListener('click', () => {
+          window._sroIntranetCache = {};
+          window._sroIntranetCacheId = Date.now();
+          renderArqTable();
+        });
 
       const formatExport = (data, filters) => {
         if (!data || !data.objs || data.objs.length === 0) return '';
@@ -1255,9 +1350,9 @@
             const first = groupObjs[0];
 
             printContent += `
-            <div class="print-dist-group" style="margin-bottom: 45px;">
-              <div style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px; margin-bottom: 12px; font-size: 13px; color: #334155; display: flex; flex-direction: column; gap: 8px; align-items: center; text-align: center; page-break-after: avoid; break-after: avoid;">
-                <div style="display: flex; justify-content: center; flex-wrap: wrap; gap: 20px; align-items: center; width: 100%;">
+            <div class="print-dist-group" style="margin-bottom: 45px; page-break-inside: auto; width: 100%;">
+              <div style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px; margin-bottom: 12px; font-size: 13px; color: #334155; display: block; text-align: center; page-break-inside: avoid; break-inside: avoid;">
+                <div style="display: flex; justify-content: center; flex-wrap: wrap; gap: 20px; align-items: center; width: 100%; margin-bottom: 8px;">
                   <div style="font-size: 16px; font-weight: bold; color: #0f172a;">Distrito: ${dist}</div>
                   <div style="display:flex; gap: 15px; font-size: 12px;">
                     <span><strong>Mat:</strong> ${first.mat || '--'}</span>
@@ -1269,7 +1364,7 @@
                   <span><strong>Carteiro:</strong> ${first.nom || 'N/A'}</span>
                 </div>
               </div>
-              <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 10px 25px; page-break-before: avoid; break-before: avoid;">
+              <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 10px 25px; page-break-inside: auto; break-inside: auto;">
           `;
 
             for (const o of groupObjs) {
@@ -1289,7 +1384,7 @@
               }
 
               printContent += `
-                <div style="display: flex; align-items: center; gap: 6px; border-bottom: 1px dashed #e2e8f0; padding-bottom: 4px; font-family: monospace; font-size: 14px; min-width: 180px; justify-content: center;">
+                <div style="display: flex; align-items: center; gap: 6px; border-bottom: 1px dashed #e2e8f0; padding-bottom: 4px; font-family: monospace; font-size: 14px; min-width: 180px; justify-content: center; page-break-inside: avoid; break-inside: avoid;">
                   <div style="width:16px;height:16px;border:2px solid #94a3b8;border-radius:3px;vertical-align:middle;box-sizing:border-box;"></div>
                   <div>${objDisplay}</div>
                 </div>
@@ -1312,7 +1407,7 @@
                 <button id="btn-close-print" style="white-space:nowrap;padding:10px 16px;background:#ef4444;color:#fff;border:none;border-radius:6px;font-weight:bold;cursor:pointer;font-size:14px;box-shadow:0 2px 4px rgba(239,68,68,0.3); box-sizing:border-box; min-width: max-content;">❌ Fechar</button>
               </div>
             </div>
-            
+
             <div style="box-shadow:0 10px 25px rgba(0,0,0,0.3); border-radius:4px; background:#fff; overflow:hidden; max-height:297mm; min-height: 297mm; margin-bottom: 50px;">
             <div id="print-a4-surface" style="width:210mm; min-height:297mm; background-color:#fff; padding:10mm 15mm; box-sizing:border-box; position:relative;">
               <div style="text-align:center; border-bottom: 3px solid #0f172a; border-top: 3px solid #0f172a; padding-top: 10px; padding-bottom: 10px; margin-top: -10px; margin-bottom: 20px;">
@@ -1879,15 +1974,42 @@
               body.addEventListener('click', body._hasCtClick);
 
               const fetchSRO = async () => {
+                window._sroIntranetCache = window._sroIntranetCache || {};
                 let loadedSRO = 0;
                 const batchSize = 50;
                 const countLbl = document.getElementById('ct-sro-count');
                 const progDiv = document.getElementById('ct-sro-progress');
 
                 const maxConcurrent = 3;
+                const objsToFetchList = list.filter((c) => {
+                  if (window._sroIntranetCache[c.obj]) {
+                    c.sitSro = window._sroIntranetCache[c.obj].sit;
+                    c.dhSro = window._sroIntranetCache[c.obj].dh;
+                    loadedSRO++;
+                    return false;
+                  }
+                  return true;
+                });
+
+                if (countLbl) countLbl.innerText = loadedSRO;
+                renderTable();
+
+                if (objsToFetchList.length === 0) {
+                  if (progDiv) {
+                    progDiv.style.backgroundColor = '#f0fdf4';
+                    progDiv.style.color = '#15803d';
+                    progDiv.style.borderColor = '#bbf7d0';
+                    progDiv.innerHTML =
+                      'Download de SRO Concluído: Todos os ' +
+                      list.length +
+                      ' objetos carregados (cache).';
+                  }
+                  return;
+                }
+
                 const chunks = [];
-                for (let i = 0; i < list.length; i += batchSize) {
-                  chunks.push(list.slice(i, i + batchSize));
+                for (let i = 0; i < objsToFetchList.length; i += batchSize) {
+                  chunks.push(objsToFetchList.slice(i, i + batchSize));
                 }
 
                 let currentChunk = 0;
@@ -1900,8 +2022,9 @@
                         'https://srointranet.correios.com.br/rastreamento?objetos=' +
                           objs
                       );
+                      const cleanHTML = r.replace(/<img[^>]*>/gi, '').replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
                       const d2 = new DOMParser().parseFromString(
-                        r,
+                        cleanHTML,
                         'text/html'
                       );
                       const mapMap = {};
@@ -1916,6 +2039,10 @@
                             if (tds.length >= 4) {
                               mapMap[o].dhSro = tds[1].innerText.trim();
                               mapMap[o].sitSro = tds[3].innerText.trim();
+                              window._sroIntranetCache[o] = {
+                                dh: mapMap[o].dhSro,
+                                sit: mapMap[o].sitSro
+                              };
                             }
                           }
                         }
