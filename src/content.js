@@ -31,9 +31,10 @@ if (stealthMode) {
 
 window.addEventListener('message', async (event) => {
   if (
+    event.origin !== window.location.origin ||
     event.source !== window ||
     !event.data ||
-    event.data.type !== 'CT_FETCH_REQUEST'
+    event.data.type !== '_CW_FETCH_REQ_'
   ) {
     return;
   }
@@ -46,20 +47,20 @@ window.addEventListener('message', async (event) => {
 
     window.postMessage(
       {
-        type: 'CT_FETCH_RESPONSE',
+        type: '_CW_FETCH_RES_',
         id: event.data.id,
         response: response || { success: false, error: 'Sem resposta' }
       },
-      '*'
+      window.location.origin
     );
   } catch (e) {
     window.postMessage(
       {
-        type: 'CT_FETCH_RESPONSE',
+        type: '_CW_FETCH_RES_',
         id: event.data.id,
         response: { success: false, error: e.message }
       },
-      '*'
+      window.location.origin
     );
   }
 });

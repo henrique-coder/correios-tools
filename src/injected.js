@@ -2,14 +2,32 @@
   'use strict';
   const PATH = window.location.pathname.toLowerCase();
 
+  const __cwStore = {
+    sroBP: null,
+    ctArqLastData: null,
+    sroIntranetCache: {},
+    sroIntranetCacheId: Date.now(),
+    isFetchingArqSro: false,
+    parseDist: (dStr) => {
+      const match = (dStr || '').match(/^(\d)(\d*)\s*([a-zA-Z]*)/i);
+      if (match)
+        return {
+          grade: match[1],
+          side: match[3] ? match[3].toUpperCase() : ''
+        };
+      return { grade: '', side: '' };
+    }
+  };
+
   function fetchMonitor(url) {
     return new Promise((resolve, reject) => {
       const reqId = Date.now() + Math.random();
       const listener = (e) => {
         if (
+          e.origin !== window.location.origin ||
           e.source !== window ||
           !e.data ||
-          e.data.type !== 'CT_FETCH_RESPONSE' ||
+          e.data.type !== '_CW_FETCH_RES_' ||
           e.data.id !== reqId
         )
           return;
@@ -23,8 +41,8 @@
       };
       window.addEventListener('message', listener);
       window.postMessage(
-        { type: 'CT_FETCH_REQUEST', id: reqId, url: url },
-        '*'
+        { type: '_CW_FETCH_REQ_', id: reqId, url: url },
+        window.location.origin
       );
     });
   }
@@ -61,17 +79,17 @@
                   v === '' || v === 'N/A' || v === 'S/A' || v === 'S/N';
 
                 if (inv) {
-                  if (window._sroBP !== S.code) {
-                    window._sroBP = S.code;
+                  if (__cwStore.sroBP !== S.code) {
+                    __cwStore.sroBP = S.code;
                     txtNum.focus();
                     txtNum.select();
                     return;
                   }
                 } else {
-                  window._sroBP = null;
+                  __cwStore.sroBP = null;
                 }
 
-                window._sroBP = null;
+                __cwStore.sroBP = null;
                 txtNum.blur();
                 if (document.activeElement) document.activeElement.blur();
 
@@ -890,7 +908,7 @@
           document.getElementById('ct-arq-export-mode').value = '3';
 
         const EXPORT_CAT = catType.toUpperCase();
-        window._ctArqLastData = null;
+        __cwStore.ctArqLastData = null;
 
         const resultEl = document.getElementById('ct-arq-result');
         const exportEl = document.getElementById('ct-arq-export');
@@ -1012,10 +1030,10 @@
             '<div style="padding:10px;text-align:center;color:#ef4444;">Nenhum objeto encontrado na categoria especificada! Tente buscar manualmente nas listas expandidas.</div>';
           exportEl.style.display = 'none';
         } else {
-          window._ctArqLastData = { cat: EXPORT_CAT, objs: allObjs };
+          __cwStore.ctArqLastData = { cat: EXPORT_CAT, objs: allObjs };
           exportEl.style.display = 'block';
 
-          window._parseDist = (dStr) => {
+          __cwStore.parseDist = (dStr) => {
             const match = (dStr || '').match(/^(\d)(\d*)\s*([a-zA-Z]*)/i);
             if (match)
               return {
@@ -1033,13 +1051,15 @@
           const grades = [
             ...new Set(
               allObjs
-                .map((o) => window._parseDist(o.dist).grade)
+                .map((o) => __cwStore.parseDist(o.dist).grade)
                 .filter(Boolean)
             )
           ].sort();
           const sides = [
             ...new Set(
-              allObjs.map((o) => window._parseDist(o.dist).side).filter(Boolean)
+              allObjs
+                .map((o) => __cwStore.parseDist(o.dist).side)
+                .filter(Boolean)
             )
           ].sort();
 
@@ -1061,8 +1081,9 @@
                 .join('');
 
           exportEl.style.display = 'block';
-          window._sroIntranetCache = window._sroIntranetCache || {};
-          window._sroIntranetCacheId = window._sroIntranetCacheId || Date.now();
+          __cwStore.sroIntranetCache = __cwStore.sroIntranetCache || {};
+          __cwStore.sroIntranetCacheId =
+            __cwStore.sroIntranetCacheId || Date.now();
           refreshSroMasterFilters();
           renderArqTable();
         }
@@ -1101,15 +1122,15 @@
         return data.objs.filter((o) => {
           if (filters.dist && o.dist !== filters.dist) return false;
           if (filters.grade || filters.side) {
-            const parsed = window._parseDist
-              ? window._parseDist(o.dist)
+            const parsed = __cwStore.parseDist
+              ? __cwStore.parseDist(o.dist)
               : { grade: '', side: '' };
             if (filters.grade && parsed.grade !== filters.grade) return false;
             if (filters.side && parsed.side !== filters.side) return false;
           }
 
           if (filters.mode !== '2') {
-            const sroVal = window._sroIntranetCache?.[o.objeto];
+            const sroVal = __cwStore.sroIntranetCache?.[o.objeto];
             if (sroVal && sroVal.sit) {
               const sitStr = sroVal.sit.toUpperCase();
               if (filters.sroExcludes.includes(sitStr)) return false;
@@ -1128,11 +1149,11 @@
       };
 
       const refreshSroMasterFilters = () => {
-        const d = window._ctArqLastData;
+        const d = __cwStore.ctArqLastData;
         if (!d || !d.objs) return;
         const availableSits = new Set();
         d.objs.forEach((o) => {
-          const s = window._sroIntranetCache?.[o.objeto];
+          const s = __cwStore.sroIntranetCache?.[o.objeto];
           if (s && s.sit) availableSits.add(s.sit.toUpperCase());
         });
 
@@ -1189,7 +1210,7 @@
 
       const renderArqTable = () => {
         const resultEl = document.getElementById('ct-arq-result');
-        const d = window._ctArqLastData;
+        const d = __cwStore.ctArqLastData;
         if (!d || !d.objs || d.objs.length === 0) {
           resultEl.innerHTML =
             '<div style="padding:10px;text-align:center;color:#ef4444;">Nenhum objeto encontrado na categoria especificada!</div>';
@@ -1227,7 +1248,7 @@
         const objsToFetch = [];
 
         for (const o of filteredObjs) {
-          const sroData = window._sroIntranetCache?.[o.objeto] || null;
+          const sroData = __cwStore.sroIntranetCache?.[o.objeto] || null;
           const sroVal = sroData ? sroData.sit : null;
           if (!sroVal && o.objeto && mode !== '2') {
             objsToFetch.push(o.objeto);
@@ -1259,16 +1280,16 @@
         if (objsToFetch.length > 0) {
           const prog = document.getElementById('ct-arq-sro-progress');
           if (prog) prog.style.display = 'block';
-          if (!window._isFetchingArqSro) {
-            window._isFetchingArqSro = true;
+          if (!__cwStore.isFetchingArqSro) {
+            __cwStore.isFetchingArqSro = true;
             (async () => {
               try {
                 const batchSize = 50;
                 const list = [...new Set(objsToFetch)];
-                const myId = window._sroIntranetCacheId;
+                const myId = __cwStore.sroIntranetCacheId;
                 let doneList = 0;
                 for (let i = 0; i < list.length; i += batchSize) {
-                  if (window._sroIntranetCacheId !== myId) break;
+                  if (__cwStore.sroIntranetCacheId !== myId) break;
                   const chunk = list.slice(i, i + batchSize);
                   const objs = chunk.join(';');
                   try {
@@ -1291,7 +1312,12 @@
                         if (tds.length >= 4) {
                           const dh = tds[1].innerText.trim();
                           const sit = tds[3].innerText.trim();
-                          window._sroIntranetCache[objCode] = { dh, sit };
+                          __cwStore.sroIntranetCache[objCode] = { dh, sit };
+                          if (
+                            Object.keys(__cwStore.sroIntranetCache).length >
+                            5000
+                          )
+                            __cwStore.sroIntranetCache = {};
                           const tdEl = document.getElementById(
                             'sro-st-' + objCode
                           );
@@ -1309,7 +1335,7 @@
                   refreshSroMasterFilters();
                 }
               } finally {
-                window._isFetchingArqSro = false;
+                __cwStore.isFetchingArqSro = false;
                 if (prog) {
                   prog.innerText = 'Sincronizado';
                   setTimeout(() => {
@@ -1333,8 +1359,8 @@
       document
         .getElementById('ct-arq-btn-reload-sro')
         ?.addEventListener('click', () => {
-          window._sroIntranetCache = {};
-          window._sroIntranetCacheId = Date.now();
+          __cwStore.sroIntranetCache = {};
+          __cwStore.sroIntranetCacheId = Date.now();
           refreshSroMasterFilters();
           renderArqTable();
         });
@@ -1432,7 +1458,7 @@
         .getElementById('ct-arq-btn-copy')
         ?.addEventListener('click', () => {
           const filters = getArqFilters();
-          const txt = formatExport(window._ctArqLastData, filters);
+          const txt = formatExport(__cwStore.ctArqLastData, filters);
           if (!txt) return;
           navigator.clipboard.writeText(txt);
         });
@@ -1453,7 +1479,7 @@
         .getElementById('ct-arq-btn-print')
         ?.addEventListener('click', () => {
           const filters = getArqFilters();
-          const data = window._ctArqLastData;
+          const data = __cwStore.ctArqLastData;
           const filteredObjs = getFilteredObjs(data, filters);
           if (filteredObjs.length === 0) return;
 
@@ -1627,14 +1653,14 @@
         .getElementById('ct-arq-btn-txt')
         ?.addEventListener('click', () => {
           const filters = getArqFilters();
-          const txt = formatExport(window._ctArqLastData, filters);
+          const txt = formatExport(__cwStore.ctArqLastData, filters);
           if (!txt) return;
 
           const blob = new Blob([txt], { type: 'text/plain;charset=utf-8' });
           const link = document.createElement('a');
           link.href = URL.createObjectURL(blob);
 
-          let n = `Export_${window._ctArqLastData.cat}`;
+          let n = `Export_${__cwStore.ctArqLastData.cat}`;
           if (filters.grade) n += '_G' + filters.grade;
           if (filters.side) n += '_L' + filters.side;
           if (filters.dist) n += '_' + filters.dist.replace(/\s+/g, '_');
@@ -2114,7 +2140,7 @@
               body.addEventListener('click', body._hasCtClick);
 
               const fetchSRO = async () => {
-                window._sroIntranetCache = window._sroIntranetCache || {};
+                __cwStore.sroIntranetCache = __cwStore.sroIntranetCache || {};
                 let loadedSRO = 0;
                 const batchSize = 50;
                 const countLbl = document.getElementById('ct-sro-count');
@@ -2122,9 +2148,9 @@
 
                 const maxConcurrent = 3;
                 const objsToFetchList = list.filter((c) => {
-                  if (window._sroIntranetCache[c.obj]) {
-                    c.sitSro = window._sroIntranetCache[c.obj].sit;
-                    c.dhSro = window._sroIntranetCache[c.obj].dh;
+                  if (__cwStore.sroIntranetCache[c.obj]) {
+                    c.sitSro = __cwStore.sroIntranetCache[c.obj].sit;
+                    c.dhSro = __cwStore.sroIntranetCache[c.obj].dh;
                     loadedSRO++;
                     return false;
                   }
@@ -2181,10 +2207,16 @@
                             if (tds.length >= 4) {
                               mapMap[o].dhSro = tds[1].innerText.trim();
                               mapMap[o].sitSro = tds[3].innerText.trim();
-                              window._sroIntranetCache[o] = {
+                              __cwStore.sroIntranetCache[o] = {
                                 dh: mapMap[o].dhSro,
                                 sit: mapMap[o].sitSro
                               };
+                              if (
+                                Object.keys(__cwStore.sroIntranetCache).length >
+                                5000
+                              ) {
+                                __cwStore.sroIntranetCache = {};
+                              }
                             }
                           }
                         }
