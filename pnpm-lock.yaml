@@ -12,8 +12,8 @@ importers:
         specifier: ^4.0.2
         version: 4.0.2
       google-closure-compiler:
-        specifier: ^20260412.0.0
-        version: 20260412.0.0
+        specifier: ^20260415.0.0
+        version: 20260415.0.0
       prettier:
         specifier: ^3.8.3
         version: 3.8.3
@@ -112,31 +112,31 @@ packages:
     resolution: {integrity: sha512-AOIgSQCepiJYwP3ARnGx+5VnTu2HBYdzbGP45eLw1vr3zB3vZLeyed1sC9hnbcOc9/SrMyM5RPQrkGz4aS9Zow==}
     engines: {node: '>= 6'}
 
-  google-closure-compiler-java@20260412.0.0:
-    resolution: {integrity: sha512-Cs5Wgc5YELH+QntUHf3t2GaKT/wiZcpUg7TKGhxOilPPSOU2AO4XGBlIb70NKHBx7tJAzQq2X4WAlEkiLMjrQQ==}
+  google-closure-compiler-java@20260415.0.0:
+    resolution: {integrity: sha512-TlQmdo2HKjrKCScROpmuqV82PAgxq2ya/d34sE969uU0hxtFiFWAdAXWJfnGRMAa8jz8oHI28EKiPrKo87rJIQ==}
 
-  google-closure-compiler-linux-arm64@20260412.0.0:
-    resolution: {integrity: sha512-y+PgOQvrvUFkpQIbSN0uq24BghzQ86Qgw+iKAIB2Zq3OxsdCN9R7VbHJZnPvJKgUEgFRklznan5gy1r+qrj0yA==}
+  google-closure-compiler-linux-arm64@20260415.0.0:
+    resolution: {integrity: sha512-bJLF2+BDHWWeyHEfObejVBOTxD52tv8zmP2VsH2MEEAoD2rqcvcNLU/1ccBFfgSYigmUFCAQHuF1xYfDNHN0Og==}
     cpu: [arm64]
     os: [linux]
 
-  google-closure-compiler-linux@20260412.0.0:
-    resolution: {integrity: sha512-tCkYEtrhNtPfe6qeCp9Ze/Z3RWFGHZ500lBdF8Ge6AFGItMqEVuPztZLzTPFlJpDUAcb0EWK5KIoqWIxvXLL7w==}
+  google-closure-compiler-linux@20260415.0.0:
+    resolution: {integrity: sha512-Z0LuDdHzXmxLD6LTXl2gGA16RU2eWT5go/Yphtw5Hqs8qHdJV9ldxbNFAJXQKV2Dv43/cZ7aB1IB5BJfsG299Q==}
     cpu: [x32, x64]
     os: [linux]
 
-  google-closure-compiler-macos@20260412.0.0:
-    resolution: {integrity: sha512-ZC7jNA9wjs4sKiuN9fkycZOYpMAiIQJZ6aVEFly+jEmxUsBUKRNGA59x7Hf1SQxwWnf36CEecP7miwN87vr/wA==}
+  google-closure-compiler-macos@20260415.0.0:
+    resolution: {integrity: sha512-XP+i0WAag250yKaWACbQXOD0soJG7tGixVsEAgZicciIc77J9NFtkdC01a9SGM42DOBlsbRbbQVdYK9z38RWkg==}
     cpu: [arm64]
     os: [darwin]
 
-  google-closure-compiler-windows@20260412.0.0:
-    resolution: {integrity: sha512-z8iwCZs1Esaf3+gfIzQwM+c6ffGNo7y5lRbCb/AopyZ8E5ZWakuqQtOxuWivHa8LSGGCcVfSIh4RT8lghmKwEg==}
+  google-closure-compiler-windows@20260415.0.0:
+    resolution: {integrity: sha512-104iCiV+GNOlYThdBRUxD/zqGcNztRxIr4N0icbYfblksL9qQCrAA/SLzu9UwQhAEaeiMtdc81x38/lxQBlrOw==}
     cpu: [x32, x64]
     os: [win32]
 
-  google-closure-compiler@20260412.0.0:
-    resolution: {integrity: sha512-+M9QRgfQu/ty4nyOnnPvVzE0/bao3sGF7P1jJX6d140tF6w12kUt0tcxKYSD/Iaf31xEUYkfkV5qJNhJvUjpbA==}
+  google-closure-compiler@20260415.0.0:
+    resolution: {integrity: sha512-WWaKt+c8sm1YlIRzEjvUJqhW4ZsNsPfFxW3N0EaRYpWY/GdIrcLum7suo/73MXfMnYreW4Vg+Hl5fcCRTW2wEA==}
     engines: {node: '>=18'}
     hasBin: true
 
@@ -304,32 +304,32 @@ snapshots:
     dependencies:
       is-glob: 4.0.3
 
-  google-closure-compiler-java@20260412.0.0: {}
+  google-closure-compiler-java@20260415.0.0: {}
 
-  google-closure-compiler-linux-arm64@20260412.0.0:
+  google-closure-compiler-linux-arm64@20260415.0.0:
     optional: true
 
-  google-closure-compiler-linux@20260412.0.0:
+  google-closure-compiler-linux@20260415.0.0:
     optional: true
 
-  google-closure-compiler-macos@20260412.0.0:
+  google-closure-compiler-macos@20260415.0.0:
     optional: true
 
-  google-closure-compiler-windows@20260412.0.0:
+  google-closure-compiler-windows@20260415.0.0:
     optional: true
 
-  google-closure-compiler@20260412.0.0:
+  google-closure-compiler@20260415.0.0:
     dependencies:
       chalk: 5.6.2
-      google-closure-compiler-java: 20260412.0.0
+      google-closure-compiler-java: 20260415.0.0
       minimist: 1.2.8
       vinyl: 3.0.1
       vinyl-sourcemaps-apply: 0.2.1
     optionalDependencies:
-      google-closure-compiler-linux: 20260412.0.0
-      google-closure-compiler-linux-arm64: 20260412.0.0
-      google-closure-compiler-macos: 20260412.0.0
-      google-closure-compiler-windows: 20260412.0.0
+      google-closure-compiler-linux: 20260415.0.0
+      google-closure-compiler-linux-arm64: 20260415.0.0
+      google-closure-compiler-macos: 20260415.0.0
+      google-closure-compiler-windows: 20260415.0.0
     transitivePeerDependencies:
       - bare-abort-controller
       - react-native-b4a
