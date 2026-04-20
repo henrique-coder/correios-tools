@@ -1,2 +1,4 @@
-src/icons/*
-src/libs/browser-polyfill.min.js
+.output/
+.wxt/
+build/
+public/icons/

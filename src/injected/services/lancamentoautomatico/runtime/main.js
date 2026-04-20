@@ -1,4 +1,4 @@
-function runLancamentoAutomaticoRuntime(core) {
+export function runLancamentoAutomaticoRuntime(core) {
   const { __cwStore, fetchMonitor } = core;
   const ACTIONS = {
     'CT-INDUZIROBJETO': () => {

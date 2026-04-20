@@ -1,4 +1,4 @@
-function runLoecSuspensaRuntime(core) {
+export function runLoecSuspensaRuntime(core) {
   const { __cwStore, fetchMonitor } = core;
   const URLS = core.DEFAULTS?.URLS || {
     SROWEB_ORIGIN: 'https://sroweb.correios.com.br',

@@ -1,22 +1,29 @@
 {
+  "type": "module",
   "scripts": {
-    "lint": "prettier --check '.github/**' 'src/**' 'scripts/**' 'extension.config.toml'",
-    "format": "prettier --write '.github/**' 'src/**' 'scripts/**' 'extension.config.toml'",
-    "build": "node scripts/build.mjs",
-    "build:chrome": "node scripts/build.mjs chrome",
-    "build:edge": "node scripts/build.mjs edge",
-    "build:firefox": "node scripts/build.mjs firefox",
-    "build-zip": "node scripts/build.mjs --zip",
-    "build-zip:chrome": "node scripts/build.mjs chrome --zip",
-    "build-zip:edge": "node scripts/build.mjs edge --zip",
-    "build-zip:firefox": "node scripts/build.mjs firefox --zip",
-    "update-libs": "curl -sL -o src/libs/browser-polyfill.min.js https://unpkg.com/webextension-polyfill@0.12/dist/browser-polyfill.min.js"
+    "lint": "prettier --check '.github/**' 'src/**' 'wxt.config.ts' 'README.md'",
+    "format": "prettier --write '.github/**' 'src/**' 'wxt.config.ts' 'README.md'",
+    "dev:chrome": "wxt -b chrome",
+    "dev:edge": "wxt -b edge",
+    "dev:firefox": "wxt -b firefox",
+    "build": "pnpm build:chrome && pnpm build:edge && pnpm build:firefox",
+    "build:chrome": "wxt build -b chrome",
+    "build:edge": "wxt build -b edge",
+    "build:firefox": "wxt build -b firefox",
+    "zip": "pnpm zip:chrome && pnpm zip:edge && pnpm zip:firefox",
+    "zip:chrome": "wxt zip -b chrome",
+    "zip:edge": "wxt zip -b edge",
+    "zip:firefox": "wxt zip -b firefox",
+    "postinstall": "wxt prepare"
+  },
+  "dependencies": {
+    "vue": "^3.5.32"
   },
   "devDependencies": {
-    "csso-cli": "^4.0.2",
-    "google-closure-compiler": "^20260415.0.0",
+    "@wxt-dev/module-vue": "^1.0.3",
     "prettier": "^3.8.3",
-    "prettier-plugin-toml": "^2.0.6",
-    "smol-toml": "^1.6.1"
+    "terser": "^5.46.1",
+    "typescript": "^6.0.3",
+    "wxt": "^0.20.25"
   }
 }

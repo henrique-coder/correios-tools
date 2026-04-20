@@ -5,17 +5,19 @@ on:
     branches: [prod]
     paths:
       - '.github/workflows/deploy.yml'
-      - 'extension.config.toml'
+      - 'wxt.config.ts'
+      - 'tsconfig.json'
       - 'src/**'
-      - 'scripts/**'
+      - 'public/**'
       - 'package.json'
+      - 'pnpm-lock.yaml'
   workflow_dispatch:
 
 permissions:
   contents: write
 
 concurrency:
-  group: deploy
+  group: deploy-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -38,6 +40,7 @@ jobs:
         with:
           node-version: '24'
           cache: 'pnpm'
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -45,22 +48,22 @@ jobs:
       - name: Run lint checks
         run: pnpm run lint
 
-      - name: Install 7zip
-        run: sudo apt-get update && sudo apt-get install -y p7zip-full
+      - name: Clean previous output
+        run: rm -rf .output
 
       - name: Build and package extensions
-        run: pnpm run build-zip
+        run: pnpm run zip
 
-      - name: Rename zip files for release
+      - name: Validate release artifacts
         run: |
-          mv build/cw-chrome.zip correios-wizard-chrome.zip
-          mv build/cw-edge.zip correios-wizard-edge.zip
-          mv build/cw-firefox.zip correios-wizard-firefox.zip
+          test -f .output/correios-wizard-chrome.zip
+          test -f .output/correios-wizard-edge.zip
+          test -f .output/correios-wizard-firefox.zip
 
       - name: Get Version
         id: version
         run: |
-          VERSION=$(cat build/version.txt)
+          VERSION=$(node -e "const fs=require('fs');const manifest=JSON.parse(fs.readFileSync('.output/chrome-mv3/manifest.json','utf8'));process.stdout.write(manifest.version)")
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Generate Firefox update manifest
@@ -87,6 +90,8 @@ jobs:
         with:
           tag_name: 'v${{ steps.version.outputs.version }}'
           name: 'Correios Wizard v${{ steps.version.outputs.version }}'
+          fail_on_unmatched_files: true
+          overwrite_files: true
           body: |
             **Versão:** `${{ steps.version.outputs.version }}`
 
@@ -98,8 +103,8 @@ jobs:
             | `correios-wizard-edge.zip` | Microsoft Edge |
             | `correios-wizard-firefox.zip` | Mozilla Firefox |
           files: |
-            correios-wizard-chrome.zip
-            correios-wizard-edge.zip
-            correios-wizard-firefox.zip
+            .output/correios-wizard-chrome.zip
+            .output/correios-wizard-edge.zip
+            .output/correios-wizard-firefox.zip
             firefox_updates.json
           make_latest: true

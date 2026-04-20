@@ -1,4 +1,4 @@
-function createInjectedCore() {
+export function createInjectedCore() {
   const PATH = window.location.pathname.toLowerCase();
   const DEFAULTS = globalThis.CW_DEFAULTS || {
     EVENTS: {

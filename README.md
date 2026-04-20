@@ -1,73 +1,106 @@
 # Correios Wizard
 
-Extensão para Chrome, Edge e Firefox que otimiza tarefas operacionais nos Correios.
+Extensão para Chrome, Edge e Firefox com automações operacionais para as telas internas dos Correios.
 
 ## Instalação
 
-Disponível na [Chrome Web Store](https://chromewebstore.google.com/detail/correios-wizard/oogeamkmbaejmkigijcpbfcbkfeolkca) e [Edge Add-ons](https://microsoftedge.microsoft.com/addons/detail/correios-wizard/andcjlemogipmhmhedliljjcoogbcfcj).
+- Chrome Web Store: https://chromewebstore.google.com/detail/correios-wizard/oogeamkmbaejmkigijcpbfcbkfeolkca
+- Edge Add-ons: https://microsoftedge.microsoft.com/addons/detail/correios-wizard/andcjlemogipmhmhedliljjcoogbcfcj
 
 ## Download Direto
 
-Extensões compiladas disponíveis na [última release](https://github.com/henrique-coder/correios-wizard/releases/latest):
+Builds prontos na última release:
 
-| Arquivo                                                                                                                                 | Navegador       |
-| --------------------------------------------------------------------------------------------------------------------------------------- | --------------- |
-| [`correios-wizard-chrome.zip`](https://github.com/henrique-coder/correios-wizard/releases/latest/download/correios-wizard-chrome.zip)   | Google Chrome   |
-| [`correios-wizard-edge.zip`](https://github.com/henrique-coder/correios-wizard/releases/latest/download/correios-wizard-edge.zip)       | Microsoft Edge  |
-| [`correios-wizard-firefox.zip`](https://github.com/henrique-coder/correios-wizard/releases/latest/download/correios-wizard-firefox.zip) | Mozilla Firefox |
+| Arquivo                                                                                                                               | Navegador       |
+| ------------------------------------------------------------------------------------------------------------------------------------- | --------------- |
+| [correios-wizard-chrome.zip](https://github.com/henrique-coder/correios-wizard/releases/latest/download/correios-wizard-chrome.zip)   | Google Chrome   |
+| [correios-wizard-edge.zip](https://github.com/henrique-coder/correios-wizard/releases/latest/download/correios-wizard-edge.zip)       | Microsoft Edge  |
+| [correios-wizard-firefox.zip](https://github.com/henrique-coder/correios-wizard/releases/latest/download/correios-wizard-firefox.zip) | Mozilla Firefox |
 
-## Funcionalidades
+## Funções Da Extensão
 
-### Lançamento Automático (`/lancamentoautomatico/`)
+### Lançamento Automático
 
-- **Painel flutuante** — exibe em tempo real o distrito, status, previsão de entrega e dados operacionais do objeto sendo induzido. Arrastável e com posição salva entre sessões.
-- **Tabela de dados operacionais** — detalhes completos do objeto: endereço, contato, serviços (AR/MP/DD), lista de indução, carteiro, estação e carimbo.
-- **Atalhos de teclado** — comandos rápidos via tecla `#` para induzir (`#CT-INDUZIROBJETO#`) ou excluir (`#CT-EXCLUIROBJETO#`) objetos sem usar o mouse.
-- **Auto-dismiss de modais** — fecha automaticamente pop-ups de impressão de etiquetas e alertas de confirmação.
+- Painel flutuante com dados do objeto em tempo real (status, distrito, previsão, dados operacionais e endereço).
+- Posição do painel salva automaticamente entre sessões.
+- Tabela de apoio operacional com detalhes para triagem e conferência.
+- Atalho de comando por teclado com `#CT-INDUZIROBJETO#` para indução rápida.
+- Auto-fechamento de pop-ups de impressão/alerta (com botão de liga/desliga no painel).
+- Manutenção de foco no campo de objeto quando há erro de validação.
+- Atualização automática da interface ao interceptar respostas da própria página (`fetch`/`XMLHttpRequest`).
 
-### LOEC Suspensa (`/loecsuspensa/`)
+### LOEC Suspensa
 
-- **Dashboard tático** — HUD com métricas em tempo real: carga total suspensa, backlog de vencidos, urgência operacional, complexidade (ARs), densidade do cluster, pontos físicos e status tático (Controlado/Atenção/Crítico).
+- Dashboard com indicadores táticos: total, vencidos, vencem hoje, a vencer, ARs e pontos.
+- Top 10 distritos por volume para priorização rápida.
+- Botões de ação imediata: `Vencem Hoje`, `Vencidos`, `A Vencer`.
+- Filtros por distrito, grade, lado, situação SRO e texto ignorado.
+- Consulta em lote do SRO Intranet com cache local e atualização paralela.
+- Exportação em texto, cópia para área de transferência e geração de arquivo `.txt`.
+- Impressão formatada em A4 com agrupamento por distrito.
+- Modal analítico por distrito com visão detalhada de objetos e categorias de motivo.
 
-## Estrutura
+## Permissões E Hosts (Com Motivo)
 
-```
-├── extension.config.toml
-├── build/
-├── scripts/
-│   └── build.mjs
-└── src/
-    ├── background.js
-    ├── content.js
-    ├── config/
-    │   └── defaults.json
-    ├── injected/
-    │   ├── index.js
-    │   ├── shared/
-    │   │   └── core.js
-    │   └── services/
-    │       ├── lancamentoautomatico/
-    │       │   ├── index.js
-    │       │   └── runtime/
-    │       │       └── main.js
-    │       └── loecsuspensa/
-    │           ├── index.js
-    │           └── runtime/
-    │               └── main.js
-    ├── libs/
-    └── icons/
-```
+### Permissões da extensão (`permissions`)
 
-## Arquitetura e Build (Produção)
+A extensão **não solicita permissões de API** no campo `permissions` do manifest (lista vazia).
 
-- **Google Closure Compiler:** Os scripts JavaScript da extensão são compilados com `SIMPLE_OPTIMIZATIONS`, gerando artefatos menores e mantendo compatibilidade com APIs de runtime de extensões.
-- **Configuração canônica de runtime:** O arquivo `src/config/defaults.json` centraliza URLs, ações, eventos e limites para evitar hardcodes duplicados entre `background`, `content` e `injected`.
-- **Sincronia de segurança em build:** O build valida que `defaults.security.allowedProxyHosts` está em sincronia estrita com `host_permissions` do `extension.config.toml` e falha se houver divergência.
-- **Bundle modular por endpoint:** O `injected.js` final é composto em build a partir de módulos em `src/injected/**`, incluindo camadas por endpoint e submódulos de runtime.
-- **Injeção Híbrida Inteligente:** A biblioteca do _browser-polyfill_ é embutida localmente visando estrita integridade na bridge `browser.*`, enquanto dependências analíticas secundárias como _Chart.js_ são demandadas por requisição do `unpkg` dinamicamente preservando o tamanho original da extensão.
-- **Isolamento de Estado:** Os scripts utilitários atuam sob invólucro de expressões auto-invocáveis (IIFE) estritas para neutralizar quaisquer vazamentos de variáveis globais que possam colidir com a arquitetura subjacente do site.
-- **Package Manager:** Transicionado inteiramente ao `pnpm`. Utiliza `7zip` nativo via temporário de S.O para criar release artifacts (zip archives) em compressão máxima (nível 9).
-- **Resiliência de runtime:** O status remoto de habilitação da extensão é consultado de forma assíncrona com timeout e cache curto em sessão para reduzir bloqueios e latência no carregamento da página.
+### Hosts solicitados (`host_permissions`)
+
+| Host                                    | Por que é pedido                                                                      |
+| --------------------------------------- | ------------------------------------------------------------------------------------- |
+| `https://sroweb.correios.com.br/*`      | Página base onde a automação roda e de onde saem dados de LOEC/Lançamento Automático. |
+| `https://srointranet.correios.com.br/*` | Consulta de rastreamento e situação SRO usada nos painéis/filtros.                    |
+| `https://sromonitor.correios.com.br/*`  | Consulta de dados analíticos usados no modal de relatório operacional.                |
+
+### Onde o script roda (`content_scripts.matches`)
+
+- `https://sroweb.correios.com.br/app/entregaexternaautomatica/lancamentoautomatico/*`
+- `https://sroweb.correios.com.br/app/entregaexternaautomatica/loecsuspensa/*`
+
+### Recurso exposto para injeção (`web_accessible_resources`)
+
+- `injected.js` é exposto para `https://*.correios.com.br/*`.
+- Motivo: permitir injeção do runtime principal no contexto da página para integração com os eventos/fluxos internos do sistema.
+
+## Scripts (PNPM)
+
+### Desenvolvimento
+
+- `pnpm dev`: inicia o modo de desenvolvimento no Chrome.
+- `pnpm dev:chrome`: desenvolvimento focado no Chrome.
+- `pnpm dev:edge`: desenvolvimento focado no Edge.
+- `pnpm dev:firefox`: desenvolvimento focado no Firefox.
+
+### Build
+
+- `pnpm build`: gera build para **todos** os navegadores suportados (Chrome, Edge e Firefox).
+- `pnpm build:chrome`: gera build só para Chrome.
+- `pnpm build:edge`: gera build só para Edge.
+- `pnpm build:firefox`: gera build só para Firefox.
+
+### ZIP
+
+- `pnpm zip`: gera zip para **todos** os navegadores suportados.
+- `pnpm zip:chrome`: gera zip só para Chrome.
+- `pnpm zip:edge`: gera zip só para Edge.
+- `pnpm zip:firefox`: gera zip só para Firefox.
+
+## O Que Faz Cada Comando Especial
+
+- `dev`: sobe o ambiente de desenvolvimento com rebuild/hot reload para testar a extensão localmente.
+- `postinstall`: roda `wxt prepare` após instalar dependências, preparando arquivos e tipos internos do WXT para evitar erro de ambiente incompleto.
+
+## Deploy
+
+O workflow de deploy:
+
+- valida formato/lint;
+- limpa `.output` antes de empacotar;
+- gera ZIP para Chrome, Edge e Firefox;
+- valida se todos os artefatos foram criados;
+- publica release com versionamento automático.
 
 ## Licença
 
