@@ -1565,11 +1565,11 @@
       if (!document.getElementById('printjs-lib')) {
         const sc = document.createElement('script');
         sc.id = 'printjs-lib';
-        sc.src = 'https://unpkg.com/print-js/dist/print.js';
+        sc.src = 'https://unpkg.com/print-js@1/dist/print.js';
         document.head.appendChild(sc);
         const lk = document.createElement('link');
         lk.rel = 'stylesheet';
-        lk.href = 'https://unpkg.com/print-js/dist/print.css';
+        lk.href = 'https://unpkg.com/print-js@1/dist/print.css';
         document.head.appendChild(lk);
       }
 
