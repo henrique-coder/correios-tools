@@ -1,12 +1,16 @@
 const api = typeof browser !== 'undefined' ? browser : chrome;
-const SROWEB_INDEX_URL = 'https://sroweb.correios.com.br/app/index.php';
-const FETCH_PROXY_ACTION = 'FETCH_PROXY';
-const FETCH_TIMEOUT_MS = 10000;
-const ALLOWED_PROXY_HOSTS = new Set([
-  'sroweb.correios.com.br',
-  'srointranet.correios.com.br',
-  'sromonitor.correios.com.br'
-]);
+const DEFAULTS = globalThis.CW_DEFAULTS;
+
+if (!DEFAULTS) {
+  throw new Error(
+    '[Correios Wizard] CW_DEFAULTS ausente. Execute o build para injetar os defaults de runtime.'
+  );
+}
+
+const SROWEB_INDEX_URL = DEFAULTS.URLS.SROWEB_INDEX;
+const FETCH_PROXY_ACTION = DEFAULTS.ACTIONS.FETCH_PROXY;
+const FETCH_TIMEOUT_MS = DEFAULTS.LIMITS.FETCH_TIMEOUT_MS;
+const ALLOWED_PROXY_HOSTS = new Set(DEFAULTS.SECURITY.ALLOWED_PROXY_HOSTS);
 
 function isAllowedHost(hostname) {
   return ALLOWED_PROXY_HOSTS.has(hostname);

@@ -39,7 +39,21 @@ Extensões compiladas disponíveis na [última release](https://github.com/henri
 └── src/
     ├── background.js
     ├── content.js
-    ├── injected.js
+    ├── config/
+    │   └── defaults.json
+    ├── injected/
+    │   ├── index.js
+    │   ├── shared/
+    │   │   └── core.js
+    │   └── services/
+    │       ├── lancamentoautomatico/
+    │       │   ├── index.js
+    │       │   └── runtime/
+    │       │       └── main.js
+    │       └── loecsuspensa/
+    │           ├── index.js
+    │           └── runtime/
+    │               └── main.js
     ├── libs/
     └── icons/
 ```
@@ -47,6 +61,9 @@ Extensões compiladas disponíveis na [última release](https://github.com/henri
 ## Arquitetura e Build (Produção)
 
 - **Google Closure Compiler:** Os scripts JavaScript da extensão são compilados com `SIMPLE_OPTIMIZATIONS`, gerando artefatos menores e mantendo compatibilidade com APIs de runtime de extensões.
+- **Configuração canônica de runtime:** O arquivo `src/config/defaults.json` centraliza URLs, ações, eventos e limites para evitar hardcodes duplicados entre `background`, `content` e `injected`.
+- **Sincronia de segurança em build:** O build valida que `defaults.security.allowedProxyHosts` está em sincronia estrita com `host_permissions` do `extension.config.toml` e falha se houver divergência.
+- **Bundle modular por endpoint:** O `injected.js` final é composto em build a partir de módulos em `src/injected/**`, incluindo camadas por endpoint e submódulos de runtime.
 - **Injeção Híbrida Inteligente:** A biblioteca do _browser-polyfill_ é embutida localmente visando estrita integridade na bridge `browser.*`, enquanto dependências analíticas secundárias como _Chart.js_ são demandadas por requisição do `unpkg` dinamicamente preservando o tamanho original da extensão.
 - **Isolamento de Estado:** Os scripts utilitários atuam sob invólucro de expressões auto-invocáveis (IIFE) estritas para neutralizar quaisquer vazamentos de variáveis globais que possam colidir com a arquitetura subjacente do site.
 - **Package Manager:** Transicionado inteiramente ao `pnpm`. Utiliza `7zip` nativo via temporário de S.O para criar release artifacts (zip archives) em compressão máxima (nível 9).

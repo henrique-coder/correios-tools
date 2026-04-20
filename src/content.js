@@ -1,11 +1,19 @@
 const api = typeof browser !== 'undefined' ? browser : chrome;
-const REMOTE_STATUS_URL =
-  'https://raw.githubusercontent.com/henrique-coder/correios-wizard/refs/heads/prod/status.json';
-const REMOTE_STATUS_TIMEOUT_MS = 3500;
-const REMOTE_STATUS_CACHE_TTL_MS = 5 * 60 * 1000;
-const REMOTE_STATUS_CACHE_KEY = 'CORREIOS_WIZARD::REMOTE_STATUS_CACHE';
-const FETCH_REQ_EVENT = '_CW_FETCH_REQ_';
-const FETCH_RES_EVENT = '_CW_FETCH_RES_';
+const DEFAULTS = globalThis.CW_DEFAULTS;
+
+if (!DEFAULTS) {
+  throw new Error(
+    '[Correios Wizard] CW_DEFAULTS ausente. Execute o build para injetar os defaults de runtime.'
+  );
+}
+
+const REMOTE_STATUS_URL = DEFAULTS.URLS.REMOTE_STATUS;
+const REMOTE_STATUS_TIMEOUT_MS = DEFAULTS.LIMITS.REMOTE_STATUS_TIMEOUT_MS;
+const REMOTE_STATUS_CACHE_TTL_MS = DEFAULTS.LIMITS.REMOTE_STATUS_CACHE_TTL_MS;
+const REMOTE_STATUS_CACHE_KEY = `${DEFAULTS.PROJECT_CODE}::REMOTE_STATUS_CACHE`;
+const FETCH_REQ_EVENT = DEFAULTS.EVENTS.FETCH_REQ;
+const FETCH_RES_EVENT = DEFAULTS.EVENTS.FETCH_RES;
+const FETCH_PROXY_ACTION = DEFAULTS.ACTIONS.FETCH_PROXY;
 
 function readRemoteStatusCache() {
   try {
@@ -112,7 +120,7 @@ window.addEventListener('message', async (event) => {
 
   try {
     const response = await api.runtime.sendMessage({
-      action: 'FETCH_PROXY',
+      action: FETCH_PROXY_ACTION,
       url: event.data.url
     });
 
