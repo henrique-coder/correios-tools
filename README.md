@@ -34,7 +34,6 @@ Extensões compiladas disponíveis na [última release](https://github.com/henri
 ```
 ├── extension.config.toml
 ├── build/
-├── externs/
 ├── scripts/
 │   └── build.mjs
 └── src/
@@ -47,10 +46,11 @@ Extensões compiladas disponíveis na [última release](https://github.com/henri
 
 ## Arquitetura e Build (Produção)
 
-- **Google Closure Compiler:** Todo o código JavaScript da extensão passa por ofuscação e compressão em nível `ADVANCED_OPTIMIZATIONS`, minimizando significativamente o tempo de parse e tamanho em disco sem sacrificar as APIs (`chrome.*` e `browser.*`) graças as tipagens no `externs/`.
+- **Google Closure Compiler:** Os scripts JavaScript da extensão são compilados com `SIMPLE_OPTIMIZATIONS`, gerando artefatos menores e mantendo compatibilidade com APIs de runtime de extensões.
 - **Injeção Híbrida Inteligente:** A biblioteca do _browser-polyfill_ é embutida localmente visando estrita integridade na bridge `browser.*`, enquanto dependências analíticas secundárias como _Chart.js_ são demandadas por requisição do `unpkg` dinamicamente preservando o tamanho original da extensão.
 - **Isolamento de Estado:** Os scripts utilitários atuam sob invólucro de expressões auto-invocáveis (IIFE) estritas para neutralizar quaisquer vazamentos de variáveis globais que possam colidir com a arquitetura subjacente do site.
 - **Package Manager:** Transicionado inteiramente ao `pnpm`. Utiliza `7zip` nativo via temporário de S.O para criar release artifacts (zip archives) em compressão máxima (nível 9).
+- **Resiliência de runtime:** O status remoto de habilitação da extensão é consultado de forma assíncrona com timeout e cache curto em sessão para reduzir bloqueios e latência no carregamento da página.
 
 ## Licença
 

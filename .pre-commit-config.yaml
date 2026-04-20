@@ -3,7 +3,7 @@ repos:
     hooks:
       - id: lint
         name: Lint
-        entry: npm run lint
+        entry: pnpm run lint
         language: system
         pass_filenames: false
         always_run: true

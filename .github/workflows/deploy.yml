@@ -8,7 +8,6 @@ on:
       - 'extension.config.toml'
       - 'src/**'
       - 'scripts/**'
-      - 'externs/**'
       - 'package.json'
   workflow_dispatch:
 
@@ -22,9 +21,10 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -34,19 +34,22 @@ jobs:
           version: 10
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '24'
           cache: 'pnpm'
 
       - name: Install dependencies
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
+
+      - name: Run lint checks
+        run: pnpm run lint
 
       - name: Install 7zip
         run: sudo apt-get update && sudo apt-get install -y p7zip-full
 
       - name: Build and package extensions
-        run: pnpm run update-libs && pnpm build-zip
+        run: pnpm run build-zip
 
       - name: Rename zip files for release
         run: |

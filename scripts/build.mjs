@@ -26,7 +26,7 @@ function mergeDeep(target, ...sources) {
   const source = sources.shift();
 
   if (isObject(target) && isObject(source)) {
-    for (const key in source) {
+    for (const key of Object.keys(source)) {
       if (isObject(source[key])) {
         if (!target[key]) Object.assign(target, { [key]: {} });
         mergeDeep(target[key], source[key]);
@@ -68,6 +68,15 @@ function checkTool(name) {
   }
 }
 
+function checkSystemTool(name) {
+  try {
+    execSync(`${name} --help`, { stdio: 'ignore' });
+  } catch {
+    console.error(`❌  '${name}' not found in system PATH.`);
+    process.exit(1);
+  }
+}
+
 const ALL_BROWSERS = ['chrome', 'edge', 'firefox'];
 const args = process.argv.slice(2);
 const isZip = args.includes('--zip');
@@ -84,11 +93,24 @@ if (browsers.some((b) => !ALL_BROWSERS.includes(b))) {
 
 checkTool('google-closure-compiler');
 checkTool('csso');
+if (isZip) checkSystemTool('7z');
 
 console.log(`🔨  Building for: ${browsers.join(', ')}`);
 
-const configRaw = fs.readFileSync('extension.config.toml', 'utf8');
-const config = parse(configRaw);
+let config;
+try {
+  const configRaw = fs.readFileSync('extension.config.toml', 'utf8');
+  config = parse(configRaw);
+} catch (err) {
+  console.error(`❌  Failed to parse extension.config.toml: ${err.message}`);
+  process.exit(1);
+}
+
+if (!config || typeof config !== 'object') {
+  console.error('❌  extension.config.toml is empty or invalid.');
+  process.exit(1);
+}
+
 const overrides = config.browser_overrides || {};
 delete config.browser_overrides;
 
@@ -184,6 +206,7 @@ for (const browser of browsers) {
       fs.rmSync(outDir, { recursive: true, force: true });
     } catch (e) {
       console.error(`❌  Failed to create zip: ${e.message}`);
+      process.exit(1);
     }
   }
 }

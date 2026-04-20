@@ -1,21 +1,19 @@
-# ─ ─── Folders ─── ─ #
+# Directories
 .idea/
 .vscode/
 node_modules/
-dist/
 build/
-*.egg-info/
+dist/
 .debug/
 .agent/
-build/
+*.egg-info/
 
-# ─ ─── Files ─── ─ #
-# ...
+# Files
+.DS_Store
+thumbs.db
 
-# ─ ─── Extensions ─── ─ #
+# Extensions
 *.env
 *.log
 *.tmp
 *.bak
-.DS_Store
-thumbs.db
