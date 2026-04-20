@@ -7,6 +7,7 @@
     ctArqLastData: null,
     sroIntranetCache: {},
     sroIntranetCacheId: Date.now(),
+    loecObjectCache: {},
     isFetchingArqSro: false,
     parseDist: (dStr) => {
       const match = (dStr || '').match(/^(\d)(\d*)\s*([a-zA-Z]*)/i);
@@ -170,9 +171,9 @@
       );
     })();
 
-    const K = {
-      POS: 'correiostools_pos_v2',
-      HIDDEN: 'correiostools_panel_hide'
+    const STORAGE_KEYS = {
+      PANEL_POSITION: 'CORREIOS_WIZARD::PANEL_POSITION',
+      AUTO_CLOSE_PRINT: 'CORREIOS_WIZARD::AUTO_CLOSE_PRINT'
     };
 
     let S = {
@@ -211,6 +212,60 @@
 
     let D = { active: !1, cX: 0, cY: 0, iX: 0, iY: 0, xOff: 0, yOff: 0 };
     let LIV = null;
+    let autoClosePrintEnabled =
+      window.localStorage.getItem(STORAGE_KEYS.AUTO_CLOSE_PRINT) !== '0';
+
+    function isAutoClosePrintEnabled() {
+      return autoClosePrintEnabled;
+    }
+
+    function setAutoClosePrintEnabled(enabled) {
+      autoClosePrintEnabled = !!enabled;
+      window.localStorage.setItem(
+        STORAGE_KEYS.AUTO_CLOSE_PRINT,
+        autoClosePrintEnabled ? '1' : '0'
+      );
+    }
+
+    function stopAutoCloseWatcher() {
+      if (atcInt) {
+        clearInterval(atcInt);
+        atcInt = null;
+      }
+      if (okInt) {
+        clearInterval(okInt);
+        okInt = null;
+      }
+    }
+
+    function syncAutoCloseToggleUI() {
+      const btn = document.getElementById('cw-auto-close-print-toggle');
+      if (!btn) return;
+      const enabled = isAutoClosePrintEnabled();
+      btn.innerText = '🖨';
+      btn.style.width = '24px';
+      btn.style.height = '24px';
+      btn.style.padding = '0';
+      btn.style.display = 'inline-flex';
+      btn.style.alignItems = 'center';
+      btn.style.justifyContent = 'center';
+      btn.style.fontSize = '12px';
+      btn.style.lineHeight = '1';
+      btn.style.borderRadius = '999px';
+      btn.style.transition =
+        'transform 120ms ease, box-shadow 120ms ease, opacity 120ms ease, background 120ms ease, border-color 120ms ease, color 120ms ease';
+      btn.style.opacity = enabled ? '0.82' : '1';
+      btn.style.background = enabled ? '#f1f5f9' : '#fef2f2';
+      btn.style.borderColor = enabled ? '#cbd5e1' : '#fecaca';
+      btn.style.color = enabled ? '#64748b' : '#b91c1c';
+      btn.style.boxShadow = enabled
+        ? 'inset 0 0 0 1px rgba(100,116,139,0.16)'
+        : 'inset 0 0 0 1px rgba(220,38,38,0.14)';
+      btn.setAttribute('aria-pressed', enabled ? 'true' : 'false');
+      btn.title = enabled
+        ? 'Fechamento automatico de popups de impressao: habilitado'
+        : 'Fechamento automatico de popups de impressao: desabilitado';
+    }
 
     function FC(c) {
       if (!c || c.length !== 13) return c || '';
@@ -219,14 +274,17 @@
 
     function SP() {
       window.localStorage.setItem(
-        K.POS,
+        STORAGE_KEYS.PANEL_POSITION,
         JSON.stringify({ x: D.xOff, y: D.yOff })
       );
     }
 
     function LP(el) {
       try {
-        const p = JSON.parse(window.localStorage.getItem(K.POS) || '{x:0,y:0}');
+        const p = JSON.parse(
+          window.localStorage.getItem(STORAGE_KEYS.PANEL_POSITION) ||
+            '{x:0,y:0}'
+        );
         if (p && typeof p.x === 'number') {
           D.xOff = p.x;
           D.yOff = p.y;
@@ -375,11 +433,45 @@
       if (!c) {
         c = document.createElement('div');
         c.id = 'sro-container';
-        c.innerHTML = `<div id="sro-card" class="sro-card mode-loading"><div id="sro-header" class="sro-header" title="Segure para mover"><div class="sro-status-block"><span id="sro-icon" class="sro-icon">⏳</span><span id="sro-status" class="sro-status-text">AGUARDANDO...</span></div><div class="sro-btn-group"></div></div><div class="sro-body"><div id="sro-tracking" style="font-size:13px;color:#888;font-weight:700;letter-spacing:0.5px;margin-bottom:2px;min-height:16px"></div><div id="sro-distrito" class="sro-distrito">--</div><div style="font-size:12px;color:#666;margin-top:4px">PREVISÃO: <strong id="sro-previsao" style="color:#333">--/--/----</strong></div></div></div>`;
+        c.innerHTML = `<div id="sro-card" class="sro-card mode-loading"><div id="sro-header" class="sro-header" title="Segure para mover"><div class="sro-status-block"><span id="sro-icon" class="sro-icon">⏳</span><span id="sro-status" class="sro-status-text">AGUARDANDO...</span></div><div class="sro-btn-group"><button id="cw-auto-close-print-toggle" type="button" style="width:24px;height:24px;padding:0;font-size:12px;border:1px solid #cbd5e1;border-radius:999px;background:#f1f5f9;color:#64748b;cursor:pointer;line-height:1;display:inline-flex;align-items:center;justify-content:center;">⎙</button></div></div><div class="sro-body"><div id="sro-tracking" style="font-size:13px;color:#888;font-weight:700;letter-spacing:0.5px;margin-bottom:2px;min-height:16px"></div><div id="sro-distrito" class="sro-distrito">--</div><div style="font-size:12px;color:#666;margin-top:4px">PREVISÃO: <strong id="sro-previsao" style="color:#333">--/--/----</strong></div></div></div>`;
         document.body.appendChild(c);
+
+        const autoCloseBtn = document.getElementById(
+          'cw-auto-close-print-toggle'
+        );
+        if (autoCloseBtn) {
+          autoCloseBtn.addEventListener('mouseenter', () => {
+            const enabled = isAutoClosePrintEnabled();
+            autoCloseBtn.style.transform = 'translateY(-1px) scale(1.04)';
+            autoCloseBtn.style.boxShadow = enabled
+              ? '0 4px 10px rgba(100,116,139,0.22)'
+              : '0 4px 10px rgba(220,38,38,0.18)';
+            autoCloseBtn.style.opacity = '1';
+          });
+
+          autoCloseBtn.addEventListener('mouseleave', () => {
+            autoCloseBtn.style.transform = 'none';
+            syncAutoCloseToggleUI();
+          });
+
+          autoCloseBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+
+            const enabled = !isAutoClosePrintEnabled();
+            setAutoClosePrintEnabled(enabled);
+            syncAutoCloseToggleUI();
+
+            if (enabled) ATC();
+            else stopAutoCloseWatcher();
+          });
+          syncAutoCloseToggleUI();
+        }
+
         LP(c);
         STD(document.getElementById('sro-header'), c);
       }
+      syncAutoCloseToggleUI();
       const cd = document.getElementById('sro-card');
       if (cd) {
         let i = '⏳';
@@ -615,8 +707,12 @@
     let atcInt = null;
     let okInt = null;
     function ATC() {
-      if (atcInt) clearInterval(atcInt);
-      if (okInt) clearInterval(okInt);
+      if (!isAutoClosePrintEnabled()) {
+        stopAutoCloseWatcher();
+        return;
+      }
+
+      stopAutoCloseWatcher();
       let t = 0;
       atcInt = setInterval(() => {
         const b = document.getElementById('btnImprimirEtiquetaNao');
@@ -726,6 +822,28 @@
         : v
           ? parseInt(v.toString().replace(/<[^>]*>/g, ''), 10) || 0
           : 0;
+
+    async function getLoecObjectsByLancamento(idLancamento) {
+      const key = (idLancamento || '').toString();
+      if (!key) return [];
+
+      const cached = __cwStore.loecObjectCache[key];
+      if (Array.isArray(cached)) return cached;
+
+      const t = await fetchMonitor(
+        `https://sroweb.correios.com.br/app/entregaexternaautomatica/loecsuspensa/controllers/objetoController.php?acao=listar&idLancamento=${idLancamento}`
+      );
+      const arr = JSON.parse(t);
+      const safeArr = Array.isArray(arr) ? arr : [];
+
+      __cwStore.loecObjectCache[key] = safeArr;
+
+      if (Object.keys(__cwStore.loecObjectCache).length > 300) {
+        __cwStore.loecObjectCache = {};
+      }
+
+      return safeArr;
+    }
 
     async function RCD(data) {
       if (!Array.isArray(data) || data.length === 0) return;
@@ -960,10 +1078,7 @@
 
         for (const dist of distsToQuery) {
           try {
-            const t = await fetchMonitor(
-              `https://sroweb.correios.com.br/app/entregaexternaautomatica/loecsuspensa/controllers/objetoController.php?acao=listar&idLancamento=${dist.idLancamento}`
-            );
-            const arr = JSON.parse(t);
+            const arr = await getLoecObjectsByLancamento(dist.idLancamento);
             success++;
 
             for (const obj of arr) {
@@ -2525,7 +2640,10 @@
       if (u && u.includes('lancamentoController.php?acao=listar'))
         try {
           const j = typeof t === 'string' ? JSON.parse(t) : t;
-          if (Array.isArray(j)) setTimeout(() => RCD(j), 350);
+          if (Array.isArray(j)) {
+            __cwStore.loecObjectCache = {};
+            setTimeout(() => RCD(j), 350);
+          }
         } catch (e) {}
     }
 
