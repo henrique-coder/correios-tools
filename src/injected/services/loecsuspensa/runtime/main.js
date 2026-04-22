@@ -859,17 +859,6 @@ export function runLoecSuspensaRuntime(core) {
         navigator.clipboard.writeText(txt);
       });
 
-    if (!document.getElementById('printjs-lib')) {
-      const sc = document.createElement('script');
-      sc.id = 'printjs-lib';
-      sc.src = 'https://unpkg.com/print-js@1/dist/print.js';
-      document.head.appendChild(sc);
-      const lk = document.createElement('link');
-      lk.rel = 'stylesheet';
-      lk.href = 'https://unpkg.com/print-js@1/dist/print.css';
-      document.head.appendChild(lk);
-    }
-
     document
       .getElementById('ct-arq-btn-print')
       ?.addEventListener('click', () => {
@@ -969,90 +958,77 @@ export function runLoecSuspensaRuntime(core) {
 
         const dateStr = new Date().toLocaleString('pt-BR');
 
-        const overlayHtml = `
-          <div id="print-overlay" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,0.8);z-index:999999;backdrop-filter:blur(4px);display:flex;flex-direction:column;align-items:center;padding:20px;overflow-y:auto;font-family:Arial,sans-serif;">
-            <div style="width: 100%; max-width: 230mm; display:flex; flex-direction:column; gap: 10px; justify-content:center; align-items:center; text-align:center; margin-bottom: 15px; position: sticky; top: 0; z-index: 10; background: #fff; padding: 15px 25px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-              <div>
-                <h3 style="margin:0;color:#0f172a;font-size:18px;">Pré-visualização de Impressão</h3>
-                <div style="font-size:12px;color:#64748b;margin-top:4px;">Verifique os dados antes de gerar o PDF/A4.</div>
-              </div>
-              <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;">
-                <button id="btn-do-print" style="white-space:nowrap;padding:10px 20px;background:#2563eb;color:#fff;border:none;border-radius:6px;font-weight:bold;cursor:pointer;font-size:14px;box-shadow:0 2px 4px rgba(37,99,235,0.3);transition:0.2s; box-sizing:border-box; min-width: max-content;">🖨️ Enviar para Impressão</button>
-                <button id="btn-close-print" style="white-space:nowrap;padding:10px 16px;background:#ef4444;color:#fff;border:none;border-radius:6px;font-weight:bold;cursor:pointer;font-size:14px;box-shadow:0 2px 4px rgba(239,68,68,0.3); box-sizing:border-box; min-width: max-content;">❌ Fechar</button>
-              </div>
+        const printSurface = `
+          <div id="print-a4-surface" style="width:190mm; min-height:277mm; background-color:#fff; box-sizing:border-box; position:relative; margin:0 auto;">
+            <div style="text-align:center; border-bottom: 3px solid #0f172a; border-top: 3px solid #0f172a; padding-top: 10px; padding-bottom: 10px; margin-bottom: 20px;">
+              <h1 style="margin:0; color:#0f172a; font-size:24px; text-transform:uppercase; letter-spacing:1px;">Relatório Analítico de Objetos - ${data.cat}</h1>
+              <p style="margin:8px 0 0 0; color:#475569; font-size:14px;"><strong>Gerado em:</strong> ${dateStr} | <strong>Total de Objetos:</strong> ${filteredObjs.length}</p>
             </div>
-
-            <div style="box-shadow:0 10px 25px rgba(0,0,0,0.3); border-radius:4px; background:#fff; overflow:hidden; max-height:297mm; min-height: 297mm; margin-bottom: 50px;">
-            <div id="print-a4-surface" style="width:210mm; min-height:297mm; background-color:#fff; padding:10mm 15mm; box-sizing:border-box; position:relative;">
-              <div style="text-align:center; border-bottom: 3px solid #0f172a; border-top: 3px solid #0f172a; padding-top: 10px; padding-bottom: 10px; margin-top: -10px; margin-bottom: 20px;">
-                <h1 style="margin:0; color:#0f172a; font-size:24px; text-transform:uppercase; letter-spacing:1px;">Relatório Analítico de Objetos - ${data.cat}</h1>
-                <p style="margin:8px 0 0 0; color:#475569; font-size:14px;"><strong>Gerado em:</strong> ${dateStr} | <strong>Total de Objetos:</strong> ${filteredObjs.length}</p>
-              </div>
-              ${printContent}
-            </div>
-            </div>
+            ${printContent}
           </div>
         `;
 
-        const div = document.createElement('div');
-        div.innerHTML = overlayHtml;
-        document.body.appendChild(div.firstElementChild);
+        const iframe = document.createElement('iframe');
+        iframe.style.position = 'fixed';
+        iframe.style.right = '0';
+        iframe.style.bottom = '0';
+        iframe.style.width = '0';
+        iframe.style.height = '0';
+        iframe.style.border = '0';
+        document.body.appendChild(iframe);
 
-        document
-          .getElementById('btn-close-print')
-          .addEventListener('click', () => {
-            document.getElementById('print-overlay').remove();
-          });
+        const printWindow = iframe.contentWindow;
+        const doc = printWindow?.document;
 
-        document
-          .getElementById('btn-do-print')
-          .addEventListener('click', () => {
-            const surfaceContainer =
-              document.getElementById('print-a4-surface').parentElement;
-            surfaceContainer.style.maxHeight = 'none';
-            surfaceContainer.style.overflow = 'visible';
+        if (!doc || !printWindow) {
+          if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
+          return;
+        }
 
-            const prtHtml =
-              document.getElementById('print-a4-surface').outerHTML;
+        doc.open();
+        doc.write(`
+          <html>
+          <head>
+            <title>Correios Wizard - Relatório A4</title>
+            <style>
+              @page { size: A4 portrait; margin: 10mm; }
+              body {
+                margin: 0;
+                font-family: Arial, sans-serif;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+                background: #fff;
+              }
+              .print-dist-group {
+                page-break-after: auto;
+                break-after: auto;
+                page-break-inside: auto;
+                break-inside: auto;
+              }
+              .print-dist-group > div:first-child {
+                page-break-after: avoid;
+                break-after: avoid;
+                page-break-inside: avoid;
+                break-inside: avoid;
+              }
+            </style>
+          </head>
+          <body>
+            ${printSurface}
+          </body>
+          </html>
+        `);
+        doc.close();
 
-            surfaceContainer.style.maxHeight = '297mm';
-            surfaceContainer.style.overflow = 'hidden';
+        const runDirectPrint = () => {
+          printWindow.focus();
+          printWindow.print();
+          setTimeout(() => {
+            if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
+          }, 2000);
+        };
 
-            const iframe = document.createElement('iframe');
-            iframe.style.position = 'fixed';
-            iframe.style.right = '0';
-            iframe.style.bottom = '0';
-            iframe.style.width = '0';
-            iframe.style.height = '0';
-            iframe.style.border = '0';
-            document.body.appendChild(iframe);
-
-            const doc = iframe.contentWindow.document;
-            doc.open();
-            doc.write(`
-                  <html>
-                  <head>
-                      <title>Correios Wizard - Relatório A4</title>
-                      <style>
-                          @page { size: A4 portrait; margin: 10mm; }
-                          body { margin: 0; font-family: Arial, sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; background: #fff; }
-                          .print-dist-group { page-break-after: auto; break-after: auto; }
-                          .print-dist-group > div:first-child { page-break-after: avoid; break-after: avoid; }
-                      </style>
-                  </head>
-                  <body>
-                      ${prtHtml}
-                  </body>
-                  </html>
-              `);
-            doc.close();
-
-            setTimeout(() => {
-              iframe.contentWindow.focus();
-              iframe.contentWindow.print();
-              setTimeout(() => document.body.removeChild(iframe), 2000);
-            }, 400);
-          });
+        setTimeout(runDirectPrint, 400);
       });
 
     document.getElementById('ct-arq-btn-txt')?.addEventListener('click', () => {
