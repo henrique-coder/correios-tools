@@ -30,3 +30,5 @@ export const RUNTIME_DEFAULTS = Object.freeze({
     ALLOWED_PROXY_HOSTS
   })
 });
+
+export type RuntimeDefaults = typeof RUNTIME_DEFAULTS;

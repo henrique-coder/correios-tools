@@ -3,7 +3,7 @@ import { defineConfig, type ConfigEnv, type WxtViteConfig } from 'wxt';
 import { RUNTIME_DEFAULTS } from './src/config/defaults.js';
 
 function sortedUnique(values: readonly string[]): string[] {
-  return Array.from(new Set(values.map((value) => value.toLowerCase()))).sort();
+  return Array.from(new Set(values.map((v) => v.toLowerCase()))).sort();
 }
 
 function parseHostname(url: string, label: string): string {
@@ -11,15 +11,12 @@ function parseHostname(url: string, label: string): string {
   try {
     parsed = new URL(url);
   } catch {
-    throw new Error(`Config invalida em ${label}: URL invalida (${url}).`);
+    throw new Error(`Invalid config in ${label}: Invalid URL (${url}).`);
   }
-
-  if (parsed.protocol !== 'https:') {
+  if (parsed.protocol !== 'https:')
     throw new Error(
-      `Config invalida em ${label}: apenas HTTPS e permitido (${url}).`
+      `Invalid config in ${label}: Only HTTPS is allowed (${url}).`
     );
-  }
-
   return parsed.hostname.toLowerCase();
 }
 
@@ -28,20 +25,16 @@ function buildVersion(): string {
   const year = now.getUTCFullYear();
   const month = now.getUTCMonth() + 1;
   const day = now.getUTCDate();
-
   const isoDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 
   let dailyCount = 0;
   try {
     const count = execSync(
       `git rev-list --count --since="${isoDate}T00:00:00Z" HEAD`,
-      {
-        encoding: 'utf8',
-        stdio: ['ignore', 'pipe', 'ignore']
-      }
+      { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }
     ).trim();
-    const parsedCount = Number.parseInt(count, 10);
-    dailyCount = parsedCount > 0 ? parsedCount - 1 : 0;
+    const parsed = Number.parseInt(count, 10);
+    dailyCount = parsed > 0 ? parsed - 1 : 0;
   } catch {
     dailyCount = 0;
   }
@@ -53,7 +46,6 @@ function validateRuntimeDefaults(): { hostPermissions: string[] } {
   const allowedHosts = sortedUnique(
     RUNTIME_DEFAULTS.SECURITY.ALLOWED_PROXY_HOSTS
   );
-
   const urlHosts = sortedUnique([
     parseHostname(
       RUNTIME_DEFAULTS.URLS.SROWEB_ORIGIN,
@@ -71,40 +63,26 @@ function validateRuntimeDefaults(): { hostPermissions: string[] } {
 
   if (
     allowedHosts.length !== urlHosts.length ||
-    allowedHosts.some((host, index) => host !== urlHosts[index])
-  ) {
+    allowedHosts.some((host, i) => host !== urlHosts[i])
+  )
     throw new Error(
-      'Config invalida: SECURITY.ALLOWED_PROXY_HOSTS deve ser identico aos hosts de URLS.'
+      'Invalid config: SECURITY.ALLOWED_PROXY_HOSTS must match URLS hosts exactly.'
     );
-  }
 
-  return {
-    hostPermissions: allowedHosts.map((host) => `https://${host}/*`)
-  };
+  return { hostPermissions: allowedHosts.map((host) => `https://${host}/*`) };
 }
 
 function createViteConfig(_env: ConfigEnv): WxtViteConfig {
   return {
-    esbuild: {
-      legalComments: 'none'
-    },
+    esbuild: { legalComments: 'none' },
     build: {
       target: 'es2020',
       minify: 'terser' as const,
       reportCompressedSize: false,
       terserOptions: {
-        compress: {
-          passes: 2,
-          drop_debugger: true,
-          pure_getters: true
-        },
-        mangle: {
-          safari10: true
-        },
-        format: {
-          comments: false,
-          ascii_only: true
-        }
+        compress: { passes: 2, drop_debugger: true, pure_getters: true },
+        mangle: { safari10: true },
+        format: { comments: false, ascii_only: true }
       }
     }
   };
@@ -146,23 +124,12 @@ export default defineConfig({
         }
       },
       permissions: [] as string[],
-      host_permissions: runtimeValidation.hostPermissions,
-      web_accessible_resources: [
-        {
-          resources: ['injected.js'],
-          matches: ['https://*.correios.com.br/*']
-        }
-      ]
+      host_permissions: runtimeValidation.hostPermissions
     };
 
-    if (browser === 'chrome' || browser === 'edge') {
-      return {
-        ...manifest,
-        minimum_chrome_version: '102'
-      };
-    }
-
-    if (browser === 'firefox') {
+    if (browser === 'chrome' || browser === 'edge')
+      return { ...manifest, minimum_chrome_version: '102' };
+    if (browser === 'firefox')
       return {
         ...manifest,
         browser_specific_settings: {
@@ -174,7 +141,6 @@ export default defineConfig({
           }
         }
       };
-    }
 
     return manifest;
   }

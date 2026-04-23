@@ -15,42 +15,33 @@ function isAllowedHost(hostname: string): boolean {
 
 function isTrustedSender(sender: any): boolean {
   try {
-    if (!sender || !sender.url) return false;
-    const senderUrl = new URL(sender.url);
-    return senderUrl.protocol === 'https:' && isAllowedHost(senderUrl.hostname);
+    if (!sender?.url) return false;
+    const url = new URL(sender.url);
+    return url.protocol === 'https:' && isAllowedHost(url.hostname);
   } catch {
     return false;
   }
 }
 
 function parseProxyUrl(rawUrl: string): URL {
-  if (typeof rawUrl !== 'string' || rawUrl.trim() === '') {
+  if (typeof rawUrl !== 'string' || !rawUrl.trim())
     throw new Error('URL invalida');
-  }
-
   const parsed = new URL(rawUrl);
-  if (parsed.protocol !== 'https:') {
+  if (parsed.protocol !== 'https:')
     throw new Error('Somente HTTPS e permitido');
-  }
-  if (!isAllowedHost(parsed.hostname)) {
-    throw new Error('Host nao permitido');
-  }
-
+  if (!isAllowedHost(parsed.hostname)) throw new Error('Host nao permitido');
   return parsed;
 }
 
 function extractCharset(contentType: string, hostname: string): string {
-  const charsetMatch = /charset=([^\s;]+)/i.exec(contentType || '');
-  if (charsetMatch && charsetMatch[1]) {
-    return charsetMatch[1];
-  }
+  const match = /charset=([^\s;]+)/i.exec(contentType ?? '');
+  if (match?.[1]) return match[1];
   return hostname.endsWith('correios.com.br') ? 'iso-8859-1' : 'utf-8';
 }
 
 async function proxyFetchText(url: URL): Promise<string> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-
   try {
     const response = await fetch(url.toString(), {
       method: 'GET',
@@ -58,17 +49,12 @@ async function proxyFetchText(url: URL): Promise<string> {
       redirect: 'follow',
       signal: controller.signal
     });
-
-    if (!response.ok) {
-      throw new Error('HTTP ' + response.status);
-    }
-
+    if (!response.ok) throw new Error('HTTP ' + response.status);
     const charset = extractCharset(
-      response.headers.get('content-type') || '',
+      response.headers.get('content-type') ?? '',
       url.hostname
     );
     const buffer = await response.arrayBuffer();
-
     try {
       return new TextDecoder(charset).decode(buffer);
     } catch {
@@ -85,15 +71,9 @@ export default defineBackground(() => {
   });
 
   browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (!request || request.action !== FETCH_PROXY_ACTION) {
-      return false;
-    }
-
+    if (!request || request.action !== FETCH_PROXY_ACTION) return false;
     if (!isTrustedSender(sender)) {
-      sendResponse({
-        success: false,
-        error: 'Origem do sender nao permitida'
-      });
+      sendResponse({ success: false, error: 'Origem do sender nao permitida' });
       return false;
     }
 
