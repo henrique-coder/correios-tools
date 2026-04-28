@@ -46,11 +46,11 @@ export function watchDistrictSelect(render: () => void): void {
     return;
   }
 
-  const updateDomDist = (stateRef: { domDist: string | null }) => {
+  const updateDomDist = (stateRef: { domDistrict: string | null }) => {
     const opt = sel.options?.[sel.selectedIndex];
     let v = opt ? opt.text : sel.value;
     if (v?.includes(' - ')) v = v.split(' - ')[0];
-    stateRef.domDist =
+    stateRef.domDistrict =
       v && v.trim() !== '' && v !== 'Selecione...' ? v.trim() : '';
     render();
   };

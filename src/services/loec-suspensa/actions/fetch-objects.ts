@@ -4,9 +4,9 @@ import { normalizeColor, colorsMatch } from '../../../shared/utils/color.js';
 import { getLoecObjectsByLancamento } from '../api.js';
 import type { DistrictData } from '../state.js';
 
-export type FetchCategory = 'hoje' | 'vencidos' | 'avencer';
+export type FetchCategory = 'today' | 'overdue' | 'dueSoon';
 
-export interface ArqFilters {
+export interface ArchiveFilters {
   mode: string;
   dist: string;
   grade: string;
@@ -15,7 +15,7 @@ export interface ArqFilters {
   sroIgnoreText: string;
 }
 
-export function getArqFilters(): ArqFilters {
+export function getArchiveFilters(): ArchiveFilters {
   const excludes: string[] = [];
   document
     .querySelectorAll<HTMLInputElement>('.ct-arq-sro-chk')
@@ -44,7 +44,7 @@ export function getArqFilters(): ArqFilters {
 
 export function getFilteredObjs(
   data: { cat: string; objs: DeliveryObject[] } | null,
-  filters: ArqFilters,
+  filters: ArchiveFilters,
   store: LoecStore
 ): DeliveryObject[] {
   if (!data?.objs) return [];
@@ -94,7 +94,7 @@ export async function fetchObjectsByCategory(
   let targetColor: string | null = null;
 
   if (targetTable) {
-    const colIdx = catType === 'hoje' ? 4 : catType === 'vencidos' ? 3 : 5;
+    const colIdx = catType === 'today' ? 4 : catType === 'overdue' ? 3 : 5;
     const rows = targetTable.querySelectorAll<HTMLTableRowElement>('tbody tr');
     for (const tr of rows) {
       const tds = tr.querySelectorAll('td');
@@ -120,9 +120,9 @@ export async function fetchObjectsByCategory(
   }
 
   const distsToQuery = districts.filter((d) => {
-    if (catType === 'hoje') return parseNumber(d.todayQuantity) > 0;
-    if (catType === 'vencidos') return parseNumber(d.overdueQuantity) > 0;
-    return parseNumber(d.dueSoonQuantity) > 0;
+    if (catType === 'today') return parseNumber(d.correios_qtdeHoje) > 0;
+    if (catType === 'overdue') return parseNumber(d.correios_qtdeVencido) > 0;
+    return parseNumber(d.correios_qtdeAVencer) > 0;
   });
 
   const allObjs: DeliveryObject[] = [];
@@ -134,21 +134,37 @@ export async function fetchObjectsByCategory(
   for (const dist of distsToQuery) {
     try {
       const arr = await getLoecObjectsByLancamento(
-        dist.dispatchId,
+        dist.correios_idLancamento,
         store,
         fetchProxy
       );
       success++;
-      for (const obj of arr as any[]) {
+      for (const rawObj of arr as any[]) {
+        const obj = {
+          correios_cor: rawObj.cor,
+          correios_objeto: rawObj.objeto,
+          correios_endereco: rawObj.endereco,
+          correios_cep: rawObj.cep,
+          correios_dataMaximaEntrega: rawObj.dataMaximaEntrega
+        };
         if (
-          matchesCategory(obj, catType, normalizeColor(obj.cor), targetColor)
+          matchesCategory(
+            obj,
+            catType,
+            normalizeColor(obj.correios_cor),
+            targetColor
+          )
         ) {
           allObjs.push({
-            ...obj,
-            district: dist.districtNumber,
-            postmanId: dist.postmanId,
-            postmanName: dist.postmanName,
-            sroCode: dist.sroCode
+            trackingCode: obj.correios_objeto,
+            address: obj.correios_endereco,
+            zipCode: obj.correios_cep,
+            maxDeliveryDate: obj.correios_dataMaximaEntrega,
+            color: obj.correios_cor,
+            district: dist.correios_numeroDistrito,
+            postmanId: dist.correios_matriculaCarteiro,
+            postmanName: dist.correios_nomeCarteiro,
+            sroCode: dist.correios_codigoSro
           });
         }
       }
@@ -171,16 +187,16 @@ function matchesCategory(
   if (targetColor && color)
     return (
       colorsMatch(color, targetColor) ||
-      (catType === 'hoje' && color.includes('196,94,24'))
+      (catType === 'today' && color.includes('196,94,24'))
     );
-  if (catType === 'hoje')
+  if (catType === 'today')
     return (
       color.includes('196,94,24') ||
       color.includes('orange') ||
       color.includes('#c45e18') ||
       color.includes('#f97316')
     );
-  if (catType === 'vencidos')
+  if (catType === 'overdue')
     return (
       color === 'red' || color.includes('#ef4444') || color.includes('255,0,0')
     );

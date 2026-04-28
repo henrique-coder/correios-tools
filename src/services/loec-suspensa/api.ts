@@ -4,18 +4,19 @@ import { SROWEB_ORIGIN } from '../../shared/constants/urls.js';
 const MAX_CACHE_ENTRIES = 300;
 
 export async function getLoecObjectsByLancamento(
-  idLancamento: string | number,
+  correios_idLancamento: string | number,
   store: LoecStore,
   fetchProxy: (url: string) => Promise<string>
 ): Promise<unknown[]> {
-  const key = String(idLancamento ?? '');
+  const key = String(correios_idLancamento ?? '');
   if (!key) return [];
 
   const cached = store.loecObjectCache[key];
   if (Array.isArray(cached)) return cached;
 
+  const correios_acao = 'listar';
   const text = await fetchProxy(
-    `${SROWEB_ORIGIN}/app/entregaexternaautomatica/loecsuspensa/controllers/objetoController.php?acao=listar&idLancamento=${idLancamento}`
+    `${SROWEB_ORIGIN}/app/entregaexternaautomatica/loecsuspensa/controllers/objetoController.php?acao=${correios_acao}&idLancamento=${correios_idLancamento}`
   );
 
   const parsed = JSON.parse(text);

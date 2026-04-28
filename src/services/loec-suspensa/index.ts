@@ -12,23 +12,23 @@ export function runSuspendedLoecService(
     if (!url.includes('lancamentoController.php?acao=listar')) return;
     if (!Array.isArray(data)) return;
     store.loecObjectCache = {};
-    const districts = (data as any[]).map(
-      (d): DistrictData => ({
-        dispatchId: d.idLancamento,
-        districtNumber: d.numeroDistrito,
-        districtArea: d.areaDistrito,
-        districtLabel: d.rotuloDistrito,
-        postmanName: d.nomeCarteiro,
-        postmanId: d.matriculaCarteiro,
-        sroCode: d.codigoSro,
-        quantity: d.qtde,
-        pointsQuantity: d.qtdePontos,
-        overdueQuantity: d.qtdeVencido,
-        todayQuantity: d.qtdeHoje,
-        dueSoonQuantity: d.qtdeAVencer,
-        arQuantity: d.qtdeAR
-      })
-    );
+    const districts = (data as any[]).map((rawItem): DistrictData => {
+      return {
+        correios_idLancamento: rawItem.idLancamento,
+        correios_numeroDistrito: rawItem.numeroDistrito,
+        correios_areaDistrito: rawItem.areaDistrito,
+        correios_rotuloDistrito: rawItem.rotuloDistrito,
+        correios_nomeCarteiro: rawItem.nomeCarteiro,
+        correios_matriculaCarteiro: rawItem.matriculaCarteiro,
+        correios_codigoSro: rawItem.codigoSro,
+        correios_qtde: rawItem.qtde,
+        correios_qtdePontos: rawItem.qtdePontos,
+        correios_qtdeVencido: rawItem.qtdeVencido,
+        correios_qtdeHoje: rawItem.qtdeHoje,
+        correios_qtdeAVencer: rawItem.qtdeAVencer,
+        correios_qtdeAR: rawItem.qtdeAR
+      };
+    });
     setTimeout(() => renderDashboard(districts, store, fetchProxy), 350);
   }
 

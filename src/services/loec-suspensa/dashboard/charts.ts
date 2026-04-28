@@ -1,8 +1,8 @@
 export function renderCharts(
   totalVencidos: number,
-  totalHoje: number,
-  totalAVencer: number,
-  topDistritos: Array<{ districtNumber: string; quantity: number }>
+  totalToday: number,
+  totalDueSoon: number,
+  topDistricts: Array<{ districtNumber: string; quantity: number }>
 ): void {
   const Chart = (window as any)['Chart'];
   if (!Chart) return;
@@ -13,7 +13,7 @@ export function renderCharts(
       labels: ['Vencidos', 'Vencem Hoje', 'A Vencer'],
       datasets: [
         {
-          data: [totalVencidos, totalHoje, totalAVencer],
+          data: [totalVencidos, totalToday, totalDueSoon],
           backgroundColor: ['#ef4444', '#f97316', '#10b981'],
           borderWidth: 0,
           hoverOffset: 4
@@ -45,11 +45,11 @@ export function renderCharts(
   new Chart(document.getElementById('chartjs-volume'), {
     type: 'bar',
     data: {
-      labels: topDistritos.map((d) => d.districtNumber),
+      labels: topDistricts.map((d) => d.districtNumber),
       datasets: [
         {
           label: 'Volume',
-          data: topDistritos.map((d) => d.quantity),
+          data: topDistricts.map((d) => d.quantity),
           backgroundColor: '#3b82f6',
           borderRadius: 4,
           barPercentage: 0.85,

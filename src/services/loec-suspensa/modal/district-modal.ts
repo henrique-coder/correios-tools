@@ -30,8 +30,8 @@ export function openDistrictModal(
   modal.style.display = 'flex';
   modal.innerHTML = `<div style="background:#fff;width:95%;max-width:1100px;height:85vh;border-radius:10px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 25px 50px -12px rgba(0,0,0,.5)">
     <div style="background:#00416B;padding:16px 24px;display:flex;justify-content:space-between;align-items:center;border-bottom:4px solid #FFE600">
-      <div style="color:#fff"><h2 style="margin:0;font-size:22px;font-weight:800;color:#fff">DISTRITO ${d.districtNumber}</h2>
-      <div style="font-size:14px;color:#FFE600;font-weight:700;margin-top:4px;text-transform:uppercase">${d.postmanName ?? 'SEM NOME'} &nbsp;|&nbsp; MATRÍCULA: ${d.postmanId ?? '--'}</div></div>
+      <div style="color:#fff"><h2 style="margin:0;font-size:22px;font-weight:800;color:#fff">DISTRITO ${d.correios_numeroDistrito}</h2>
+      <div style="font-size:14px;color:#FFE600;font-weight:700;margin-top:4px;text-transform:uppercase">${d.correios_nomeCarteiro ?? 'SEM NOME'} &nbsp;|&nbsp; MATRÍCULA: ${d.correios_matriculaCarteiro ?? '--'}</div></div>
       <button id="ct-close-mod" style="background:transparent;border:none;color:#fff;font-size:28px;cursor:pointer;padding:0;line-height:1" onmouseover="this.style.color='#FFE600'" onmouseout="this.style.color='#fff'">×</button>
     </div>
     <div style="padding:16px 24px;background:#f8fafc;border-bottom:1px solid #e2e8f0;display:flex;gap:16px;align-items:center">
@@ -44,7 +44,7 @@ export function openDistrictModal(
         </div>
       </div>
       <div style="flex:1;display:flex;justify-content:flex-end;align-items:center">
-        <button id="ct-mod-reload" style="background:#3b82f6;color:#fff;border:none;border-radius:6px;padding:0 20px;height:34px;font-weight:600;font-size:13px;cursor:pointer">↻ Atualizar Relatório</button>
+        <button id="ct-mod-reload" style="background:#3b82f6;color:#fff;border:none;border-radius:6px;padding:0 20px;height:34px;font-weight:600;font-size:13px;cursor:pointer;min-width:180px;white-space:nowrap;transition:all 0.2s;display:flex;justify-content:center;align-items:center">↻ Atualizar Relatório</button>
       </div>
     </div>
     <div id="ct-mod-body" style="flex:1;overflow-y:auto;padding:24px;background:#f1f5f9"></div>
@@ -128,7 +128,7 @@ async function fetchAndRender(
     '<div style="text-align:center;padding:40px;color:#3b82f6;font-weight:700;font-size:16px">Acessando SRO Monitor e processando dados...</div>';
 
   try {
-    const url = `${SROMONITOR_ORIGIN}/app/analitico-unidade-se/index.php?data=${date}&unidade=${d.sroCode}&matricula=${d.postmanId}`;
+    const url = `${SROMONITOR_ORIGIN}/app/analitico-unidade-se/index.php?data=${date}&unidade=${d.correios_codigoSro}&matricula=${d.correios_matriculaCarteiro}`;
     const text = await fetchProxy(url);
     const doc = new DOMParser().parseFromString(text, 'text/html');
     const rows = doc.querySelectorAll('#analiticounidadese tbody tr');
@@ -224,8 +224,8 @@ function renderModalBody(
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
           <span style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase">Filtro por Categorias:</span>
           <div style="display:flex;gap:8px">
-            <button id="ct-cat-all" style="padding:6px 12px;font-size:11px;border-radius:4px;border:1px solid #cbd5e1;background:#f8fafc;cursor:pointer;font-weight:600;color:#334155">Selecionar Tudo</button>
-            <button id="ct-cat-none" style="padding:6px 12px;font-size:11px;border-radius:4px;border:1px solid #cbd5e1;background:#f8fafc;cursor:pointer;font-weight:600;color:#334155">Remover Seleção</button>
+            <button id="ct-cat-all" style="padding:6px 12px;font-size:11px;border-radius:4px;border:1px solid #cbd5e1;background:#f8fafc;cursor:pointer;font-weight:600;color:#334155;white-space:nowrap;min-width:max-content">Selecionar Tudo</button>
+            <button id="ct-cat-none" style="padding:6px 12px;font-size:11px;border-radius:4px;border:1px solid #cbd5e1;background:#f8fafc;cursor:pointer;font-weight:600;color:#334155;white-space:nowrap;min-width:max-content">Remover Seleção</button>
           </div>
         </div>
         <div id="ct-filter-cat" style="display:flex;gap:8px;flex-wrap:wrap">
@@ -316,8 +316,8 @@ function renderModalBody(
       })
       .join('');
 
-    store.currentModalRenderId = Symbol();
-    const myRenderId = store.currentModalRenderId;
+    store.modalRenderId = Symbol();
+    const myRenderId = store.modalRenderId;
     const progDiv = document.getElementById('ct-sro-progress');
     const toFetch = filteredList.filter((i) => {
       const ck = store.sroIntranetCache[i.obj];
@@ -329,59 +329,73 @@ function renderModalBody(
       return true;
     });
 
-    if (!toFetch.length) {
-      if (progDiv) {
-        progDiv.style.cssText +=
-          'background:#f0fdf4;color:#15803d;border-color:#bbf7d0';
-        progDiv.innerHTML = `✅ Todos os ${filteredList.length} objetos visíveis carregados.`;
-      }
-      return;
-    }
-
-    if (progDiv)
-      progDiv.innerHTML = `⏳ Sincronizando com SRO Intranet: <span id="ct-sro-count">0</span> / ${toFetch.length} novos objetos...`;
-
-    batchFetchSroIntranet({
-      fetchFn: fetchProxy,
-      objects: toFetch.map((i) => i.obj),
-      existingCache: store.sroIntranetCache,
-      renderId: myRenderId,
-      getRenderId: () => store.currentModalRenderId,
-      onBatchDone: (resolved, done) => {
-        if (store.currentModalRenderId !== myRenderId) return;
-        store.sroIntranetCache = mergeSroCache(
-          store.sroIntranetCache,
-          resolved
-        );
-        for (const [obj, entry] of Object.entries(resolved)) {
-          const tr = tbody.querySelector<HTMLElement>(`tr[data-obj="${obj}"]`);
-          if (tr) {
-            const tds = tr.querySelectorAll('td');
-            if (tds.length >= 4) {
-              (tds[2] as HTMLElement).innerText = entry.sit;
-              (tds[2] as HTMLElement).style.color = getSroStatusColor(
-                entry.sit
-              );
-              (tds[3] as HTMLElement).innerText = entry.dh;
-            }
-          }
-        }
-        const lbl = document.getElementById('ct-sro-count');
-        if (lbl) lbl.innerText = String(done);
-      },
-      onComplete: () => {
-        if (store.currentModalRenderId === myRenderId && progDiv) {
+    return new Promise<void>((resolve) => {
+      if (!toFetch.length) {
+        if (progDiv) {
           progDiv.style.cssText +=
             'background:#f0fdf4;color:#15803d;border-color:#bbf7d0';
           progDiv.innerHTML = `✅ Todos os ${filteredList.length} objetos visíveis carregados.`;
         }
+        resolve();
+        return;
       }
+
+      if (progDiv)
+        progDiv.innerHTML = `⏳ Sincronizando com SRO Intranet: <span id="ct-sro-count">0</span> / ${toFetch.length} novos objetos...`;
+
+      batchFetchSroIntranet({
+        fetchFn: fetchProxy,
+        objects: toFetch.map((i) => i.obj),
+        existingCache: store.sroIntranetCache,
+        renderId: myRenderId,
+        getRenderId: () => store.modalRenderId,
+        onBatchDone: (resolved, done) => {
+          if (store.modalRenderId !== myRenderId) return;
+          store.sroIntranetCache = mergeSroCache(
+            store.sroIntranetCache,
+            resolved
+          );
+          for (const [obj, entry] of Object.entries(resolved)) {
+            const tr = tbody.querySelector<HTMLElement>(
+              `tr[data-obj="${obj}"]`
+            );
+            if (tr) {
+              const tds = tr.querySelectorAll('td');
+              if (tds.length >= 4) {
+                (tds[2] as HTMLElement).innerText = entry.sit;
+                (tds[2] as HTMLElement).style.color = getSroStatusColor(
+                  entry.sit
+                );
+                (tds[3] as HTMLElement).innerText = entry.dh;
+              }
+            }
+          }
+          const lbl = document.getElementById('ct-sro-count');
+          if (lbl) lbl.innerText = String(done);
+        },
+        onComplete: () => {
+          if (store.modalRenderId === myRenderId && progDiv) {
+            progDiv.style.cssText +=
+              'background:#f0fdf4;color:#15803d;border-color:#bbf7d0';
+            progDiv.innerHTML = `✅ Todos os ${filteredList.length} objetos visíveis carregados.`;
+          }
+          resolve();
+        }
+      });
     });
   };
 
-  txtFilter.addEventListener('input', renderTable);
-  sortFilter.addEventListener('change', renderTable);
-  chks.forEach((chk) => chk.addEventListener('change', renderTable));
+  txtFilter.addEventListener('input', () => {
+    renderTable();
+  });
+  sortFilter.addEventListener('change', () => {
+    renderTable();
+  });
+  chks.forEach((chk) =>
+    chk.addEventListener('change', () => {
+      renderTable();
+    })
+  );
   document.getElementById('ct-cat-all')!.addEventListener('click', () => {
     chks.forEach((c) => (c.checked = true));
     renderTable();
@@ -415,7 +429,7 @@ function renderModalBody(
       const target = btnExport ?? btnCopy!;
       const cat = target.dataset.cat!;
       const catList = list.filter((i) => i.mot === cat).map((i) => i.obj);
-      const header = `Nome: ${d.postmanName ?? 'N/A'} - Matrícula: ${d.postmanId ?? '00000000'} - Unidade: ${d.sroCode ?? '00000000'} - Quantidade: ${catList.length} - Categoria: ${cat}`;
+      const header = `Nome: ${d.correios_nomeCarteiro ?? 'N/A'} - Matrícula: ${d.correios_matriculaCarteiro ?? '00000000'} - Unidade: ${d.correios_codigoSro ?? '00000000'} - Quantidade: ${catList.length} - Categoria: ${cat}`;
       const content = [header, ...catList].join('\r\n');
       if (btnCopy) {
         navigator.clipboard.writeText(content);
@@ -423,7 +437,7 @@ function renderModalBody(
         const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
-        link.download = `${d.sroCode ?? '00000000'}_${d.postmanId ?? '00000000'}_${cat.replace(/\s+/g, '_')}.txt`;
+        link.download = `${d.correios_codigoSro ?? '00000000'}_${d.correios_matriculaCarteiro ?? '00000000'}_${cat.replace(/\s+/g, '_')}.txt`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);

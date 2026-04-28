@@ -1,20 +1,19 @@
 import type { LoecStore } from '../state.js';
-import { getArqFilters, getFilteredObjs } from './fetch-objects.js';
-import { renderArqTable } from './table-renderer.js';
+import { getArchiveFilters, getFilteredObjs } from './fetch-objects.js';
 import { parseDistrito } from '../../../shared/utils/format.js';
 
 export function refreshSroMasterFilters(
   store: LoecStore,
   resetAll = false
 ): void {
-  const data = store.ctArqLastData;
+  const data = store.archiveLastData;
   if (!data?.objs) return;
 
-  const filters = getArqFilters();
+  const filters = getArchiveFilters();
   const preFiltered = data.objs.filter((o) => {
-    if (filters.dist && o.dist !== filters.dist) return false;
+    if (filters.dist && o.district !== filters.dist) return false;
     if (filters.grade || filters.side) {
-      const p = parseDistrito(o.dist ?? '');
+      const p = parseDistrito(o.district ?? '');
       if (filters.grade && p.grade !== filters.grade) return false;
       if (filters.side && p.side !== filters.side) return false;
     }
@@ -23,7 +22,7 @@ export function refreshSroMasterFilters(
 
   const availableSits = new Set<string>();
   preFiltered.forEach((o) => {
-    const s = store.sroIntranetCache[o.objeto ?? ''];
+    const s = store.sroIntranetCache[o.trackingCode ?? ''];
     if (s?.sit) availableSits.add(s.sit.toUpperCase());
   });
 
@@ -32,6 +31,9 @@ export function refreshSroMasterFilters(
   if (!listEl || !labelEl) return;
 
   const sorted = Array.from(availableSits).sort();
+  const sortedJoined = sorted.join('|');
+  const currentJoined = listEl.dataset.sits || '';
+
   const currentUnchecked = new Set<string>();
   if (!resetAll) {
     document
@@ -40,21 +42,6 @@ export function refreshSroMasterFilters(
         if (!c.checked) currentUnchecked.add(c.value);
       });
   }
-
-  if (!sorted.length) {
-    labelEl.innerText = 'Nenhuma situação SRO carregada.';
-    listEl.innerHTML =
-      '<div style="padding:4px 8px;font-size:12px;color:#94a3b8">Nenhuma situação SRO carregada.</div>';
-    return;
-  }
-
-  listEl.innerHTML = sorted
-    .map((sit) => {
-      const checked = !currentUnchecked.has(sit) ? 'checked' : '';
-      return `<label style="display:flex;align-items:center;gap:6px;padding:4px 8px;cursor:pointer;font-size:12px;color:#334155;transition:.1s" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
-      <input type="checkbox" class="ct-arq-sro-chk" value="${sit}" ${checked}><span>${sit}</span></label>`;
-    })
-    .join('');
 
   const updateLabel = () => {
     const boxes =
@@ -67,31 +54,51 @@ export function refreshSroMasterFilters(
     else labelEl.innerText = `${checked} de ${total} situações selecionadas`;
   };
 
-  updateLabel();
-  document
-    .querySelectorAll<HTMLInputElement>('.ct-arq-sro-chk')
-    .forEach((c) => {
-      c.addEventListener('change', () => {
-        updateLabel();
-        renderArqTable(store, () => {});
+  if (!sorted.length) {
+    labelEl.innerText = 'Nenhuma situação SRO carregada.';
+    listEl.innerHTML =
+      '<div style="padding:4px 8px;font-size:12px;color:#94a3b8">Nenhuma situação SRO carregada.</div>';
+    listEl.dataset.sits = '';
+    return;
+  }
+
+  if (sortedJoined !== currentJoined || resetAll) {
+    listEl.innerHTML = sorted
+      .map((sit) => {
+        const checked = !currentUnchecked.has(sit) ? 'checked' : '';
+        return `<label style="display:flex;align-items:center;gap:6px;padding:4px 8px;cursor:pointer;font-size:12px;color:#334155;transition:.1s" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
+        <input type="checkbox" class="ct-arq-sro-chk" value="${sit}" ${checked}><span>${sit}</span></label>`;
+      })
+      .join('');
+    listEl.dataset.sits = sortedJoined;
+
+    document
+      .querySelectorAll<HTMLInputElement>('.ct-arq-sro-chk')
+      .forEach((c) => {
+        c.addEventListener('change', () => {
+          updateLabel();
+          renderArqTable(store, async () => '');
+        });
       });
-    });
+  }
+
+  updateLabel();
 }
 
 export function populateFilterDropdowns(store: LoecStore): void {
-  const data = store.ctArqLastData;
+  const data = store.archiveLastData;
   if (!data?.objs) return;
 
   const allObjs = data.objs;
-  const dists = [...new Set(allObjs.map((o) => o.dist ?? ''))].sort();
+  const dists = [...new Set(allObjs.map((o) => o.district ?? ''))].sort();
   const grades = [
     ...new Set(
-      allObjs.map((o) => parseDistrito(o.dist ?? '').grade).filter(Boolean)
+      allObjs.map((o) => parseDistrito(o.district ?? '').grade).filter(Boolean)
     )
   ].sort();
   const sides = [
     ...new Set(
-      allObjs.map((o) => parseDistrito(o.dist ?? '').side).filter(Boolean)
+      allObjs.map((o) => parseDistrito(o.district ?? '').side).filter(Boolean)
     )
   ].sort();
 

@@ -6,7 +6,7 @@ import { renderDistrictGrid } from './district-grid.js';
 import { openDistrictModal } from '../modal/district-modal.js';
 import {
   fetchObjectsByCategory,
-  getArqFilters
+  getArchiveFilters
 } from '../actions/fetch-objects.js';
 import { renderArqTable } from '../actions/table-renderer.js';
 import {
@@ -28,23 +28,23 @@ export async function renderDashboard(
   await ensureChartJs();
 
   const sorted = [...data].sort((a, b) => {
-    const na = parseInt(a.districtNumber, 10) || 0;
-    const nb = parseInt(b.districtNumber, 10) || 0;
+    const na = parseInt(a.correios_numeroDistrito as string, 10) || 0;
+    const nb = parseInt(b.correios_numeroDistrito as string, 10) || 0;
     if (na !== nb) return na - nb;
-    const la = (a.districtNumber ?? '').replace(/[0-9\s]/g, '').trim();
-    const lb = (b.districtNumber ?? '').replace(/[0-9\s]/g, '').trim();
+    const la = (a.correios_numeroDistrito ?? '').replace(/[0-9\s]/g, '').trim();
+    const lb = (b.correios_numeroDistrito ?? '').replace(/[0-9\s]/g, '').trim();
     if (la === 'N' && lb !== 'N') return -1;
     if (lb === 'N' && la !== 'N') return 1;
     return la.localeCompare(lb);
   });
 
   const topTen = [...sorted]
-    .sort((a, b) => parseNumber(b.quantity) - parseNumber(a.quantity))
+    .sort((a, b) => parseNumber(b.correios_qtde) - parseNumber(a.correios_qtde))
     .slice(0, 10);
   const {
     totalVencidos,
-    totalHoje,
-    totalAVencer,
+    totalToday,
+    totalDueSoon,
     html: cardsHtml
   } = buildSummaryCards(sorted);
 
@@ -72,31 +72,31 @@ export async function renderDashboard(
   </div>
   <div style="margin-top:24px">
     <h4 style="margin:0 0 16px 0;font-size:16px;color:#334155">Detalhamento por Distrito (Clique para ver o relatório completo de entregas)</h4>
-    <div id="ct-dist-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px"></div>
+    <div id="ct-dist-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px"></div>
   </div>
   <div style="margin-top:24px;background:#fff;padding:16px;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.1)">
     <h4 style="margin:0 0 16px 0;font-size:14px;color:#334155">Ações Rápidas (Listar Objetos)</h4>
     <div style="display:flex;gap:12px;flex-wrap:wrap">
-      <button id="btn-arq-hoje" style="flex:1;padding:8px 16px;background:#f97316;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px">Vencem Hoje</button>
-      <button id="btn-arq-vencidos" style="flex:1;padding:8px 16px;background:#ef4444;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px">Vencidos</button>
-      <button id="btn-arq-avencer" style="flex:1;padding:8px 16px;background:#10b981;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px">A Vencer</button>
+      <button id="btn-arq-hoje" style="flex:1;min-width:120px;padding:8px 16px;background:#f97316;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px">Vencem Hoje</button>
+      <button id="btn-arq-vencidos" style="flex:1;min-width:120px;padding:8px 16px;background:#ef4444;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px">Vencidos</button>
+      <button id="btn-arq-avencer" style="flex:1;min-width:120px;padding:8px 16px;background:#10b981;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px">A Vencer</button>
     </div>
     <div id="ct-arq-export" style="margin-top:16px;display:none;border-top:1px solid #e2e8f0;padding-top:16px">
       <h4 style="margin:0 0 12px 0;font-size:13px;color:#475569">Filtros e Exportação:</h4>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:16px">
-        <select id="ct-arq-grade-filter" style="flex:1;min-width:100px;padding:6px 12px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px"><option value="">Todas as Grades</option></select>
-        <select id="ct-arq-side-filter" style="flex:1;min-width:100px;padding:6px 12px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px"><option value="">Todos os Lados</option></select>
-        <select id="ct-arq-dist-filter" style="flex:1;min-width:120px;padding:6px 12px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px"><option value="">Todos os Distritos</option></select>
-        <select id="ct-arq-export-mode" style="flex:1;min-width:150px;padding:6px 12px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px">
+      <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:16px">
+        <select id="ct-arq-grade-filter" style="flex:1;min-width:130px;padding:6px 12px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px"><option value="">Todas as Grades</option></select>
+        <select id="ct-arq-side-filter" style="flex:1;min-width:130px;padding:6px 12px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px"><option value="">Todos os Lados</option></select>
+        <select id="ct-arq-dist-filter" style="flex:1;min-width:130px;padding:6px 12px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px"><option value="">Todos os Distritos</option></select>
+        <select id="ct-arq-export-mode" style="flex:1;min-width:180px;padding:6px 12px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px">
           <option value="3" selected>📦 Objetos e Endereços</option>
           <option value="1">📋 Apenas Objetos</option>
           <option value="2">📍 Apenas Endereços</option>
         </select>
-        <button id="ct-arq-btn-reload-sro" style="flex:1;min-width:max-content;padding:8px 12px;background:#3b82f6;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:12px">↻ Recarregar SRO</button>
-        <div style="display:flex;gap:8px;flex:1;min-width:max-content;flex-wrap:nowrap">
-          <button id="ct-arq-btn-print" style="white-space:nowrap;flex:1;padding:8px 12px;background:#10b981;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:12px">🖨️ Imprimir</button>
-          <button id="ct-arq-btn-copy" style="white-space:nowrap;flex:1;padding:8px 12px;background:#3b82f6;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:12px">📋 Copiar Conteúdo</button>
-          <button id="ct-arq-btn-txt" style="white-space:nowrap;flex:1;padding:8px 12px;background:#334155;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:12px">📥 Salvar TXT</button>
+        <button id="ct-arq-btn-reload-sro" style="flex:1;min-width:150px;padding:8px 12px;background:#3b82f6;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px">↻ Recarregar SRO</button>
+        <div style="display:flex;gap:8px;flex:1;min-width:100%;flex-wrap:wrap;margin-top:4px;">
+          <button id="ct-arq-btn-print" style="white-space:normal;flex:1;min-width:140px;padding:8px 12px;background:#10b981;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px">🖨️ Imprimir</button>
+          <button id="ct-arq-btn-copy" style="white-space:normal;flex:1;min-width:140px;padding:8px 12px;background:#3b82f6;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px">📋 Copiar Conteúdo</button>
+          <button id="ct-arq-btn-txt" style="white-space:normal;flex:1;min-width:140px;padding:8px 12px;background:#334155;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px">📥 Salvar TXT</button>
         </div>
       </div>
       <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:16px;border-top:1px dashed #cbd5e1;padding-top:12px">
@@ -120,11 +120,11 @@ export async function renderDashboard(
 
   renderCharts(
     totalVencidos,
-    totalHoje,
-    totalAVencer,
+    totalToday,
+    totalDueSoon,
     topTen.map((d) => ({
-      districtNumber: d.districtNumber,
-      quantity: parseNumber(d.quantity)
+      districtNumber: d.correios_numeroDistrito,
+      quantity: parseNumber(d.correios_qtde)
     }))
   );
 
@@ -138,12 +138,21 @@ export async function renderDashboard(
     (d) => openDistrictModal(d, store, fetchProxy)
   );
 
-  const arqFetch = async (cat: 'hoje' | 'vencidos' | 'avencer') => {
-    const btn = document.getElementById(`btn-arq-${cat}`) as HTMLButtonElement;
+  const arqFetch = async (
+    cat: 'today' | 'overdue' | 'dueSoon',
+    label: string
+  ) => {
+    const btnId =
+      cat === 'today' ? 'hoje' : cat === 'overdue' ? 'vencidos' : 'avencer';
+    const btn = document.getElementById(
+      `btn-arq-${btnId}`
+    ) as HTMLButtonElement;
     const oldText = btn.innerText;
     btn.innerText = 'Buscando...';
     btn.disabled = true;
-    store.ctArchiveLastData = null;
+    store.archiveLastData = null;
+    const currentFetchId = Symbol();
+    (window as any).lastArqFetchId = currentFetchId;
 
     const resultEl = document.getElementById('ct-arq-result')!;
     const exportEl = document.getElementById('ct-arq-export')!;
@@ -160,38 +169,59 @@ export async function renderDashboard(
       (done, total, success, failed) => {
         const p = document.getElementById('ct-arq-progress');
         if (p)
-          p.innerHTML = `Consultando: ${done} / ${total} concluídos <br><span style="color:#10b981">Sucesso: ${success}</span> | <span style="color:#ef4444">Falha: ${failed}</span>`;
+          p.innerHTML = `Consultando: ${done} / ${total} distritos concluídos <br><span style="color:#10b981">Sucesso: ${success}</span> | <span style="color:#ef4444">Falha: ${failed}</span>`;
       }
     );
 
     if (!objs.length) {
       resultEl.innerHTML =
         '<div style="padding:10px;text-align:center;color:#ef4444">Nenhum objeto encontrado na categoria especificada!</div>';
+      btn.innerText = oldText;
+      btn.disabled = false;
     } else {
-      store.ctArchiveLastData = { cat: cat.toUpperCase(), objs };
+      store.archiveLastData = { cat: label, objs };
       exportEl.style.display = 'block';
       populateFilterDropdowns(store);
       refreshSroMasterFilters(store);
-      renderArqTable(store, fetchProxy);
-    }
+      await renderArqTable(store, fetchProxy);
 
-    btn.innerText = oldText;
-    btn.disabled = false;
+      if ((window as any).lastArqFetchId !== currentFetchId) return;
+
+      let left = 10;
+      btn.innerText = `Aguarde ${left}s`;
+      const iv = setInterval(() => {
+        if ((window as any).lastArqFetchId !== currentFetchId) {
+          clearInterval(iv);
+          return;
+        }
+        left--;
+        if (left <= 0) {
+          clearInterval(iv);
+          btn.innerText = oldText;
+          btn.disabled = false;
+        } else {
+          btn.innerText = `Aguarde ${left}s`;
+        }
+      }, 1000);
+    }
   };
 
   document
     .getElementById('btn-arq-hoje')!
-    .addEventListener('click', () => arqFetch('hoje'));
+    .addEventListener('click', () => arqFetch('today', 'VENCEM HOJE'));
   document
     .getElementById('btn-arq-vencidos')!
-    .addEventListener('click', () => arqFetch('vencidos'));
+    .addEventListener('click', () => arqFetch('overdue', 'VENCIDOS'));
   document
     .getElementById('btn-arq-avencer')!
-    .addEventListener('click', () => arqFetch('avencer'));
+    .addEventListener('click', () => arqFetch('dueSoon', 'A VENCER'));
 
   document
     .getElementById('ct-arq-export-mode')!
     .addEventListener('change', () => renderArqTable(store, fetchProxy));
+
+  (window as any).renderArqTable = renderArqTable;
+
   document
     .getElementById('ct-arq-dist-filter')!
     .addEventListener('change', () => {
@@ -219,6 +249,11 @@ export async function renderDashboard(
       const list = document.getElementById('ct-arq-sro-multi-list')!;
       list.style.display = list.style.display === 'none' ? 'block' : 'none';
     });
+
+  window.addEventListener('loec-sro-filter-changed', () => {
+    renderArqTable(store, fetchProxy);
+  });
+
   document.addEventListener('click', (e) => {
     const c = document.getElementById('ct-arq-sro-dropdown-container');
     if (c && !c.contains(e.target as Node)) {

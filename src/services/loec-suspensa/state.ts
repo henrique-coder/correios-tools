@@ -4,25 +4,25 @@ export interface LoecStore {
   loecObjectCache: Record<string, unknown[]>;
   sroIntranetCache: SroCache;
   sroIntranetCacheId: number;
-  ctArchiveLastData: { cat: string; objs: DeliveryObject[] } | null;
-  currentArchiveRenderId: symbol;
-  currentModalRenderId: symbol;
+  archiveLastData: { cat: string; objs: DeliveryObject[] } | null;
+  archiveRenderId: symbol;
+  modalRenderId: symbol;
 }
 
 export interface DistrictData {
-  dispatchId: string | number;
-  districtNumber: string;
-  districtArea?: string;
-  districtLabel?: string;
-  postmanName?: string;
-  postmanId?: string;
-  sroCode?: string;
-  quantity: number | string;
-  pointsQuantity: number | string;
-  overdueQuantity: number | string;
-  todayQuantity: number | string;
-  dueSoonQuantity: number | string;
-  arQuantity: number | string;
+  correios_idLancamento: string | number;
+  correios_numeroDistrito: string;
+  correios_areaDistrito?: string;
+  correios_rotuloDistrito?: string;
+  correios_nomeCarteiro?: string;
+  correios_matriculaCarteiro?: string;
+  correios_codigoSro?: string;
+  correios_qtde: number | string;
+  correios_qtdePontos: number | string;
+  correios_qtdeVencido: number | string;
+  correios_qtdeHoje: number | string;
+  correios_qtdeAVencer: number | string;
+  correios_qtdeAR: number | string;
 }
 
 export interface DeliveryObject {
@@ -42,8 +42,8 @@ export function createLoecStore(): LoecStore {
     loecObjectCache: {},
     sroIntranetCache: {},
     sroIntranetCacheId: Date.now(),
-    ctArchiveLastData: null,
-    currentArchiveRenderId: Symbol(),
-    currentModalRenderId: Symbol()
+    archiveLastData: null,
+    archiveRenderId: Symbol(),
+    modalRenderId: Symbol()
   };
 }

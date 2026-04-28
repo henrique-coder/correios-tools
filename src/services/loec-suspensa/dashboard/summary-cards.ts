@@ -5,25 +5,25 @@ export function buildSummaryCards(districts: DistrictData[]): {
   totalObjs: number;
   totalPts: number;
   totalVencidos: number;
-  totalHoje: number;
-  totalAVencer: number;
-  totalARs: number;
+  totalToday: number;
+  totalDueSoon: number;
+  totalArs: number;
   html: string;
 } {
   let totalObjs = 0,
     totalPts = 0,
     totalVencidos = 0,
-    totalHoje = 0,
-    totalAVencer = 0,
-    totalARs = 0;
+    totalToday = 0,
+    totalDueSoon = 0,
+    totalArs = 0;
 
   for (const d of districts) {
-    totalObjs += parseNumber(d.quantity);
-    totalPts += parseNumber(d.pointsQuantity);
-    totalVencidos += parseNumber(d.overdueQuantity);
-    totalHoje += parseNumber(d.todayQuantity);
-    totalAVencer += parseNumber(d.dueSoonQuantity);
-    totalARs += parseNumber(d.arQuantity);
+    totalObjs += parseNumber(d.correios_qtde);
+    totalPts += parseNumber(d.correios_qtdePontos);
+    totalVencidos += parseNumber(d.correios_qtdeVencido);
+    totalToday += parseNumber(d.correios_qtdeHoje);
+    totalDueSoon += parseNumber(d.correios_qtdeAVencer);
+    totalArs += parseNumber(d.correios_qtdeAR);
   }
 
   const card = (
@@ -39,19 +39,19 @@ export function buildSummaryCards(districts: DistrictData[]): {
     </div>`;
 
   const html = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:24px">
-    ${card('#3b82f6', 'Carga Total', `${totalObjs} <span style="font-size:14px;color:#64748b;font-weight:500">objs</span>`, `📍 ${totalPts} pontos | 📝 ${totalARs} ARs`)}
+    ${card('#3b82f6', 'Carga Total', `${totalObjs} <span style="font-size:14px;color:#64748b;font-weight:500">objs</span>`, `📍 ${totalPts} pontos | 📝 ${totalArs} ARs`)}
     ${card('#ef4444', 'Vencidos', totalVencidos, 'Prioridade Máxima')}
-    ${card('#f97316', 'Vencem Hoje', totalHoje, 'SLA Diário')}
-    ${card('#10b981', 'A Vencer', totalAVencer, 'Fluxo Controlado')}
+    ${card('#f97316', 'Vencem Hoje', totalToday, 'SLA Diário')}
+    ${card('#10b981', 'A Vencer', totalDueSoon, 'Fluxo Controlado')}
   </div>`;
 
   return {
     totalObjs,
     totalPts,
     totalVencidos,
-    totalHoje,
-    totalAVencer,
-    totalARs,
+    totalToday,
+    totalDueSoon,
+    totalArs,
     html
   };
 }

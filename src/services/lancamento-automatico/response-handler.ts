@@ -25,7 +25,7 @@ export function handleControllerResponse(
   render: () => void
 ): void {
   const lc = url.toLowerCase();
-  const d = data as Record<string, any>;
+  const d = data as any;
   let updated = false;
 
   const urlObj = new URL(url, window.location.origin);
@@ -44,9 +44,10 @@ export function handleControllerResponse(
   }
 
   if (lc.includes('acao=validar')) {
-    stateRef.current.val = d.validacao || '--';
-    stateRef.current.exc = d.excecao || '--';
-    stateRef.current.lastEvt = d.ultimoEventoDescricao || '--';
+    stateRef.current.correios_validacao = d.validacao || '--';
+    stateRef.current.correios_excecao = d.excecao || '--';
+    stateRef.current.correios_ultimoEventoDescricao =
+      d.ultimoEventoDescricao || '--';
     if (d.validacao) {
       if (
         stateRef.current.mode !== 'success' &&
@@ -55,7 +56,8 @@ export function handleControllerResponse(
         stateRef.current.mode = 'info';
         stateRef.current.status = 'PRONTO P/ INDUZIR';
       }
-      stateRef.current.date = d.previsaoEntrega?.data || '--/--/----';
+      stateRef.current.correios_dataPrevista =
+        d.previsaoEntrega?.data || '--/--/----';
     } else {
       stateRef.current.mode = 'error';
       stateRef.current.status = 'NÃO INDUZIDO';
@@ -63,24 +65,24 @@ export function handleControllerResponse(
     updated = true;
   } else if (lc.includes('enderecocontroller.php') && d.endereco) {
     const e = d.endereco;
-    stateRef.current.addr = {
-      log: e.logradouro || '--',
-      num: e.numeroLogradouro || '--',
-      comp: e.complementoLogradouro || '--',
-      bair: e.bairro || '--',
-      mun: e.municipio || '--',
-      uf: e.uf || '--',
-      cep: e.cep || '--'
+    stateRef.current.address = {
+      correios_logradouro: e.logradouro || '--',
+      correios_numeroLogradouro: e.numeroLogradouro || '--',
+      correios_complementoLogradouro: e.complementoLogradouro || '--',
+      correios_bairro: e.bairro || '--',
+      correios_municipio: e.municipio || '--',
+      correios_uf: e.uf || '--',
+      correios_cep: e.cep || '--'
     };
     if (d.servico)
-      stateRef.current.serv = {
-        ar: d.servico.ar,
-        mp: d.servico.mp,
-        dd: d.servico.dd
+      stateRef.current.services = {
+        correios_ar: d.servico.ar,
+        correios_mp: d.servico.mp,
+        correios_dd: d.servico.dd
       };
     if (d.telefone)
-      stateRef.current.contact.tel = `(${d.telefone.ddd}) ${d.telefone.numero}`;
-    stateRef.current.contact.email = d.email || '--';
+      stateRef.current.contact.correios_telefone = `(${d.telefone.ddd}) ${d.telefone.numero}`;
+    stateRef.current.contact.correios_email = d.email || '--';
     updated = true;
   } else if (
     lc.includes('distritamentotrechocontroller.php') &&
@@ -95,13 +97,13 @@ export function handleControllerResponse(
     if (sel) {
       const opt = sel.options?.[sel.selectedIndex];
       const v = opt ? opt.text : sel.value;
-      stateRef.current.domDist =
+      stateRef.current.domDistrict =
         v && v !== 'Selecione...' && v.trim() !== '' ? v.trim() : '';
     } else {
-      stateRef.current.domDist = '';
+      stateRef.current.domDistrict = '';
     }
-    stateRef.current.op.ord = d[0].ordemPercorrida;
-    stateRef.current.op.side = d[0].lado;
+    stateRef.current.opData.correios_ordemPercorrida = d[0].ordemPercorrida;
+    stateRef.current.opData.correios_lado = d[0].lado;
     updated = true;
   } else if (lc.includes('acao=pesquisarloecobjeto')) {
     if (d.id || d.idLancamento) {
@@ -109,20 +111,22 @@ export function handleControllerResponse(
       stateRef.current.status = 'JÁ INDUZIDO';
       stateRef.current.district =
         `${d.numeroDistrito || ''} ${d.distritoComplemento || ''}`.trim();
-      stateRef.current.domDist = stateRef.current.district;
-      stateRef.current.initialDist = stateRef.current.district;
-      if (d.carteiro?.nome) stateRef.current.op.postman = d.carteiro.nome;
+      stateRef.current.domDistrict = stateRef.current.district;
+      stateRef.current.initialDistrict = stateRef.current.district;
+      if (d.carteiro?.nome)
+        stateRef.current.opData.correios_carteiro_nome = d.carteiro.nome;
       updated = true;
     }
   } else if (lc.includes('acao=salvar')) {
     if (d.idLancamento) {
       stateRef.current.mode = 'success';
       stateRef.current.status = 'OBJETO INDUZIDO';
-      stateRef.current.op.list = d.numeroLista;
-      stateRef.current.op.user = d.usuario;
-      stateRef.current.op.st = d.estacao;
-      stateRef.current.op.ts = d.carimbo;
-      if (d.dataPrevista) stateRef.current.date = d.dataPrevista;
+      stateRef.current.opData.correios_numeroLista = d.numeroLista;
+      stateRef.current.opData.correios_usuario = d.usuario;
+      stateRef.current.opData.correios_estacao = d.estacao;
+      stateRef.current.opData.correios_carimbo = d.carimbo;
+      if (d.dataPrevista)
+        stateRef.current.correios_dataPrevista = d.dataPrevista;
 
       [
         'txtCep',
@@ -135,20 +139,20 @@ export function handleControllerResponse(
         const input = document.getElementById(id) as HTMLInputElement | null;
         if (!input?.value) return;
         const k = id.replace('txt', '').toLowerCase();
-        const map: Record<string, keyof typeof stateRef.current.addr> = {
-          cep: 'cep',
-          numero: 'num',
-          complemento: 'comp',
-          logradouro: 'log',
-          bairro: 'bair',
-          municipio: 'mun'
+        const map: Record<string, keyof typeof stateRef.current.address> = {
+          cep: 'correios_cep',
+          numero: 'correios_numeroLogradouro',
+          complemento: 'correios_complementoLogradouro',
+          logradouro: 'correios_logradouro',
+          bairro: 'correios_bairro',
+          municipio: 'correios_municipio'
         };
-        if (map[k]) stateRef.current.addr[map[k]] = input.value.trim();
+        if (map[k]) stateRef.current.address[map[k]] = input.value.trim();
       });
       const selUf = document.getElementById(
         'selUf'
       ) as HTMLSelectElement | null;
-      if (selUf?.value) stateRef.current.addr.uf = selUf.value;
+      if (selUf?.value) stateRef.current.address.correios_uf = selUf.value;
 
       try {
         const fetchUrl =
@@ -158,14 +162,15 @@ export function handleControllerResponse(
         window
           .fetch(fetchUrl)
           .then((r) => r.json())
-          .then((res) => {
+          .then((res: any) => {
             if (res?.id || res?.idLancamento) {
               stateRef.current.district =
                 `${res.numeroDistrito || ''} ${res.distritoComplemento || ''}`.trim();
-              stateRef.current.domDist = stateRef.current.district;
-              stateRef.current.initialDist = stateRef.current.district;
+              stateRef.current.domDistrict = stateRef.current.district;
+              stateRef.current.initialDistrict = stateRef.current.district;
               if (res.carteiro?.nome)
-                stateRef.current.op.postman = res.carteiro.nome;
+                stateRef.current.opData.correios_carteiro_nome =
+                  res.carteiro.nome;
               render();
             }
           })
@@ -175,7 +180,7 @@ export function handleControllerResponse(
     } else if (d.excecao) {
       stateRef.current.mode = 'error';
       stateRef.current.status = 'ERRO NA INDUÇÃO';
-      stateRef.current.exc = d.excecao;
+      stateRef.current.correios_excecao = d.excecao;
       updated = true;
     }
   } else if (lc.includes('acao=excluir')) {

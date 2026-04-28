@@ -127,7 +127,7 @@ function setupDistrictWatcher(
     const opt = sel.options?.[sel.selectedIndex];
     let v = opt ? opt.text : sel.value;
     if (v?.includes(' - ')) v = v.split(' - ')[0];
-    stateRef.current.domDist =
+    stateRef.current.domDistrict =
       v && v.trim() !== '' && v !== 'Selecione...' ? v.trim() : '';
     render();
   };

@@ -1,11 +1,11 @@
-import type { LoecStore, LoecObject } from '../state.js';
+import type { LoecStore, DeliveryObject } from '../state.js';
 import { parseDistrito } from '../../../shared/utils/format.js';
 import { downloadTextFile } from '../../../shared/utils/dom.js';
-import { getArqFilters, getFilteredObjs } from './fetch-objects.js';
+import { getArchiveFilters, getFilteredObjs } from './fetch-objects.js';
 
 export function formatExportText(
-  data: { cat: string; objs: LoecObject[] } | null,
-  filters: ReturnType<typeof getArqFilters>,
+  data: { cat: string; objs: DeliveryObject[] } | null,
+  filters: ReturnType<typeof getArchiveFilters>,
   store: LoecStore
 ): string {
   if (!data?.objs?.length) return '';
@@ -13,9 +13,9 @@ export function formatExportText(
   const filteredObjs = getFilteredObjs(data, filters, store);
   if (!filteredObjs.length) return '';
 
-  const groups: Record<string, LoecObject[]> = {};
+  const groups: Record<string, DeliveryObject[]> = {};
   for (const o of filteredObjs) {
-    const key = `${o.dist}-${o.sro ?? ''}-${o.nom ?? ''}-${o.mat ?? ''}`;
+    const key = `${o.district}-${o.sroCode ?? ''}-${o.postmanName ?? ''}-${o.postmanId ?? ''}`;
     if (!groups[key]) groups[key] = [];
     groups[key].push(o);
   }
@@ -27,15 +27,15 @@ export function formatExportText(
     first = false;
     const f = groupObjs[0];
     out.push(
-      `Nome: ${f.nom ?? 'N/A'} - Matrícula: ${f.mat ?? '00000000'} - Unidade: ${f.sro ?? '00000000'} - Quantidade: ${groupObjs.length} - Categoria: ${data.cat} - Distrito: ${f.dist}`
+      `Nome: ${f.postmanName ?? 'N/A'} - Matrícula: ${f.postmanId ?? '00000000'} - Unidade: ${f.sroCode ?? '00000000'} - Quantidade: ${groupObjs.length} - Categoria: ${data.cat} - Distrito: ${f.district}`
     );
     for (const o of groupObjs) {
-      if (filters.mode === '1') out.push(o.objeto ?? '--');
+      if (filters.mode === '1') out.push(o.trackingCode ?? '--');
       else if (filters.mode === '2')
-        out.push(`${o.endereco ?? ''} ${o.cep ?? ''}`.trim());
+        out.push(`${o.address ?? ''} ${o.zipCode ?? ''}`.trim());
       else
         out.push(
-          `${o.objeto ?? '--'} - ${o.endereco ?? ''} ${o.cep ?? ''}`.trim()
+          `${o.trackingCode ?? '--'} - ${o.address ?? ''} ${o.zipCode ?? ''}`.trim()
         );
     }
   }
@@ -43,17 +43,17 @@ export function formatExportText(
 }
 
 export function triggerCopyToClipboard(store: LoecStore): void {
-  const filters = getArqFilters();
-  const txt = formatExportText(store.ctArqLastData, filters, store);
+  const filters = getArchiveFilters();
+  const txt = formatExportText(store.archiveLastData, filters, store);
   if (txt) navigator.clipboard.writeText(txt);
 }
 
 export function triggerSaveTxt(store: LoecStore): void {
-  const filters = getArqFilters();
-  const txt = formatExportText(store.ctArqLastData, filters, store);
-  if (!txt || !store.ctArqLastData) return;
+  const filters = getArchiveFilters();
+  const txt = formatExportText(store.archiveLastData, filters, store);
+  if (!txt || !store.archiveLastData) return;
 
-  let name = `Export_${store.ctArqLastData.cat}`;
+  let name = `Export_${store.archiveLastData.cat}`;
   if (filters.grade) name += '_G' + filters.grade;
   if (filters.side) name += '_L' + filters.side;
   if (filters.dist) name += '_' + filters.dist.replace(/\s+/g, '_');
@@ -62,12 +62,13 @@ export function triggerSaveTxt(store: LoecStore): void {
 }
 
 export function buildPrintContent(
-  filteredObjs: LoecObject[],
-  cat: string
+  filteredObjs: DeliveryObject[],
+  cat: string,
+  store: LoecStore
 ): string {
-  const distGroups: Record<string, LoecObject[]> = {};
+  const distGroups: Record<string, DeliveryObject[]> = {};
   for (const o of filteredObjs) {
-    const d = o.dist ?? '--';
+    const d = o.district ?? '--';
     if (!distGroups[d]) distGroups[d] = [];
     distGroups[d].push(o);
   }
@@ -101,20 +102,30 @@ export function buildPrintContent(
   const groups = sortedDists
     .map((dist) => {
       const objs = distGroups[dist].sort((a, b) =>
-        (a.objeto ?? '').localeCompare(b.objeto ?? '')
+        (a.trackingCode ?? '').localeCompare(b.trackingCode ?? '')
       );
       const first = objs[0];
       const items = objs
         .map((o) => {
-          const m = (o.objeto ?? '').match(
+          const m = (o.trackingCode ?? '').match(
             /^([A-Z]{2})(\d{3})(\d{3})(\d{3})([A-Z]{2})$/i
           );
+          const sroData = o.trackingCode
+            ? store.sroIntranetCache[o.trackingCode]
+            : null;
+          const sroSit = sroData?.sit
+            ? `<div style="font-size:10px;font-weight:bold;margin-top:2px;text-transform:uppercase">${sroData.sit}</div>`
+            : '';
+
           const display = m
             ? `<span style="background:#dbeafe;color:#1e3a8a;border-radius:3px;padding:1px 3px;font-weight:bold">${m[1]}</span> ${m[2]} ${m[3]} <span style="background:#fef9c3;color:#1e40af;border-radius:3px;padding:1px 3px;font-weight:bold">${m[4]}</span> ${m[5]}`
-            : `<span style="font-weight:bold">${o.objeto ?? '--'}</span>`;
-          return `<div style="display:flex;align-items:center;gap:6px;border-bottom:1px dashed #e2e8f0;padding-bottom:4px;font-family:monospace;font-size:14px;min-width:180px;justify-content:center;page-break-inside:avoid">
-        <div style="width:16px;height:16px;border:2px solid #94a3b8;border-radius:3px;box-sizing:border-box"></div>
-        <div>${display}</div>
+            : `<span style="font-weight:bold">${o.trackingCode ?? '--'}</span>`;
+          return `<div style="display:flex;flex-direction:column;align-items:center;border-bottom:1px dashed #e2e8f0;padding-bottom:4px;font-family:monospace;font-size:14px;min-width:180px;justify-content:center;page-break-inside:avoid">
+        <div style="display:flex;align-items:center;gap:6px">
+          <div style="width:16px;height:16px;border:2px solid #94a3b8;border-radius:3px;box-sizing:border-box"></div>
+          <div>${display}</div>
+        </div>
+        ${sroSit}
       </div>`;
         })
         .join('');
@@ -124,13 +135,13 @@ export function buildPrintContent(
         <div style="display:flex;justify-content:center;flex-wrap:wrap;gap:20px;align-items:center;width:100%;margin-bottom:8px">
           <div style="font-size:16px;font-weight:bold;color:#0f172a">Distrito: ${dist}</div>
           <div style="display:flex;gap:15px;font-size:12px">
-            <span><strong>Mat:</strong> ${first.mat ?? '--'}</span>
-            <span><strong>Und:</strong> ${first.sro ?? '--'}</span>
+            <span><strong>Mat:</strong> ${first.postmanId ?? '--'}</span>
+            <span><strong>Und:</strong> ${first.sroCode ?? '--'}</span>
             <span style="background:#e2e8f0;padding:2px 8px;border-radius:20px;font-weight:bold">Total: ${objs.length}</span>
           </div>
         </div>
         <div style="font-size:12px;border-top:1px dashed #cbd5e1;padding-top:8px;width:100%">
-          <span><strong>Carteiro:</strong> ${first.nom ?? 'N/A'}</span>
+          <span><strong>Carteiro:</strong> ${first.postmanName ?? 'N/A'}</span>
         </div>
       </div>
       <div style="display:flex;flex-wrap:wrap;justify-content:center;gap:10px 25px;page-break-inside:auto">${items}</div>
@@ -142,12 +153,13 @@ export function buildPrintContent(
 }
 
 export function printReport(store: LoecStore): void {
-  const filters = getArqFilters();
-  const data = store.ctArqLastData;
+  const filters = getArchiveFilters();
+  const data = store.archiveLastData;
+  if (!data) return;
   const filteredObjs = getFilteredObjs(data, filters, store);
-  if (!filteredObjs.length || !data) return;
+  if (!filteredObjs.length) return;
 
-  const content = buildPrintContent(filteredObjs, data.cat);
+  const content = buildPrintContent(filteredObjs, data.cat, store);
   const dateStr = new Date().toLocaleString('pt-BR');
 
   const printSurface = `<div id="print-a4-surface" style="width:190mm;min-height:277mm;background:#fff;box-sizing:border-box;margin:0 auto">

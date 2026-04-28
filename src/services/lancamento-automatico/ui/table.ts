@@ -5,12 +5,16 @@ const TABLE_ID = 'sro-table-wrapper';
 
 function buildDistrictHtmlInline(state: DispatchState): string {
   const current =
-    (state.domDist && state.domDist !== ''
-      ? state.domDist
+    (state.domDistrict && state.domDistrict !== ''
+      ? state.domDistrict
       : state.district
     )?.trim() ?? '';
-  if (state.initialDist && state.initialDist !== current && current !== '--') {
-    return `<span class="sro-old-p" style="opacity:.5;font-weight:normal;margin-right:2px;font-size:.9em">${state.initialDist}</span><span class="sro-arrow-p" style="margin:0 4px;font-size:.9em;color:#666">&#10142;</span><span class="sro-new-p">${current}</span>`;
+  if (
+    state.initialDistrict &&
+    state.initialDistrict !== current &&
+    current !== '--'
+  ) {
+    return `<span class="sro-old-p" style="opacity:.5;font-weight:normal;margin-right:2px;font-size:.9em">${state.initialDistrict}</span><span class="sro-arrow-p" style="margin:0 4px;font-size:.9em;color:#666">&#10142;</span><span class="sro-new-p">${current}</span>`;
   }
   return `<span class="sro-new-p">${current || '--'}</span>`;
 }
@@ -77,46 +81,56 @@ export function updateTable(state: DispatchState): void {
 
   el('td-cod')!.innerText = state.code;
 
-  const v = state.val;
+  const v = state.correios_validacao;
   el('td-val')!.innerHTML = v
     ? `<span class="${v.includes('V') ? 'hl-val' : 'hl-err'}">${v}</span>`
     : '--';
 
-  el('td-stt')!.innerText = state.lastEvt;
-  el('td-dat-prev')!.innerText = state.date;
+  el('td-stt')!.innerText = state.correios_ultimoEventoDescricao;
+  el('td-dat-prev')!.innerText = state.correios_dataPrevista;
 
   const excRow = document.getElementById('row-exc')!;
-  if (state.exc && state.exc !== '--') {
-    el('td-exc')!.innerText = state.exc;
+  if (state.correios_excecao && state.correios_excecao !== '--') {
+    el('td-exc')!.innerText = state.correios_excecao;
     excRow.style.display = 'table-row';
   } else {
     excRow.style.display = 'none';
   }
 
-  const { addr } = state;
-  if (addr.log === '--') {
+  const addr = state.address;
+  if (addr.correios_logradouro === '--') {
     el('td-end-full')!.innerText = '--';
   } else {
-    const url = buildMapUrl(addr);
-    const label = `${addr.log}, ${addr.num}${addr.comp && addr.comp !== '--' ? ' - ' + addr.comp : ''} - ${addr.bair}, ${addr.mun}/${addr.uf}`;
+    const url = buildMapUrl({
+      correios_logradouro: addr.correios_logradouro,
+      correios_numeroLogradouro: addr.correios_numeroLogradouro,
+      correios_complementoLogradouro: addr.correios_complementoLogradouro,
+      correios_bairro: addr.correios_bairro,
+      correios_municipio: addr.correios_municipio,
+      correios_uf: addr.correios_uf
+    });
+    const label = `${addr.correios_logradouro}, ${addr.correios_numeroLogradouro}${addr.correios_complementoLogradouro && addr.correios_complementoLogradouro !== '--' ? ' - ' + addr.correios_complementoLogradouro : ''} - ${addr.correios_bairro}, ${addr.correios_municipio}/${addr.correios_uf}`;
     el('td-end-full')!.innerHTML =
       `<a href="${url}" target="_blank" style="color:#00416B;text-decoration:none;font-weight:bold">${label}</a>`;
   }
 
-  el('td-cep')!.innerText = addr.cep;
+  el('td-cep')!.innerText = addr.correios_cep;
   el('td-con')!.innerHTML =
-    `TEL: <b>${state.contact.tel}</b>${state.contact.email !== '--' ? ' | EMAIL: ' + state.contact.email : ''}`;
+    `TEL: <b>${state.contact.correios_telefone}</b>${state.contact.correios_email !== '--' ? ' | EMAIL: ' + state.contact.correios_email : ''}`;
   el('td-dis')!.innerHTML = buildDistrictHtmlInline(state);
-  el('td-ord')!.innerText = state.op.ord;
-  el('td-lad')!.innerText = state.op.side;
+  el('td-ord')!.innerText = state.opData.correios_ordemPercorrida;
+  el('td-lad')!.innerText = state.opData.correios_lado;
 
-  const srv = (k: keyof typeof state.serv, l: string) =>
-    `<span class="${state.serv[k] === 'S' ? 'hl-serv' : 'hl-serv-off'}">${l}</span>`;
-  el('td-srv')!.innerHTML = srv('ar', 'AR') + srv('mp', 'MP') + srv('dd', 'DD');
+  const srv = (k: keyof typeof state.services, l: string) =>
+    `<span class="${state.services[k] === 'S' ? 'hl-serv' : 'hl-serv-off'}">${l}</span>`;
+  el('td-srv')!.innerHTML =
+    srv('correios_ar', 'AR') +
+    srv('correios_mp', 'MP') +
+    srv('correios_dd', 'DD');
 
-  el('td-lis')!.innerText = state.op.list;
-  el('td-est')!.innerText = state.op.st;
-  el('td-usu')!.innerText = state.op.user;
-  el('td-postman')!.innerText = state.op.postman;
-  el('td-dat')!.innerText = formatCarimbo(state.op.ts);
+  el('td-lis')!.innerText = state.opData.correios_numeroLista;
+  el('td-est')!.innerText = state.opData.correios_estacao;
+  el('td-usu')!.innerText = state.opData.correios_usuario;
+  el('td-postman')!.innerText = state.opData.correios_carteiro_nome;
+  el('td-dat')!.innerText = formatCarimbo(state.opData.correios_carimbo);
 }

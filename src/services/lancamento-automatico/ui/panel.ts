@@ -18,11 +18,15 @@ let dragState = createDragState();
 
 function buildDistrictHtml(state: DispatchState, inline: boolean): string {
   const current =
-    (state.domDist && state.domDist !== ''
-      ? state.domDist
+    (state.domDistrict && state.domDistrict !== ''
+      ? state.domDistrict
       : state.district
     )?.trim() ?? '';
-  if (state.initialDist && state.initialDist !== current && current !== '--') {
+  if (
+    state.initialDistrict &&
+    state.initialDistrict !== current &&
+    current !== '--'
+  ) {
     const cls = inline
       ? ['sro-old', 'sro-arrow', 'sro-new']
       : ['sro-old-p', 'sro-arrow-p', 'sro-new-p'];
@@ -30,7 +34,7 @@ function buildDistrictHtml(state: DispatchState, inline: boolean): string {
       ? ''
       : 'opacity:.5;font-weight:normal;margin-right:2px;font-size:.9em';
     const aStyle = inline ? '' : 'margin:0 4px;font-size:.9em;color:#666';
-    return `<span class="${cls[0]}" style="${pStyle}">${state.initialDist}</span><span class="${cls[1]}" style="${aStyle}">&#10142;</span><span class="${cls[2]}">${current}</span>`;
+    return `<span class="${cls[0]}" style="${pStyle}">${state.initialDistrict}</span><span class="${cls[1]}" style="${aStyle}">&#10142;</span><span class="${cls[2]}">${current}</span>`;
   }
   const cls = inline ? 'sro-new' : 'sro-new-p';
   return `<span class="${cls}">${current || '--'}</span>`;
@@ -130,7 +134,7 @@ export function renderPanel(
     true
   );
   document.getElementById('sro-previsao')!.innerText =
-    state.date || '--/--/----';
+    state.correios_dataPrevista || '--/--/----';
 }
 
 export function syncAutoCloseButton(enabled: boolean): void {

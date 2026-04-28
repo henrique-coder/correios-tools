@@ -21,15 +21,15 @@ export function parseNumber(value: unknown): number {
   return parseInt(value.toString().replace(/<[^>]*>/g, ''), 10) || 0;
 }
 
-export function buildMapUrl(addr: {
-  log: string;
-  num: string;
-  comp: string;
-  bair: string;
-  mun: string;
-  uf: string;
+export function buildMapUrl(address: {
+  correios_logradouro: string;
+  correios_numeroLogradouro: string;
+  correios_complementoLogradouro: string;
+  correios_bairro: string;
+  correios_municipio: string;
+  correios_uf: string;
 }): string {
-  const full = `${addr.log}, ${addr.num}${addr.comp && addr.comp !== '--' ? ' - ' + addr.comp : ''} - ${addr.bair}, ${addr.mun}/${addr.uf}`;
+  const full = `${address.correios_logradouro}, ${address.correios_numeroLogradouro}${address.correios_complementoLogradouro && address.correios_complementoLogradouro !== '--' ? ' - ' + address.correios_complementoLogradouro : ''} - ${address.correios_bairro}, ${address.correios_municipio}/${address.correios_uf}`;
   const encoded = encodeURIComponent(full)
     .replace(/%20/g, '+')
     .replace(/%2C/g, ',');
