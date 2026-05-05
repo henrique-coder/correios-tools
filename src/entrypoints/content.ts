@@ -2,76 +2,9 @@ import { browser } from 'wxt/browser';
 import { defineContentScript } from 'wxt/utils/define-content-script';
 import { RUNTIME_DEFAULTS } from '../config/defaults.js';
 
-const REMOTE_STATUS_URL = RUNTIME_DEFAULTS.URLS.REMOTE_STATUS;
-const REMOTE_STATUS_TIMEOUT_MS =
-  RUNTIME_DEFAULTS.LIMITS.REMOTE_STATUS_TIMEOUT_MS;
-const REMOTE_STATUS_CACHE_TTL_MS =
-  RUNTIME_DEFAULTS.LIMITS.REMOTE_STATUS_CACHE_TTL_MS;
-const REMOTE_STATUS_CACHE_KEY = `${RUNTIME_DEFAULTS.PROJECT_CODE}::REMOTE_STATUS_CACHE`;
 const FETCH_REQ_EVENT = RUNTIME_DEFAULTS.EVENTS.FETCH_REQ;
 const FETCH_RES_EVENT = RUNTIME_DEFAULTS.EVENTS.FETCH_RES;
 const FETCH_PROXY_ACTION = RUNTIME_DEFAULTS.ACTIONS.FETCH_PROXY;
-
-function readRemoteStatusCache(): boolean | null {
-  try {
-    const raw = sessionStorage.getItem(REMOTE_STATUS_CACHE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (
-      !parsed ||
-      typeof parsed.enabled !== 'boolean' ||
-      typeof parsed.ts !== 'number'
-    )
-      return null;
-    if (Date.now() - parsed.ts > REMOTE_STATUS_CACHE_TTL_MS) {
-      sessionStorage.removeItem(REMOTE_STATUS_CACHE_KEY);
-      return null;
-    }
-    return parsed.enabled;
-  } catch {
-    return null;
-  }
-}
-
-function writeRemoteStatusCache(enabled: boolean): void {
-  try {
-    sessionStorage.setItem(
-      REMOTE_STATUS_CACHE_KEY,
-      JSON.stringify({ enabled: !!enabled, ts: Date.now() })
-    );
-  } catch {}
-}
-
-async function fetchRemoteEnabledFlag(): Promise<boolean | null> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(
-    () => controller.abort(),
-    REMOTE_STATUS_TIMEOUT_MS
-  );
-  try {
-    const response = await fetch(`${REMOTE_STATUS_URL}?_t=${Date.now()}`, {
-      method: 'GET',
-      cache: 'no-store',
-      signal: controller.signal
-    });
-    if (!response.ok) return null;
-    const json = await response.json();
-    if (!json || typeof json.enabled !== 'boolean') return null;
-    writeRemoteStatusCache(json.enabled);
-    return json.enabled;
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(timeoutId);
-  }
-}
-
-async function resolveStealthMode(): Promise<boolean> {
-  const cached = readRemoteStatusCache();
-  if (cached !== null) return cached !== true;
-  const remote = await fetchRemoteEnabledFlag();
-  return remote !== true;
-}
 
 export default defineContentScript({
   matches: [
@@ -80,10 +13,7 @@ export default defineContentScript({
   ],
   runAt: 'document_start',
   allFrames: false,
-  async main() {
-    const stealthMode = await resolveStealthMode();
-    if (stealthMode) return;
-
+  main() {
     window.addEventListener('message', async (event) => {
       if (
         event.origin !== window.location.origin ||

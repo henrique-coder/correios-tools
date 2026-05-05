@@ -2,6 +2,85 @@ import { defineContentScript } from 'wxt/utils/define-content-script';
 import { createFetchProxy } from '../shared/fetch/proxy.js';
 import { runAutoDispatchService } from '../services/lancamento-automatico/index.js';
 import { runSuspendedLoecService } from '../services/loec-suspensa/index.js';
+import { RUNTIME_DEFAULTS } from '../config/defaults.js';
+import { STORAGE_KEYS } from '../shared/constants/storage-keys.js';
+
+interface BlocklistResponse {
+  block_all?: boolean;
+  blocked_units?: Array<{ id: string; reason?: string }>;
+}
+
+async function isCurrentUnitBlocked(): Promise<boolean> {
+  const unitId = await new Promise<string | null>((resolve) => {
+    const extract = () => {
+      const el = document.querySelector<HTMLElement>('.nome[tabindex="1"]');
+      if (!el || !el.innerText) return null;
+      const match = el.innerText.match(/^\s*(\d{8})/);
+      return match ? match[1] : null;
+    };
+
+    if (document.readyState !== 'loading') {
+      resolve(extract());
+    } else {
+      document.addEventListener('DOMContentLoaded', () => {
+        resolve(extract());
+      });
+    }
+  });
+
+  if (!unitId) return false;
+
+  try {
+    const rawCache = sessionStorage.getItem(STORAGE_KEYS.BLOCKLIST_CACHE);
+    if (rawCache) {
+      const parsed = JSON.parse(rawCache);
+      if (
+        parsed &&
+        typeof parsed.ts === 'number' &&
+        Date.now() - parsed.ts < RUNTIME_DEFAULTS.LIMITS.BLOCKLIST_CACHE_TTL_MS
+      ) {
+        if (parsed.unitId === unitId) return parsed.blocked === true;
+      }
+    }
+  } catch {}
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(
+      () => controller.abort(),
+      RUNTIME_DEFAULTS.LIMITS.BLOCKLIST_TIMEOUT_MS
+    );
+    const response = await fetch(
+      `${RUNTIME_DEFAULTS.URLS.BLOCKLIST}?_t=${Date.now()}`,
+      {
+        method: 'GET',
+        cache: 'no-store',
+        signal: controller.signal
+      }
+    );
+    clearTimeout(timeoutId);
+
+    if (!response.ok) return false;
+    const data: BlocklistResponse = await response.json();
+    if (!data) return false;
+
+    const blocked =
+      data.block_all === true ||
+      (Array.isArray(data.blocked_units) &&
+        data.blocked_units.some((u) => u.id === unitId));
+
+    try {
+      sessionStorage.setItem(
+        STORAGE_KEYS.BLOCKLIST_CACHE,
+        JSON.stringify({ ts: Date.now(), unitId, blocked })
+      );
+    } catch {}
+
+    return blocked;
+  } catch {
+    return false;
+  }
+}
 
 export default defineContentScript({
   matches: [
@@ -11,7 +90,9 @@ export default defineContentScript({
   runAt: 'document_start',
   world: 'MAIN',
   allFrames: false,
-  main() {
+  async main() {
+    if (await isCurrentUnitBlocked()) return;
+
     const fetchProxy = createFetchProxy();
     const path = window.location.pathname.toLowerCase();
 

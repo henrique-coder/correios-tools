@@ -40,6 +40,12 @@ Builds prontos na última release:
 - Impressão formatada em A4 com agrupamento por distrito.
 - Modal analítico por distrito com visão detalhada de objetos e categorias de motivo.
 
+### Controle de Acesso (Blocklist)
+
+- Sistema de bloqueio remoto focado por unidade.
+- Caso o ID da unidade local conste na lista de bloqueio remota (`blocklist.json`), a extensão atua de maneira passiva (stealth mode), não injetando a interface nem modificando o comportamento original do sistema.
+- Suporta também a chave global `"block_all": true` para desativar a extensão instantaneamente em todas as unidades (útil para manutenção geral).
+
 ## Permissões E Hosts (Com Motivo)
 
 ### Permissões da extensão (`permissions`)
