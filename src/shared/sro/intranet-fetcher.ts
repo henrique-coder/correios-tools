@@ -1,9 +1,19 @@
-import type { SroCache } from './intranet-parser.js';
-import { parseIntranetHtml, mergeSroCache } from './intranet-parser.js';
+import type {
+  SroCache,
+  TrackingEvent,
+  TrackingEventParams
+} from './intranet-parser.js';
+import {
+  parseIntranetHtml,
+  mergeSroCache,
+  parseTrackingHistory,
+  parseTrackingDetails
+} from './intranet-parser.js';
 import { SROINTRANET_ORIGIN } from '../constants/urls.js';
+import type { FetchProxyOptions } from '../fetch/proxy.js';
 
 interface BatchFetchOptions {
-  fetchFn: (url: string) => Promise<string>;
+  fetchFn: (url: string, options?: FetchProxyOptions) => Promise<string>;
   objects: string[];
   existingCache: SroCache;
   renderId: symbol;
@@ -12,6 +22,68 @@ interface BatchFetchOptions {
   concurrency?: number;
   onBatchDone?: (resolved: SroCache, done: number, total: number) => void;
   onComplete?: () => void;
+}
+
+export async function fetchDetailedTracking(
+  objCode: string,
+  fetchFn: (url: string, options?: FetchProxyOptions) => Promise<string>
+): Promise<TrackingEvent[]> {
+  const url = `${SROINTRANET_ORIGIN}/rastreamento?objetos=${objCode}`;
+  let html = '';
+  try {
+    html = await fetchFn(url);
+  } catch {
+    return [];
+  }
+
+  const events = parseTrackingHistory(html);
+  if (events.length === 0) return [];
+
+  const fetchDetail = async (event: TrackingEvent) => {
+    if (!event.params) return;
+    const p = event.params;
+    const body = new URLSearchParams({
+      opcao: p.opcao,
+      idioma: '001',
+      ambiente: 'INTRA',
+      codItem: p.codItem,
+      codOperacao: p.codOperacao,
+      codRegistro: p.codRegistro,
+      tipoRegistro: p.tipoRegistro,
+      dataCriacao: p.dataCriacao,
+      portal: p.portal,
+      listaTituloObjetos: ''
+    }).toString();
+
+    try {
+      const detailHtml = await fetchFn(`${SROINTRANET_ORIGIN}/rastreamento`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body
+      });
+      event.details = parseTrackingDetails(detailHtml);
+    } catch {
+      // Ignorar falhas nos detalhes individuais
+    }
+  };
+
+  const limitConcurrency = async (items: TrackingEvent[], limit: number) => {
+    let index = 0;
+    const next = async (): Promise<void> => {
+      if (index >= items.length) return;
+      const current = items[index++];
+      await fetchDetail(current);
+      await next();
+    };
+    const workers = Array.from({ length: Math.min(limit, items.length) }, next);
+    await Promise.all(workers);
+  };
+
+  await limitConcurrency(events, 5);
+
+  return events;
 }
 
 export async function batchFetchSroIntranet(

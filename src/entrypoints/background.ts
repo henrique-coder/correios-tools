@@ -39,16 +39,23 @@ function extractCharset(contentType: string, hostname: string): string {
   return hostname.endsWith('correios.com.br') ? 'iso-8859-1' : 'utf-8';
 }
 
-async function proxyFetchText(url: URL): Promise<string> {
+async function proxyFetchText(
+  url: URL,
+  options?: { method?: string; body?: string; headers?: Record<string, string> }
+): Promise<string> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
-    const response = await fetch(url.toString(), {
-      method: 'GET',
+    const fetchOpts: RequestInit = {
+      method: options?.method || 'GET',
       cache: 'no-store',
       redirect: 'follow',
       signal: controller.signal
-    });
+    };
+    if (options?.body) fetchOpts.body = options.body;
+    if (options?.headers) fetchOpts.headers = options.headers;
+
+    const response = await fetch(url.toString(), fetchOpts);
     if (!response.ok) throw new Error('HTTP ' + response.status);
     const charset = extractCharset(
       response.headers.get('content-type') ?? '',
@@ -88,7 +95,7 @@ export default defineBackground(() => {
       return false;
     }
 
-    proxyFetchText(parsedUrl)
+    proxyFetchText(parsedUrl, request.options)
       .then((text) => sendResponse({ success: true, data: text }))
       .catch((err) =>
         sendResponse({

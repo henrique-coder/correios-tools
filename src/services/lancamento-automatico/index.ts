@@ -7,6 +7,7 @@ import {
 } from '../../shared/fetch/interceptor.js';
 import { renderPanel, syncAutoCloseButton } from './ui/panel.js';
 import { injectTable, updateTable } from './ui/table.js';
+import { showTrackingOverlay } from './ui/tracking-modal.js';
 import {
   triggerAutoClose,
   isAutoCloseEnabled,
@@ -15,7 +16,7 @@ import {
 import { STORAGE_KEYS } from '../../shared/constants/storage-keys.js';
 
 export function runAutoDispatchService(
-  fetchProxy: (url: string) => Promise<string>
+  fetchProxy: (url: string, options?: any) => Promise<string>
 ): void {
   const stateRef = { current: createDefaultState() };
 
@@ -47,6 +48,30 @@ export function runAutoDispatchService(
       return;
     }
 
+    let currentUnitName = '';
+    const unitEl = document.querySelector<HTMLElement>('.nome[tabindex="1"]');
+    if (unitEl && unitEl.innerText) {
+      const match = unitEl.innerText.match(/^\s*\d{8}\s*-\s*([^|/]+)/);
+      if (match) currentUnitName = match[1].trim().toUpperCase();
+    }
+
+    window.addEventListener(
+      'keydown',
+      (e) => {
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+
+          let obj = inp.value.trim().toUpperCase();
+          if (!/^[A-Z]{2}\d{9}[A-Z]{2}$/.test(obj) && !/^\d{9}$/.test(obj)) {
+            obj = ''; // Empty or invalid, pass empty to open manual search
+          }
+
+          showTrackingOverlay(obj, currentUnitName, fetchProxy);
+        }
+      },
+      true
+    );
     let lastInputValue = inp.value;
     const parent = inp.closest('.campo') ?? inp.parentElement;
 

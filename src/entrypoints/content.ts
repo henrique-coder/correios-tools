@@ -27,7 +27,8 @@ export default defineContentScript({
       try {
         const response = await browser.runtime.sendMessage({
           action: FETCH_PROXY_ACTION,
-          url: event.data.url
+          url: event.data.url,
+          options: event.data.options
         });
         window.postMessage(
           {
