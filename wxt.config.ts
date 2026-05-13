@@ -106,7 +106,7 @@ export default defineConfig({
       name: 'Correios Wizard',
       version,
       description:
-        'Conjunto de ferramentas internas para otimizar tarefas operacionais nos Correios',
+        'Automação e produtividade para as telas de Lançamento Automático e LOEC Suspensa do SRO Web.',
       author: 'Henrique Moreira',
       homepage_url: 'https://github.com/henrique-coder/correios-wizard',
       icons: {

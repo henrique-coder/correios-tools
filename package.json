@@ -1,4 +1,5 @@
 {
+  "description": "Automação e produtividade para as telas de Lançamento Automático e LOEC Suspensa do SRO Web.",
   "type": "module",
   "scripts": {
     "lint": "prettier --check \".github/**\" \"src/**\" \"wxt.config.ts\" \"README.md\" \"blocklist.json\"",
