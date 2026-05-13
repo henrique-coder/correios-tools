@@ -59,6 +59,10 @@ export function runAutoDispatchService(
       'keydown',
       (e) => {
         if (e.key === 'ArrowDown') {
+          if (document.activeElement?.id === 'txtCEP') {
+            return;
+          }
+
           e.preventDefault();
           e.stopImmediatePropagation();
 

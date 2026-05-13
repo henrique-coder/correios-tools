@@ -1,6 +1,7 @@
 import type { LoecStore } from '../state.js';
 import { getArchiveFilters, getFilteredObjs } from './fetch-objects.js';
 import { parseDistrito } from '../../../shared/utils/format.js';
+import { renderArqTable } from './table-renderer.js';
 
 export function refreshSroMasterFilters(
   store: LoecStore,
