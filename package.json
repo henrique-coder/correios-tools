@@ -1,8 +1,8 @@
 {
   "type": "module",
   "scripts": {
-    "lint": "prettier --check \".github/**\" \"src/**\" \"wxt.config.ts\" \"README.md\"",
-    "format": "prettier --write \".github/**\" \"src/**\" \"wxt.config.ts\" \"README.md\"",
+    "lint": "prettier --check \".github/**\" \"src/**\" \"wxt.config.ts\" \"README.md\" \"blocklist.json\"",
+    "format": "prettier --write \".github/**\" \"src/**\" \"wxt.config.ts\" \"README.md\" \"blocklist.json\"",
     "dev:chrome": "wxt -b chrome",
     "dev:edge": "wxt -b edge",
     "dev:firefox": "wxt -b firefox",
