@@ -1,15 +1,20 @@
 # Correios Wizard
 
-Extensão para Chrome, Edge e Firefox com automações operacionais para as telas internas dos Correios.
+Automação operacional para as telas internas dos Correios no Chrome, Edge e Firefox.
+
+## Em 1 minuto
+
+- Abre painéis inteligentes direto nas telas de Lançamento Automático e LOEC Suspensa.
+- Mostra status, endereço e dados operacionais do objeto em tempo real.
+- Lista objetos por categoria e exporta tudo em segundos.
+- Mantém o fluxo de trabalho simples para quem não é técnico.
 
 ## Instalação
 
 - Chrome Web Store: https://chromewebstore.google.com/detail/correios-wizard/oogeamkmbaejmkigijcpbfcbkfeolkca
 - Edge Add-ons: https://microsoftedge.microsoft.com/addons/detail/correios-wizard/andcjlemogipmhmhedliljjcoogbcfcj
 
-## Download Direto
-
-Builds prontos na última release:
+## Download direto (última release)
 
 | Arquivo                                                                                                                               | Navegador       |
 | ------------------------------------------------------------------------------------------------------------------------------------- | --------------- |
@@ -17,96 +22,108 @@ Builds prontos na última release:
 | [correios-wizard-edge.zip](https://github.com/henrique-coder/correios-wizard/releases/latest/download/correios-wizard-edge.zip)       | Microsoft Edge  |
 | [correios-wizard-firefox.zip](https://github.com/henrique-coder/correios-wizard/releases/latest/download/correios-wizard-firefox.zip) | Mozilla Firefox |
 
-## Funções Da Extensão
+## Uso rápido
 
 ### Lançamento Automático
 
-- Painel flutuante com dados do objeto em tempo real (status, distrito, previsão, dados operacionais e endereço).
+1. Abra a tela de Lançamento Automático.
+2. O painel flutuante aparece automaticamente.
+3. Use a seta para cima para abrir o rastreamento do objeto.
+4. No campo CEP, as setas continuam funcionando normalmente.
+
+### LOEC Suspensa
+
+1. Abra a tela de LOEC Suspensa.
+2. O dashboard tático aparece com totais e indicadores.
+3. Use os botões `Vencem Hoje`, `Vencidos` e `A Vencer` para listar objetos.
+4. Filtre, copie, imprima ou salve o relatório em TXT.
+
+## Atalhos
+
+- `Seta para cima`: abre/fecha o rastreamento rápido do objeto.
+- `#CT-INDUZIROBJETO#`: indução rápida do objeto (recomendado usar QR Code ou código de barras).
+
+## Funcionalidades (visão geral)
+
+### Lançamento Automático
+
+- Painel flutuante com status, distrito, previsão, dados operacionais e endereço.
 - Posição do painel salva automaticamente entre sessões.
-- Tabela de apoio operacional com detalhes para triagem e conferência.
-- Atalho de comando por teclado com `#CT-INDUZIROBJETO#` para indução rápida.
-- Auto-fechamento de pop-ups de impressão/alerta (com botão de liga/desliga no painel).
-- Manutenção de foco no campo de objeto quando há erro de validação.
-- Atualização automática da interface ao interceptar respostas da própria página (`fetch`/`XMLHttpRequest`).
+- Tabela de apoio operacional para triagem e conferência.
+- Auto-fechamento de alertas e pop-ups de impressão (com botão no painel).
+- Foco mantido no campo do objeto quando há erro de validação.
+- Atualização automática ao interceptar respostas da própria página.
 
 ### LOEC Suspensa
 
 - Dashboard com indicadores táticos: total, vencidos, vencem hoje, a vencer, ARs e pontos.
 - Top 10 distritos por volume para priorização rápida.
-- Botões de ação imediata: `Vencem Hoje`, `Vencidos`, `A Vencer`.
 - Filtros por distrito, grade, lado, situação SRO e texto ignorado.
-- Consulta em lote do SRO Intranet com cache local e atualização paralela.
-- Exportação em texto, cópia para área de transferência e geração de arquivo `.txt`.
-- Impressão formatada em A4 com agrupamento por distrito.
-- Modal analítico por distrito com visão detalhada de objetos e categorias de motivo.
+- Consulta em lote do SRO Intranet com cache local.
+- Exportação em texto, cópia para área de transferência e geração de arquivo TXT.
+- Impressão A4 com agrupamento por distrito.
+- Modal analítico por distrito com visão detalhada.
 
-### Controle de Acesso (Blocklist)
+### Controle de Acesso (blocklist)
 
-- Sistema de bloqueio remoto focado por unidade.
-- Caso o ID da unidade local conste na lista de bloqueio remota (`blocklist.json`), a extensão atua de maneira passiva (stealth mode), não injetando a interface nem modificando o comportamento original do sistema.
-- Suporta também a chave global `"block_all": true` para desativar a extensão instantaneamente em todas as unidades (útil para manutenção geral).
+- Bloqueio remoto por unidade usando `blocklist.json`.
+- Se a unidade estiver bloqueada, a extensão não injeta interface nem altera o sistema.
+- Suporta `"block_all": true` para desativação global temporária.
 
-## Permissões E Hosts (Com Motivo)
+## Detalhamento profundo
 
-### Permissões da extensão (`permissions`)
-
-A extensão **não solicita permissões de API** no campo `permissions` do manifest (lista vazia).
-
-### Hosts solicitados (`host_permissions`)
-
-| Host                                    | Por que é pedido                                                                      |
-| --------------------------------------- | ------------------------------------------------------------------------------------- |
-| `https://sroweb.correios.com.br/*`      | Página base onde a automação roda e de onde saem dados de LOEC/Lançamento Automático. |
-| `https://srointranet.correios.com.br/*` | Consulta de rastreamento e situação SRO usada nos painéis/filtros.                    |
-| `https://sromonitor.correios.com.br/*`  | Consulta de dados analíticos usados no modal de relatório operacional.                |
-
-### Onde o script roda (`content_scripts.matches`)
+### Onde a extensão roda
 
 - `https://sroweb.correios.com.br/app/entregaexternaautomatica/lancamentoautomatico/*`
 - `https://sroweb.correios.com.br/app/entregaexternaautomatica/loecsuspensa/*`
 
-### Recurso exposto para injeção (`web_accessible_resources`)
+### Permissões e segurança
+
+- A extensão não solicita permissões de API no campo `permissions`.
+- Hosts usados em `host_permissions`:
+
+| Host                                    | Motivo                                                      |
+| --------------------------------------- | ----------------------------------------------------------- |
+| `https://sroweb.correios.com.br/*`      | Tela base onde rodam Lançamento Automático e LOEC Suspensa. |
+| `https://srointranet.correios.com.br/*` | Rastreamento e situações SRO usados nos painéis e filtros.  |
+| `https://sromonitor.correios.com.br/*`  | Dados analíticos utilizados nos relatórios operacionais.    |
+
+### Recurso exposto para injeção
 
 - `injected.js` é exposto para `https://*.correios.com.br/*`.
-- Motivo: permitir injeção do runtime principal no contexto da página para integração com os eventos/fluxos internos do sistema.
+- Motivo: integrar o runtime principal ao contexto da página.
 
-## Scripts (PNPM)
+### Diagnóstico rápido
 
-### Desenvolvimento
+- Para logs locais, defina `localStorage.cw-debug = "1"` e recarregue a página.
+- Para desativar logs, remova a chave ou defina `"0"`.
 
-- `pnpm dev`: inicia o modo de desenvolvimento no Chrome.
-- `pnpm dev:chrome`: desenvolvimento focado no Chrome.
-- `pnpm dev:edge`: desenvolvimento focado no Edge.
-- `pnpm dev:firefox`: desenvolvimento focado no Firefox.
+### Comportamentos importantes
 
-### Build
+- O rastreamento rápido usa a seta para cima.
+- Quando o foco está no campo CEP, as setas não são interceptadas.
+- Falhas na consulta de distritos aparecem no progresso da LOEC.
 
-- `pnpm build`: gera build para **todos** os navegadores suportados (Chrome, Edge e Firefox).
-- `pnpm build:chrome`: gera build só para Chrome.
-- `pnpm build:edge`: gera build só para Edge.
-- `pnpm build:firefox`: gera build só para Firefox.
+## Desenvolvimento
 
-### ZIP
+### Comandos principais
 
-- `pnpm zip`: gera zip para **todos** os navegadores suportados.
-- `pnpm zip:chrome`: gera zip só para Chrome.
-- `pnpm zip:edge`: gera zip só para Edge.
-- `pnpm zip:firefox`: gera zip só para Firefox.
+- `pnpm dev:chrome`
+- `pnpm dev:edge`
+- `pnpm dev:firefox`
+- `pnpm build:chrome`
+- `pnpm build:edge`
+- `pnpm build:firefox`
+- `pnpm zip:chrome`
+- `pnpm zip:edge`
+- `pnpm zip:firefox`
 
-## O Que Faz Cada Comando Especial
+### Fluxo do deploy
 
-- `dev`: sobe o ambiente de desenvolvimento com rebuild/hot reload para testar a extensão localmente.
-- `postinstall`: roda `wxt prepare` após instalar dependências, preparando arquivos e tipos internos do WXT para evitar erro de ambiente incompleto.
-
-## Deploy
-
-O workflow de deploy:
-
-- valida formato/lint;
-- limpa `.output` antes de empacotar;
-- gera ZIP para Chrome, Edge e Firefox;
-- valida se todos os artefatos foram criados;
-- publica release com versionamento automático.
+- valida formatação e lint
+- limpa `.output`
+- gera ZIP para Chrome, Edge e Firefox
+- publica release com versionamento automático
 
 ## Licença
 
