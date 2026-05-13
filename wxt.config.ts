@@ -136,6 +136,9 @@ export default defineConfig({
           gecko: {
             id: '@correios-wizard.henriquecoder',
             strict_min_version: '121.0',
+            data_collection_permissions: {
+              required: ['none']
+            },
             update_url:
               'https://github.com/henrique-coder/correios-wizard/releases/latest/download/firefox_updates.json'
           }
