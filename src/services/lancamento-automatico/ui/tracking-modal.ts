@@ -398,7 +398,7 @@ export async function showTrackingOverlay(
   titleContainer.insertBefore(codeLink, inputContainer);
 
   const closeBtn = document.createElement('button');
-  closeBtn.innerHTML = '&times;'; // HTML entity for close icon (multiplication sign)
+  closeBtn.innerHTML = '&times;';
   closeBtn.style.border = 'none';
   closeBtn.style.background = 'transparent';
   closeBtn.style.fontSize = '24px';

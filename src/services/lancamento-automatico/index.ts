@@ -74,7 +74,7 @@ export function runAutoDispatchService(
 
           let obj = inp.value.trim().toUpperCase();
           if (!/^[A-Z]{2}\d{9}[A-Z]{2}$/.test(obj) && !/^\d{9}$/.test(obj)) {
-            obj = ''; // Empty or invalid, pass empty to open manual search
+            obj = '';
           }
 
           showTrackingOverlay(obj, currentUnitName, fetchProxy);
