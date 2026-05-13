@@ -1,10 +1,10 @@
-import { fetchDetailedTracking } from '../../../shared/sro/intranet-fetcher.js';
-import type { TrackingEvent } from '../../../shared/sro/intranet-parser.js';
-import type { FetchProxyOptions } from '../../../shared/fetch/proxy.js';
 import { SROINTRANET_ORIGIN } from '../../../shared/constants/urls.js';
+import type { FetchProxyOptions } from '../../../shared/fetch/proxy.js';
+import { fetchDetailedTracking } from '../../../shared/sro/intranet-fetcher.js';
 
 let activeOverlay: HTMLElement | null = null;
 let previousFocus: HTMLElement | null = null;
+let activeOverlayCleanup: (() => void) | null = null;
 
 export async function showTrackingOverlay(
   initialObjCode: string,
@@ -12,12 +12,8 @@ export async function showTrackingOverlay(
   fetchProxy: (url: string, options?: FetchProxyOptions) => Promise<string>
 ): Promise<void> {
   if (activeOverlay) {
-    activeOverlay.remove();
-    activeOverlay = null;
-    if (previousFocus && typeof previousFocus.focus === 'function') {
-      previousFocus.focus();
-    }
-    return; // Toggle effect
+    activeOverlayCleanup?.();
+    return;
   }
 
   previousFocus = document.activeElement as HTMLElement;
@@ -97,6 +93,16 @@ export async function showTrackingOverlay(
   let currentObjCode = initialObjCode;
   let searchTimeout: ReturnType<typeof setTimeout> | null = null;
   let refreshInterval: ReturnType<typeof setInterval> | null = null;
+  const clearTimers = () => {
+    if (searchTimeout) {
+      clearTimeout(searchTimeout);
+      searchTimeout = null;
+    }
+    if (refreshInterval) {
+      clearInterval(refreshInterval);
+      refreshInterval = null;
+    }
+  };
   const content = document.createElement('div');
   content.style.padding = '16px';
   content.style.overflowY = 'auto';
@@ -138,7 +144,10 @@ export async function showTrackingOverlay(
     content.innerHTML =
       '<div style="text-align:center; padding: 20px; color: #666;">Buscando histórico completo...</div>';
     try {
-      const events = await fetchDetailedTracking(code, fetchProxy);
+      const { events, detailsFailed } = await fetchDetailedTracking(
+        code,
+        fetchProxy
+      );
 
       const notFoundEvent = events.find(
         (e) => e.sit && e.sit.toLowerCase().includes('não encontrado')
@@ -148,6 +157,18 @@ export async function showTrackingOverlay(
           '<div style="text-align:center; padding: 20px; color: #d9534f;">Objeto não encontrado no sistema.</div>';
       } else {
         content.innerHTML = '';
+        if (detailsFailed > 0) {
+          const warn = document.createElement('div');
+          warn.style.padding = '10px 12px';
+          warn.style.border = '1px solid #f0ad4e';
+          warn.style.borderRadius = '6px';
+          warn.style.backgroundColor = '#fff8e5';
+          warn.style.color = '#8a6d3b';
+          warn.style.marginBottom = '12px';
+          warn.innerText =
+            'Alguns detalhes não puderam ser carregados. Tente atualizar.';
+          content.appendChild(warn);
+        }
         events.forEach((evt) => {
           const card = document.createElement('div');
           card.style.border = '1px solid #ddd';
@@ -394,27 +415,38 @@ export async function showTrackingOverlay(
   document.body.appendChild(overlay);
   activeOverlay = overlay;
 
+  const restorePreviousFocus = () => {
+    if (
+      previousFocus &&
+      typeof previousFocus.focus === 'function' &&
+      document.contains(previousFocus)
+    ) {
+      previousFocus.focus();
+    }
+  };
+
   const closeOverlay = () => {
+    clearTimers();
     if (activeOverlay) {
       activeOverlay.remove();
       activeOverlay = null;
-      if (previousFocus && typeof previousFocus.focus === 'function') {
-        previousFocus.focus();
-      }
     }
+    restorePreviousFocus();
+    document.removeEventListener('keydown', handleKeydown, true);
+    activeOverlayCleanup = null;
   };
 
   closeBtn.addEventListener('click', closeOverlay);
 
   const handleKeydown = (e: KeyboardEvent) => {
-    if (e.key === 'Escape' || e.key === 'ArrowDown') {
+    if (e.key === 'Escape' || e.key === 'ArrowUp') {
       e.preventDefault();
       e.stopImmediatePropagation();
       closeOverlay();
-      document.removeEventListener('keydown', handleKeydown, true);
     }
   };
   document.addEventListener('keydown', handleKeydown, true);
+  activeOverlayCleanup = closeOverlay;
 
   if (initialObjCode) {
     triggerSearch(initialObjCode);

@@ -1,13 +1,20 @@
+import {
+  ADDRESS_INPUT_IDS,
+  DOM_IDS
+} from '../../shared/constants/dom-elements.js';
+import {
+  isAutoCloseEnabled,
+  setAutoClose,
+  triggerAutoClose
+} from './auto-close.js';
 import type { DispatchState } from './state.js';
 import { createDefaultState } from './state.js';
 import { renderPanel, syncAutoCloseButton } from './ui/panel.js';
 import { updateTable } from './ui/table.js';
-import { triggerAutoClose, isAutoCloseEnabled } from './auto-close.js';
 
 export function createRenderFn(stateRef: { current: DispatchState }) {
   return function render(): void {
     renderPanel(stateRef.current, () => {
-      const { setAutoClose } = require('./auto-close.js');
       const newVal = !isAutoCloseEnabled();
       setAutoClose(newVal);
       syncAutoCloseButton(newVal);
@@ -92,7 +99,7 @@ export function handleControllerResponse(
     stateRef.current.district =
       `${d[0].rotuloDistrito} ${d[0].areaDistrito || ''}`.trim();
     const sel = document.getElementById(
-      'selDistrito'
+      DOM_IDS.DISTRICT_SELECT
     ) as HTMLSelectElement | null;
     if (sel) {
       const opt = sel.options?.[sel.selectedIndex];
@@ -128,14 +135,7 @@ export function handleControllerResponse(
       if (d.dataPrevista)
         stateRef.current.correios_dataPrevista = d.dataPrevista;
 
-      [
-        'txtCep',
-        'txtNumero',
-        'txtComplemento',
-        'txtLogradouro',
-        'txtBairro',
-        'txtMunicipio'
-      ].forEach((id) => {
+      [...ADDRESS_INPUT_IDS].forEach((id) => {
         const input = document.getElementById(id) as HTMLInputElement | null;
         if (!input?.value) return;
         const k = id.replace('txt', '').toLowerCase();
@@ -150,7 +150,7 @@ export function handleControllerResponse(
         if (map[k]) stateRef.current.address[map[k]] = input.value.trim();
       });
       const selUf = document.getElementById(
-        'selUf'
+        DOM_IDS.UF_SELECT
       ) as HTMLSelectElement | null;
       if (selUf?.value) stateRef.current.address.correios_uf = selUf.value;
 

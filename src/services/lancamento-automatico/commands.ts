@@ -1,3 +1,4 @@
+import { DOM_IDS } from '../../shared/constants/dom-elements.js';
 import type { DispatchState } from './state.js';
 
 type CommandFn = (
@@ -8,10 +9,10 @@ type CommandFn = (
 export const COMMANDS: Record<string, CommandFn> = {
   'CT-INDUZIROBJETO': (state, _lastInducedValue) => {
     const btnInc = document.getElementById(
-      'btnIncluirObjeto'
+      DOM_IDS.INCLUDE_OBJECT_BUTTON
     ) as HTMLButtonElement | null;
     const txtObj = document.getElementById(
-      'txtObjeto'
+      DOM_IDS.OBJECT_INPUT
     ) as HTMLInputElement | null;
 
     if (!btnInc || btnInc.offsetParent === null) {
@@ -21,7 +22,7 @@ export const COMMANDS: Record<string, CommandFn> = {
 
     if (document.activeElement) (document.activeElement as HTMLElement).blur();
 
-    const modalA = document.getElementById('btnModalA');
+    const modalA = document.getElementById(DOM_IDS.MODAL_A_BUTTON);
     const delay =
       modalA && modalA.offsetParent !== null ? (modalA.click(), 300) : 0;
 
@@ -29,7 +30,7 @@ export const COMMANDS: Record<string, CommandFn> = {
       let tries = 0;
       const poll = setInterval(() => {
         const txtNum = document.getElementById(
-          'txtNumero'
+          DOM_IDS.ADDRESS_NUMBER_INPUT
         ) as HTMLInputElement | null;
         if (txtNum) {
           clearInterval(poll);

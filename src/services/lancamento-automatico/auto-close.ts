@@ -1,3 +1,4 @@
+import { DOM_IDS, DOM_SELECTORS } from '../../shared/constants/dom-elements.js';
 import { STORAGE_KEYS } from '../../shared/constants/storage-keys.js';
 
 let autoCloseEnabled =
@@ -35,10 +36,11 @@ export function triggerAutoClose(): void {
   }
 
   stopWatchers();
+  window.addEventListener('pagehide', stopWatchers, { once: true });
   let tries = 0;
 
   atcTimer = setInterval(() => {
-    const btn = document.getElementById('btnImprimirEtiquetaNao');
+    const btn = document.getElementById(DOM_IDS.PRINT_NO_BUTTON);
     if (btn && btn.offsetParent !== null) {
       btn.click();
       btn.dispatchEvent(
@@ -53,7 +55,9 @@ export function triggerAutoClose(): void {
 
       let waitTries = 0;
       okTimer = setInterval(() => {
-        const ok = document.querySelector<HTMLElement>('#alerta.aberto .act a');
+        const ok = document.querySelector<HTMLElement>(
+          DOM_SELECTORS.ALERT_OK_BUTTON
+        );
         if (ok?.innerText === 'OK') {
           ok.click();
           clearInterval(okTimer!);

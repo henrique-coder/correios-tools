@@ -1,10 +1,11 @@
-import { renderPanel } from './ui/panel.js';
-import { updateTable } from './ui/table.js';
+import { DOM_IDS } from '../../shared/constants/dom-elements.js';
 
 let lastInputValue: string | null = null;
 
 function refocusInput(input: HTMLInputElement): void {
-  if (document.activeElement !== document.getElementById('selDistrito')) {
+  if (
+    document.activeElement !== document.getElementById(DOM_IDS.DISTRICT_SELECT)
+  ) {
     input.click();
     input.focus();
     lastInputValue = input.value;
@@ -12,7 +13,9 @@ function refocusInput(input: HTMLInputElement): void {
 }
 
 export function watchObjectInput(render: () => void): void {
-  const inp = document.getElementById('txtObjeto') as HTMLInputElement | null;
+  const inp = document.getElementById(
+    DOM_IDS.OBJECT_INPUT
+  ) as HTMLInputElement | null;
   if (!inp) {
     setTimeout(() => watchObjectInput(render), 1000);
     return;
@@ -39,7 +42,7 @@ export function watchObjectInput(render: () => void): void {
 
 export function watchDistrictSelect(render: () => void): void {
   const sel = document.getElementById(
-    'selDistrito'
+    DOM_IDS.DISTRICT_SELECT
   ) as HTMLSelectElement | null;
   if (!sel) {
     setTimeout(() => watchDistrictSelect(render), 1000);

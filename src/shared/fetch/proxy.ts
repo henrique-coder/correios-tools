@@ -1,3 +1,4 @@
+import { RUNTIME_DEFAULTS } from '../../config/defaults.js';
 import { FETCH_REQ_EVENT, FETCH_RES_EVENT } from '../constants/urls.js';
 
 export interface FetchProxyOptions {
@@ -16,6 +17,8 @@ export function createFetchProxy(): (
   ): Promise<string> {
     return new Promise((resolve, reject) => {
       const reqId = Date.now() + Math.random();
+      const timeoutMs = RUNTIME_DEFAULTS.LIMITS.FETCH_TIMEOUT_MS;
+      let timeoutId: ReturnType<typeof setTimeout>;
 
       const listener = (e: MessageEvent) => {
         if (
@@ -28,10 +31,16 @@ export function createFetchProxy(): (
           return;
 
         window.removeEventListener('message', listener);
+        clearTimeout(timeoutId);
 
         if (e.data.response?.success) resolve(e.data.response.data);
         else reject(new Error(e.data.response?.error ?? 'Sem resposta'));
       };
+
+      timeoutId = setTimeout(() => {
+        window.removeEventListener('message', listener);
+        reject(new Error('Fetch proxy timed out'));
+      }, timeoutMs);
 
       window.addEventListener('message', listener);
       window.postMessage(

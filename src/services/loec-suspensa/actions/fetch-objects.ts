@@ -1,10 +1,21 @@
-import type { LoecStore, DeliveryObject } from '../state.js';
+import { RUNTIME_DEFAULTS } from '../../../config/defaults.js';
+import { LOEC_DOM_IDS } from '../../../shared/constants/dom-elements.js';
+import { colorsMatch, normalizeColor } from '../../../shared/utils/color.js';
 import { parseDistrito } from '../../../shared/utils/format.js';
-import { normalizeColor, colorsMatch } from '../../../shared/utils/color.js';
 import { getLoecObjectsByLancamento } from '../api.js';
-import type { DistrictData } from '../state.js';
+import type { DeliveryObject, DistrictData, LoecStore } from '../state.js';
 
 export type FetchCategory = 'today' | 'overdue' | 'dueSoon';
+
+const FETCH_TIMEOUT_MS = RUNTIME_DEFAULTS.LIMITS.FETCH_TIMEOUT_MS;
+const TIMEOUT_ERROR_MESSAGE = 'Request timed out';
+
+export type FetchErrorReason = 'timeout' | 'request';
+
+export interface FetchErrorInfo {
+  districtId: string;
+  reason: FetchErrorReason;
+}
 
 export interface ArchiveFilters {
   mode: string;
@@ -24,21 +35,36 @@ export function getArchiveFilters(): ArchiveFilters {
     });
   return {
     mode:
-      (document.getElementById('ct-arq-export-mode') as HTMLSelectElement)
-        ?.value ?? '3',
+      (
+        document.getElementById(
+          LOEC_DOM_IDS.ARCHIVE_EXPORT_MODE
+        ) as HTMLSelectElement
+      )?.value ?? '3',
     dist:
-      (document.getElementById('ct-arq-dist-filter') as HTMLSelectElement)
-        ?.value ?? '',
+      (
+        document.getElementById(
+          LOEC_DOM_IDS.ARCHIVE_DIST_FILTER
+        ) as HTMLSelectElement
+      )?.value ?? '',
     grade:
-      (document.getElementById('ct-arq-grade-filter') as HTMLSelectElement)
-        ?.value ?? '',
+      (
+        document.getElementById(
+          LOEC_DOM_IDS.ARCHIVE_GRADE_FILTER
+        ) as HTMLSelectElement
+      )?.value ?? '',
     side:
-      (document.getElementById('ct-arq-side-filter') as HTMLSelectElement)
-        ?.value ?? '',
+      (
+        document.getElementById(
+          LOEC_DOM_IDS.ARCHIVE_SIDE_FILTER
+        ) as HTMLSelectElement
+      )?.value ?? '',
     sroExcludes: excludes,
     sroIgnoreText:
-      (document.getElementById('ct-arq-sro-ignore-text') as HTMLInputElement)
-        ?.value ?? ''
+      (
+        document.getElementById(
+          LOEC_DOM_IDS.ARCHIVE_SRO_IGNORE_TEXT
+        ) as HTMLInputElement
+      )?.value ?? ''
   };
 }
 
@@ -88,9 +114,11 @@ export async function fetchObjectsByCategory(
     total: number,
     success: number,
     failed: number
-  ) => void
+  ) => void,
+  onError?: (info: FetchErrorInfo) => void,
+  shouldAbort?: () => boolean
 ): Promise<DeliveryObject[]> {
-  const targetTable = document.getElementById('tabela-rotulos');
+  const targetTable = document.getElementById(LOEC_DOM_IDS.TARGET_TABLE);
   let targetColor: string | null = null;
 
   if (targetTable) {
@@ -132,11 +160,15 @@ export async function fetchObjectsByCategory(
   const total = distsToQuery.length;
 
   for (const dist of distsToQuery) {
+    if (shouldAbort?.()) break;
     try {
-      const arr = await getLoecObjectsByLancamento(
-        dist.correios_idLancamento,
-        store,
-        fetchProxy
+      const arr = await withTimeout(
+        getLoecObjectsByLancamento(
+          dist.correios_idLancamento,
+          store,
+          fetchProxy
+        ),
+        FETCH_TIMEOUT_MS
       );
       success++;
       for (const rawObj of arr as any[]) {
@@ -168,11 +200,17 @@ export async function fetchObjectsByCategory(
           });
         }
       }
-    } catch {
+    } catch (err) {
       failed++;
+      const districtId = (dist.correios_numeroDistrito ?? '').toString();
+      onError?.({
+        districtId,
+        reason: isTimeoutError(err) ? 'timeout' : 'request'
+      });
     }
     done++;
     onProgress(done, total, success, failed);
+    if (shouldAbort?.()) break;
   }
 
   return allObjs;
@@ -208,4 +246,33 @@ function matchesCategory(
 function parseNumber(v: unknown): number {
   if (typeof v === 'number') return v;
   return parseInt((v ?? '').toString().replace(/<[^>]*>/g, ''), 10) || 0;
+}
+
+function isTimeoutError(err: unknown): boolean {
+  return err instanceof Error && err.message === TIMEOUT_ERROR_MESSAGE;
+}
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const timeoutId = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      reject(new Error(TIMEOUT_ERROR_MESSAGE));
+    }, timeoutMs);
+
+    promise
+      .then((value) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeoutId);
+        resolve(value);
+      })
+      .catch((err) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeoutId);
+        reject(err);
+      });
+  });
 }

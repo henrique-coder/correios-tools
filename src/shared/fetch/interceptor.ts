@@ -1,5 +1,13 @@
 type ResponseHandler = (url: string, data: unknown) => void;
 
+const DEBUG_STORAGE_KEY = 'cw-debug';
+
+function logDebug(message: string, error?: unknown): void {
+  if (window.localStorage.getItem(DEBUG_STORAGE_KEY) !== '1') return;
+  if (error) console.warn('[Correios Wizard]', message, error);
+  else console.warn('[Correios Wizard]', message);
+}
+
 function patchFetch(handler: ResponseHandler): void {
   const originalFetch = window.fetch;
   window.fetch = async function (...args) {
@@ -11,7 +19,7 @@ function patchFetch(handler: ResponseHandler): void {
           .clone()
           .json()
           .then((data) => handler(url, data))
-          .catch(() => {});
+          .catch((err) => logDebug('Failed to parse fetch response', err));
       }
     } catch {}
     return response;
@@ -33,7 +41,9 @@ function patchXhr(handler: ResponseHandler): void {
       if (!url?.toLowerCase().includes('controller.php')) return;
       try {
         handler(url, JSON.parse(this.responseText));
-      } catch {}
+      } catch (err) {
+        logDebug('Failed to parse XHR response', err);
+      }
     });
     return originalSend.apply(this, arguments as any);
   };

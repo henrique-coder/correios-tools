@@ -1,16 +1,11 @@
-import type {
-  SroCache,
-  TrackingEvent,
-  TrackingEventParams
-} from './intranet-parser.js';
-import {
-  parseIntranetHtml,
-  mergeSroCache,
-  parseTrackingHistory,
-  parseTrackingDetails
-} from './intranet-parser.js';
 import { SROINTRANET_ORIGIN } from '../constants/urls.js';
 import type { FetchProxyOptions } from '../fetch/proxy.js';
+import type { SroCache, TrackingEvent } from './intranet-parser.js';
+import {
+  parseIntranetHtml,
+  parseTrackingDetails,
+  parseTrackingHistory
+} from './intranet-parser.js';
 
 interface BatchFetchOptions {
   fetchFn: (url: string, options?: FetchProxyOptions) => Promise<string>;
@@ -27,17 +22,19 @@ interface BatchFetchOptions {
 export async function fetchDetailedTracking(
   objCode: string,
   fetchFn: (url: string, options?: FetchProxyOptions) => Promise<string>
-): Promise<TrackingEvent[]> {
+): Promise<{ events: TrackingEvent[]; detailsFailed: number }> {
   const url = `${SROINTRANET_ORIGIN}/rastreamento?objetos=${objCode}`;
   let html = '';
   try {
     html = await fetchFn(url);
   } catch {
-    return [];
+    throw new Error('Tracking fetch failed');
   }
 
   const events = parseTrackingHistory(html);
-  if (events.length === 0) return [];
+  if (events.length === 0) return { events: [], detailsFailed: 0 };
+
+  let detailsFailed = 0;
 
   const fetchDetail = async (event: TrackingEvent) => {
     if (!event.params) return;
@@ -65,7 +62,7 @@ export async function fetchDetailedTracking(
       });
       event.details = parseTrackingDetails(detailHtml);
     } catch {
-      // Ignorar falhas nos detalhes individuais
+      detailsFailed++;
     }
   };
 
@@ -83,7 +80,7 @@ export async function fetchDetailedTracking(
 
   await limitConcurrency(events, 5);
 
-  return events;
+  return { events, detailsFailed };
 }
 
 export async function batchFetchSroIntranet(

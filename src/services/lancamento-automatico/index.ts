@@ -1,19 +1,23 @@
-import { createDefaultState, type DispatchState } from './state.js';
-import { registerKeyboardCommands } from './keyboard.js';
-import { handleControllerResponse } from './response-handler.js';
+import {
+  CEP_INPUT_SELECTORS,
+  DOM_IDS,
+  DOM_SELECTORS
+} from '../../shared/constants/dom-elements.js';
 import {
   registerFetchInterceptor,
   registerXhrTrigger
 } from '../../shared/fetch/interceptor.js';
+import {
+  isAutoCloseEnabled,
+  setAutoClose,
+  triggerAutoClose
+} from './auto-close.js';
+import { registerKeyboardCommands } from './keyboard.js';
+import { handleControllerResponse } from './response-handler.js';
+import { createDefaultState, type DispatchState } from './state.js';
 import { renderPanel, syncAutoCloseButton } from './ui/panel.js';
 import { injectTable, updateTable } from './ui/table.js';
 import { showTrackingOverlay } from './ui/tracking-modal.js';
-import {
-  triggerAutoClose,
-  isAutoCloseEnabled,
-  setAutoClose
-} from './auto-close.js';
-import { STORAGE_KEYS } from '../../shared/constants/storage-keys.js';
 
 export function runAutoDispatchService(
   fetchProxy: (url: string, options?: any) => Promise<string>
@@ -42,14 +46,16 @@ export function runAutoDispatchService(
   function setupWatchers(): void {
     injectTable();
 
-    const inp = document.getElementById('txtObjeto') as HTMLInputElement | null;
+    const inp = document.getElementById(
+      DOM_IDS.OBJECT_INPUT
+    ) as HTMLInputElement | null;
     if (!inp) {
       setTimeout(setupWatchers, 1000);
       return;
     }
 
     let currentUnitName = '';
-    const unitEl = document.querySelector<HTMLElement>('.nome[tabindex="1"]');
+    const unitEl = document.querySelector<HTMLElement>(DOM_SELECTORS.UNIT_NAME);
     if (unitEl && unitEl.innerText) {
       const match = unitEl.innerText.match(/^\s*\d{8}\s*-\s*([^|/]+)/);
       if (match) currentUnitName = match[1].trim().toUpperCase();
@@ -58,8 +64,8 @@ export function runAutoDispatchService(
     window.addEventListener(
       'keydown',
       (e) => {
-        if (e.key === 'ArrowDown') {
-          if (document.activeElement?.id === 'txtCEP') {
+        if (e.key === 'ArrowUp') {
+          if (isCepInputActive()) {
             return;
           }
 
@@ -77,13 +83,16 @@ export function runAutoDispatchService(
       true
     );
     let lastInputValue = inp.value;
-    const parent = inp.closest('.campo') ?? inp.parentElement;
+    const parent =
+      inp.closest(DOM_SELECTORS.FIELD_CONTAINER) ?? inp.parentElement;
 
     if (parent) {
       inp.addEventListener('keydown', (e) => {
         if (e.key !== 'Enter') return;
         setTimeout(() => {
-          const msg = parent.querySelector<HTMLElement>('.mensagem');
+          const msg = parent.querySelector<HTMLElement>(
+            DOM_SELECTORS.FIELD_MESSAGE
+          );
           if (msg && msg.innerText.trim().length > 0)
             refocusInput(inp, lastInputValue, (v) => {
               lastInputValue = v;
@@ -92,7 +101,9 @@ export function runAutoDispatchService(
       });
 
       new MutationObserver(() => {
-        const msg = parent.querySelector<HTMLElement>('.mensagem');
+        const msg = parent.querySelector<HTMLElement>(
+          DOM_SELECTORS.FIELD_MESSAGE
+        );
         if (
           msg &&
           msg.innerText.trim().length > 0 &&
@@ -109,7 +120,7 @@ export function runAutoDispatchService(
     }
 
     const sel = document.getElementById(
-      'selDistrito'
+      DOM_IDS.DISTRICT_SELECT
     ) as HTMLSelectElement | null;
     if (!sel) {
       setTimeout(() => setupDistrictWatcher(stateRef, render), 1000);
@@ -119,7 +130,8 @@ export function runAutoDispatchService(
     render();
 
     document.body.addEventListener('change', (e) => {
-      if ((e.target as HTMLElement)?.id === 'selGrade') triggerAutoClose();
+      if ((e.target as HTMLElement)?.id === DOM_IDS.GRADE_SELECT)
+        triggerAutoClose();
     });
   }
 
@@ -128,12 +140,20 @@ export function runAutoDispatchService(
   else setupWatchers();
 }
 
+function isCepInputActive(): boolean {
+  const active = document.activeElement;
+  if (!active || !(active instanceof Element)) return false;
+  return CEP_INPUT_SELECTORS.some((selector) => active.matches(selector));
+}
+
 function refocusInput(
   input: HTMLInputElement,
   lastValue: string,
   setLast: (v: string) => void
 ): void {
-  if (document.activeElement !== document.getElementById('selDistrito')) {
+  if (
+    document.activeElement !== document.getElementById(DOM_IDS.DISTRICT_SELECT)
+  ) {
     input.click();
     input.focus();
     setLast(input.value);
@@ -145,7 +165,7 @@ function setupDistrictWatcher(
   render: () => void
 ): void {
   const sel = document.getElementById(
-    'selDistrito'
+    DOM_IDS.DISTRICT_SELECT
   ) as HTMLSelectElement | null;
   if (!sel) {
     setTimeout(() => setupDistrictWatcher(stateRef, render), 1000);
