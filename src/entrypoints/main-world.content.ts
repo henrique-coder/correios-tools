@@ -92,16 +92,41 @@ export default defineContentScript({
   allFrames: false,
   async main() {
     const fetchProxy = createFetchProxy();
-    const path = window.location.pathname.toLowerCase();
+    let currentService: 'lancamento' | 'loec' | null = null;
 
-    if (path.includes('/lancamentoautomatico/')) {
-      runAutoDispatchService(fetchProxy);
-      if (await isCurrentUnitBlocked()) {
-        return;
+    const checkRoute = async () => {
+      const path = window.location.pathname.toLowerCase();
+
+      if (path.includes('/lancamentoautomatico/')) {
+        if (currentService === 'lancamento') return;
+        currentService = 'lancamento';
+        runAutoDispatchService(fetchProxy);
+        if (await isCurrentUnitBlocked()) return;
+      } else if (path.includes('/loecsuspensa/')) {
+        if (currentService === 'loec') return;
+        currentService = 'loec';
+        if (await isCurrentUnitBlocked()) return;
+        runSuspendedLoecService(fetchProxy);
+      } else {
+        currentService = null;
       }
-    } else if (path.includes('/loecsuspensa/')) {
-      if (await isCurrentUnitBlocked()) return;
-      runSuspendedLoecService(fetchProxy);
-    }
+    };
+
+    const originalPushState = history.pushState;
+    history.pushState = function (...args) {
+      const result = originalPushState.apply(this, args);
+      checkRoute();
+      return result;
+    };
+
+    const originalReplaceState = history.replaceState;
+    history.replaceState = function (...args) {
+      const result = originalReplaceState.apply(this, args);
+      checkRoute();
+      return result;
+    };
+
+    window.addEventListener('popstate', checkRoute);
+    checkRoute();
   }
 });

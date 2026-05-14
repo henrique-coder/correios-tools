@@ -8,7 +8,10 @@ function logDebug(message: string, error?: unknown): void {
   else console.warn('[Correios Wizard]', message);
 }
 
-function patchFetch(handler: ResponseHandler): void {
+const handlers: ResponseHandler[] = [];
+let isPatched = false;
+
+function patchFetch(): void {
   const originalFetch = window.fetch;
   window.fetch = async function (...args) {
     const response = await originalFetch.apply(this, args);
@@ -18,7 +21,7 @@ function patchFetch(handler: ResponseHandler): void {
         response
           .clone()
           .json()
-          .then((data) => handler(url, data))
+          .then((data) => handlers.forEach((h) => h(url, data)))
           .catch((err) => logDebug('Failed to parse fetch response', err));
       }
     } catch {}
@@ -26,41 +29,69 @@ function patchFetch(handler: ResponseHandler): void {
   };
 }
 
-function patchXhr(handler: ResponseHandler): void {
+function patchXhr(): void {
   const originalOpen = XMLHttpRequest.prototype.open;
   const originalSend = XMLHttpRequest.prototype.send;
 
   XMLHttpRequest.prototype.open = function (method: string, url: string | URL) {
     (this as any)._cwUrl = url?.toString() ?? '';
+    if ((this as any)._cwUrl?.toLowerCase().includes('controller.php')) {
+      // It's a target URL
+    }
     return originalOpen.apply(this, arguments as any);
   };
 
   XMLHttpRequest.prototype.send = function (body) {
-    this.addEventListener('load', function () {
-      const url = (this as any)._cwUrl as string;
-      if (!url?.toLowerCase().includes('controller.php')) return;
-      try {
-        handler(url, JSON.parse(this.responseText));
-      } catch (err) {
-        logDebug('Failed to parse XHR response', err);
-      }
-    });
+    if (!this._cwLoadListenerAdded) {
+      this.addEventListener('load', function () {
+        const url = (this as any)._cwUrl as string;
+        if (!url?.toLowerCase().includes('controller.php')) return;
+        try {
+          const parsed = JSON.parse(this.responseText);
+          handlers.forEach((h) => h(url, parsed));
+        } catch (err) {
+          logDebug('Failed to parse XHR response', err);
+        }
+      });
+      this._cwLoadListenerAdded = true;
+    }
     return originalSend.apply(this, arguments as any);
   };
 }
 
 export function registerFetchInterceptor(handler: ResponseHandler): void {
-  patchFetch(handler);
-  patchXhr(handler);
+  if (!handlers.includes(handler)) {
+    handlers.push(handler);
+  }
+
+  if (!isPatched) {
+    patchFetch();
+    patchXhr();
+    isPatched = true;
+  }
 }
+
+const triggers: { fragment: string; cb: () => void }[] = [];
+let isTriggerPatched = false;
 
 export function registerXhrTrigger(
   urlFragment: string,
   trigger: () => void
 ): void {
-  const originalOpen = XMLHttpRequest.prototype.open;
-  XMLHttpRequest.prototype.open = function (method: string, url: string | URL) {
-    if (url?.toString().toLowerCase().includes(urlFragment)) trigger();
-    return originalOpen.apply(this, arguments as any);
-  };
+  triggers.push({ fragment: urlFragment.toLowerCase(), cb: trigger });
+
+  if (!isTriggerPatched) {
+    const originalOpen = XMLHttpRequest.prototype.open;
+    XMLHttpRequest.prototype.open = function (
+      method: string,
+      url: string | URL
+    ) {
+      const u = url?.toString().toLowerCase() ?? '';
+      triggers.forEach(({ fragment, cb }) => {
+        if (u.includes(fragment)) cb();
+      });
+      return originalOpen.apply(this, arguments as any);
+    };
+    isTriggerPatched = true;
+  }
 }
