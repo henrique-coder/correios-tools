@@ -287,15 +287,19 @@ export async function renderDashboard(
     renderArqTable(store, fetchProxy);
   });
 
-  document.addEventListener('click', (e) => {
-    const c = document.getElementById(
-      LOEC_DOM_IDS.ARCHIVE_SRO_DROPDOWN_CONTAINER
-    );
-    if (c && !c.contains(e.target as Node)) {
-      const l = document.getElementById(LOEC_DOM_IDS.ARCHIVE_SRO_MULTI_LIST);
-      if (l) l.style.display = 'none';
-    }
-  });
+  window.addEventListener(
+    'mousedown',
+    (e) => {
+      const c = document.getElementById(
+        LOEC_DOM_IDS.ARCHIVE_SRO_DROPDOWN_CONTAINER
+      );
+      if (c && !c.contains(e.target as Node)) {
+        const l = document.getElementById(LOEC_DOM_IDS.ARCHIVE_SRO_MULTI_LIST);
+        if (l) l.style.display = 'none';
+      }
+    },
+    { capture: true }
+  );
   document
     .getElementById(LOEC_DOM_IDS.ARCHIVE_BTN_RELOAD_SRO)!
     .addEventListener('click', async () => {

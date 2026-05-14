@@ -1,7 +1,6 @@
 import { SROINTRANET_ORIGIN } from '../../../shared/constants/urls.js';
 
 export function openImageViewer(obj: string, dh: string): void {
-  // Prevent multiple viewers
   if (document.getElementById('ct-img-viewer-container')) return;
 
   const rand = Math.floor(Math.random() * 1000000);

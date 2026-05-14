@@ -64,18 +64,39 @@ export const COMMANDS: Record<string, CommandFn> = {
         setAutoInductionGuard(3000);
         btnInc.click();
 
-        let waitTries = 0;
-        const waitPoll = setInterval(() => {
-          if (txtObj && txtObj.value === '') {
-            clearInterval(waitPoll);
-            txtObj.focus();
-            setTimeout(clearAutoInductionGuard, 1500);
+        let observer: MutationObserver | null = null;
+        let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+        const cleanupAndFocus = () => {
+          if (observer) {
+            observer.disconnect();
+            observer = null;
           }
-          if (++waitTries > 100) clearInterval(waitPoll);
-        }, 100);
-      } catch (err) {
-        // Ignorado, apenas loga e desiste caso o elemento não surja
-      }
+          if (timeoutId) {
+            clearTimeout(timeoutId);
+            timeoutId = null;
+          }
+          txtObj?.focus();
+          setTimeout(clearAutoInductionGuard, 1500);
+        };
+
+        observer = new MutationObserver(() => {
+          if (txtObj && txtObj.value === '') {
+            cleanupAndFocus();
+          }
+        });
+
+        observer.observe(document.body, {
+          childList: true,
+          subtree: true,
+          attributes: true,
+          characterData: true
+        });
+
+        timeoutId = setTimeout(() => {
+          cleanupAndFocus();
+        }, 10000);
+      } catch {}
     }, delay);
   }
 };
