@@ -8,6 +8,7 @@ type CommandFn = (
 
 export const COMMANDS: Record<string, CommandFn> = {
   'CT-INDUZIROBJETO': (state, _lastInducedValue) => {
+    setAutoInductionGuard(4000);
     const btnInc = document.getElementById(
       DOM_IDS.INCLUDE_OBJECT_BUTTON
     ) as HTMLButtonElement | null;
@@ -17,6 +18,7 @@ export const COMMANDS: Record<string, CommandFn> = {
 
     if (!btnInc || btnInc.offsetParent === null) {
       txtObj?.focus();
+      setAutoInductionGuard(1500);
       return;
     }
 
@@ -42,6 +44,8 @@ export const COMMANDS: Record<string, CommandFn> = {
             if (isInvalid && state.code !== '--') {
               txtNum.focus();
               txtNum.select();
+              setAutoInductionGuard(3000);
+              setTimeout(clearAutoInductionGuard, 3000);
               return;
             }
 
@@ -51,12 +55,14 @@ export const COMMANDS: Record<string, CommandFn> = {
 
             setTimeout(() => {
               if (!btnInc) return;
+              setAutoInductionGuard(3000);
               btnInc.click();
               let waitTries = 0;
               const waitPoll = setInterval(() => {
                 if (txtObj && txtObj.value === '') {
                   clearInterval(waitPoll);
                   txtObj.focus();
+                  setTimeout(clearAutoInductionGuard, 1500);
                 }
                 if (++waitTries > 100) clearInterval(waitPoll);
               }, 100);
@@ -68,3 +74,17 @@ export const COMMANDS: Record<string, CommandFn> = {
     }, delay);
   }
 };
+
+let autoInductionUntil = 0;
+
+export function setAutoInductionGuard(durationMs: number): void {
+  autoInductionUntil = Math.max(autoInductionUntil, Date.now() + durationMs);
+}
+
+export function clearAutoInductionGuard(): void {
+  autoInductionUntil = 0;
+}
+
+export function isAutoInductionGuardActive(): boolean {
+  return Date.now() < autoInductionUntil;
+}

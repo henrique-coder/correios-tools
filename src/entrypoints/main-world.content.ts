@@ -1,9 +1,11 @@
 import { defineContentScript } from 'wxt/utils/define-content-script';
-import { createFetchProxy } from '../shared/fetch/proxy.js';
+import { RUNTIME_DEFAULTS } from '../config/defaults.js';
 import { runAutoDispatchService } from '../services/lancamento-automatico/index.js';
 import { runSuspendedLoecService } from '../services/loec-suspensa/index.js';
-import { RUNTIME_DEFAULTS } from '../config/defaults.js';
+import { DOM_SELECTORS } from '../shared/constants/dom-elements.js';
 import { STORAGE_KEYS } from '../shared/constants/storage-keys.js';
+import { createFetchProxy } from '../shared/fetch/proxy.js';
+import { waitForElement } from '../shared/utils/dom.js';
 
 interface BlocklistResponse {
   block_all?: boolean;
@@ -11,22 +13,20 @@ interface BlocklistResponse {
 }
 
 async function isCurrentUnitBlocked(): Promise<boolean> {
-  const unitId = await new Promise<string | null>((resolve) => {
-    const extract = () => {
-      const el = document.querySelector<HTMLElement>('.nome[tabindex="1"]');
-      if (!el || !el.innerText) return null;
+  let unitId: string | null = null;
+  try {
+    const el = await waitForElement<HTMLElement>(
+      DOM_SELECTORS.UNIT_NAME,
+      200,
+      150
+    );
+    if (el && el.innerText) {
       const match = el.innerText.match(/^\s*(\d{8})/);
-      return match ? match[1] : null;
-    };
-
-    if (document.readyState !== 'loading') {
-      resolve(extract());
-    } else {
-      document.addEventListener('DOMContentLoaded', () => {
-        resolve(extract());
-      });
+      unitId = match ? match[1] : null;
     }
-  });
+  } catch {
+    unitId = null;
+  }
 
   if (!unitId) return false;
 

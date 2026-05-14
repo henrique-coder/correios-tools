@@ -1,8 +1,14 @@
-import type { LoecStore, DeliveryObject } from '../state.js';
-import { getSroStatusColor } from '../../../shared/utils/color.js';
+import { LOEC_DOM_IDS } from '../../../shared/constants/dom-elements.js';
+import { SROINTRANET_ORIGIN } from '../../../shared/constants/urls.js';
 import { batchFetchSroIntranet } from '../../../shared/sro/intranet-fetcher.js';
 import { mergeSroCache } from '../../../shared/sro/intranet-parser.js';
-import { SROINTRANET_ORIGIN } from '../../../shared/constants/urls.js';
+import { getSroStatusColor } from '../../../shared/utils/color.js';
+import {
+  getTrackingPrefix,
+  normalizeAddressForSort,
+  normalizeTextForCompare
+} from '../../../shared/utils/format.js';
+import type { DeliveryObject, LoecStore } from '../state.js';
 import { getArchiveFilters, getFilteredObjs } from './fetch-objects.js';
 import { refreshSroMasterFilters } from './filters.js';
 
@@ -11,7 +17,7 @@ export function renderArqTable(
   fetchProxy: (url: string) => Promise<string>
 ): Promise<void> {
   return new Promise((resolve) => {
-    const resultEl = document.getElementById('ct-arq-result');
+    const resultEl = document.getElementById(LOEC_DOM_IDS.ARCHIVE_RESULT);
     if (!resultEl) {
       resolve();
       return;
@@ -26,20 +32,47 @@ export function renderArqTable(
     }
 
     const filters = getArchiveFilters();
+    const mode = filters.mode;
     const filteredObjs = getFilteredObjs(data, filters, store);
+    const collator = new Intl.Collator('pt-BR', {
+      numeric: true,
+      sensitivity: 'base'
+    });
+    const sortedObjs = [...filteredObjs].sort((a, b) => {
+      if (mode === '1') {
+        const pa = getTrackingPrefix(a.trackingCode ?? '');
+        const pb = getTrackingPrefix(b.trackingCode ?? '');
+        const byPrefix = collator.compare(pa, pb);
+        if (byPrefix !== 0) return byPrefix;
+        return collator.compare(a.trackingCode ?? '', b.trackingCode ?? '');
+      }
+      if (mode === '2') {
+        const ka = normalizeAddressForSort(a.address ?? '');
+        const kb = normalizeAddressForSort(b.address ?? '');
+        const byAddr = collator.compare(ka, kb);
+        if (byAddr !== 0) return byAddr;
+        const fa = normalizeTextForCompare(
+          `${a.address ?? ''} ${a.zipCode ?? ''}`
+        );
+        const fb = normalizeTextForCompare(
+          `${b.address ?? ''} ${b.zipCode ?? ''}`
+        );
+        return collator.compare(fa, fb);
+      }
+      return 0;
+    });
 
-    if (!filteredObjs.length) {
+    if (!sortedObjs.length) {
       resultEl.innerHTML =
         '<div style="padding:10px;text-align:center;color:#ef4444">Nenhum objeto retornado para este filtro.</div>';
       resolve();
       return;
     }
 
-    const mode = filters.mode;
-    let html = buildTableHeader(filteredObjs.length, mode);
+    let html = buildTableHeader(sortedObjs.length, mode);
 
     const objsToFetch: string[] = [];
-    for (const o of filteredObjs) {
+    for (const o of sortedObjs) {
       const sroData = store.sroIntranetCache[o.trackingCode ?? ''];
       const sroVal = sroData?.sit ?? null;
       if (!sroVal && o.trackingCode && mode !== '2')
@@ -58,7 +91,7 @@ export function renderArqTable(
     const renderId = Symbol();
     store.archiveRenderId = renderId;
     const cacheId = store.sroIntranetCacheId;
-    const prog = document.getElementById('ct-arq-sro-progress');
+    const prog = document.getElementById(LOEC_DOM_IDS.ARCHIVE_SRO_PROGRESS);
     if (prog) prog.style.display = 'block';
 
     batchFetchSroIntranet({
@@ -67,6 +100,7 @@ export function renderArqTable(
       existingCache: store.sroIntranetCache,
       renderId,
       getRenderId: () => store.archiveRenderId,
+      concurrency: RUNTIME_DEFAULTS.LIMITS.SRO_BATCH_CONCURRENCY,
       onBatchDone: (resolved, done, total) => {
         if (
           store.archiveRenderId !== renderId ||
@@ -136,7 +170,7 @@ function buildTableHeader(count: number, mode: string): string {
   };
   return `<div style="margin-bottom:12px;font-weight:bold;color:#334155;border-bottom:1px solid #e2e8f0;padding-bottom:8px;display:flex;justify-content:space-between;align-items:center">
     <span>Pré-visualização: ${count} objetos</span>
-    <span id="ct-arq-sro-progress" style="font-size:11px;color:#10b981;font-weight:600;display:none">Sincronizando SRO Intranet...</span>
+    <span id="${LOEC_DOM_IDS.ARCHIVE_SRO_PROGRESS}" style="font-size:11px;color:#10b981;font-weight:600;display:none">Sincronizando SRO Intranet...</span>
   </div>
   <table style="width:100%;border-collapse:collapse;font-size:12px;text-align:left">
   <thead><tr style="color:#64748b">${modeHeaders[mode] ?? modeHeaders['3']}</tr></thead><tbody>`;

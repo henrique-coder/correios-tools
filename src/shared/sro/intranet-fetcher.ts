@@ -93,7 +93,7 @@ export async function batchFetchSroIntranet(
     renderId,
     getRenderId,
     batchSize = 50,
-    concurrency = 2,
+    concurrency = RUNTIME_DEFAULTS.LIMITS.SRO_BATCH_CONCURRENCY,
     onBatchDone,
     onComplete
   } = opts;

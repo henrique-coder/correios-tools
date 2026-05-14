@@ -7,11 +7,13 @@ import {
   registerFetchInterceptor,
   registerXhrTrigger
 } from '../../shared/fetch/interceptor.js';
+import { waitForElement } from '../../shared/utils/dom.js';
 import {
   isAutoCloseEnabled,
   setAutoClose,
   triggerAutoClose
 } from './auto-close.js';
+import { isAutoInductionGuardActive } from './commands.js';
 import { registerKeyboardCommands } from './keyboard.js';
 import { handleControllerResponse } from './response-handler.js';
 import { createDefaultState, type DispatchState } from './state.js';
@@ -43,14 +45,20 @@ export function runAutoDispatchService(
 
   registerXhrTrigger('listar-impressoras-disponiveis', triggerAutoClose);
 
-  function setupWatchers(): void {
+  async function setupWatchers(): Promise<void> {
     injectTable();
 
-    const inp = document.getElementById(
-      DOM_IDS.OBJECT_INPUT
-    ) as HTMLInputElement | null;
-    if (!inp) {
-      setTimeout(setupWatchers, 1000);
+    let inp: HTMLInputElement;
+    try {
+      inp = await waitForElement<HTMLInputElement>(
+        `#${DOM_IDS.OBJECT_INPUT}`,
+        200,
+        150
+      );
+    } catch {
+      setTimeout(() => {
+        setupWatchers().catch(() => undefined);
+      }, 1000);
       return;
     }
 
@@ -119,12 +127,9 @@ export function runAutoDispatchService(
       });
     }
 
-    const sel = document.getElementById(
-      DOM_IDS.DISTRICT_SELECT
-    ) as HTMLSelectElement | null;
-    if (!sel) {
-      setTimeout(() => setupDistrictWatcher(stateRef, render), 1000);
-    } else setupDistrictWatcher(stateRef, render);
+    waitForElement<HTMLSelectElement>(`#${DOM_IDS.DISTRICT_SELECT}`, 200, 150)
+      .then((sel) => setupDistrictWatcher(stateRef, render, sel))
+      .catch(() => undefined);
 
     triggerAutoClose();
     render();
@@ -135,9 +140,7 @@ export function runAutoDispatchService(
     });
   }
 
-  if (document.readyState === 'loading')
-    document.addEventListener('DOMContentLoaded', setupWatchers);
-  else setupWatchers();
+  setupWatchers().catch(() => undefined);
 }
 
 function isCepInputActive(): boolean {
@@ -151,6 +154,8 @@ function refocusInput(
   lastValue: string,
   setLast: (v: string) => void
 ): void {
+  if (isAutoInductionGuardActive()) return;
+  if (document.activeElement?.id === DOM_IDS.ADDRESS_NUMBER_INPUT) return;
   if (
     document.activeElement !== document.getElementById(DOM_IDS.DISTRICT_SELECT)
   ) {
@@ -162,16 +167,9 @@ function refocusInput(
 
 function setupDistrictWatcher(
   stateRef: { current: DispatchState },
-  render: () => void
+  render: () => void,
+  sel: HTMLSelectElement
 ): void {
-  const sel = document.getElementById(
-    DOM_IDS.DISTRICT_SELECT
-  ) as HTMLSelectElement | null;
-  if (!sel) {
-    setTimeout(() => setupDistrictWatcher(stateRef, render), 1000);
-    return;
-  }
-
   const update = () => {
     const opt = sel.options?.[sel.selectedIndex];
     let v = opt ? opt.text : sel.value;

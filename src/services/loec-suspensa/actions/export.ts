@@ -1,6 +1,10 @@
-import type { LoecStore, DeliveryObject } from '../state.js';
-import { parseDistrito } from '../../../shared/utils/format.js';
-import { downloadTextFile } from '../../../shared/utils/dom.js';
+import { openTextInNewTab } from '../../../shared/utils/dom.js';
+import {
+  getTrackingPrefix,
+  normalizeAddressForSort,
+  normalizeTextForCompare
+} from '../../../shared/utils/format.js';
+import type { DeliveryObject, LoecStore } from '../state.js';
 import { getArchiveFilters, getFilteredObjs } from './fetch-objects.js';
 
 export function formatExportText(
@@ -13,8 +17,37 @@ export function formatExportText(
   const filteredObjs = getFilteredObjs(data, filters, store);
   if (!filteredObjs.length) return '';
 
+  const mode = filters.mode;
+  const collator = new Intl.Collator('pt-BR', {
+    numeric: true,
+    sensitivity: 'base'
+  });
+  const sortedObjs = [...filteredObjs].sort((a, b) => {
+    if (mode === '1') {
+      const pa = getTrackingPrefix(a.trackingCode ?? '');
+      const pb = getTrackingPrefix(b.trackingCode ?? '');
+      const byPrefix = collator.compare(pa, pb);
+      if (byPrefix !== 0) return byPrefix;
+      return collator.compare(a.trackingCode ?? '', b.trackingCode ?? '');
+    }
+    if (mode === '2') {
+      const ka = normalizeAddressForSort(a.address ?? '');
+      const kb = normalizeAddressForSort(b.address ?? '');
+      const byAddr = collator.compare(ka, kb);
+      if (byAddr !== 0) return byAddr;
+      const fa = normalizeTextForCompare(
+        `${a.address ?? ''} ${a.zipCode ?? ''}`
+      );
+      const fb = normalizeTextForCompare(
+        `${b.address ?? ''} ${b.zipCode ?? ''}`
+      );
+      return collator.compare(fa, fb);
+    }
+    return 0;
+  });
+
   const groups: Record<string, DeliveryObject[]> = {};
-  for (const o of filteredObjs) {
+  for (const o of sortedObjs) {
     const key = `${o.district}-${o.sroCode ?? ''}-${o.postmanName ?? ''}-${o.postmanId ?? ''}`;
     if (!groups[key]) groups[key] = [];
     groups[key].push(o);
@@ -42,23 +75,11 @@ export function formatExportText(
   return out.join('\r\n');
 }
 
-export function triggerCopyToClipboard(store: LoecStore): void {
+export function openExportTextInNewTab(store: LoecStore): void {
   const filters = getArchiveFilters();
   const txt = formatExportText(store.archiveLastData, filters, store);
-  if (txt) navigator.clipboard.writeText(txt);
-}
-
-export function triggerSaveTxt(store: LoecStore): void {
-  const filters = getArchiveFilters();
-  const txt = formatExportText(store.archiveLastData, filters, store);
-  if (!txt || !store.archiveLastData) return;
-
-  let name = `Export_${store.archiveLastData.cat}`;
-  if (filters.grade) name += '_G' + filters.grade;
-  if (filters.side) name += '_L' + filters.side;
-  if (filters.dist) name += '_' + filters.dist.replace(/\s+/g, '_');
-
-  downloadTextFile(txt, name + '.txt');
+  if (!txt) return;
+  openTextInNewTab(txt);
 }
 
 export function buildPrintContent(

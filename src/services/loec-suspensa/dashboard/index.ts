@@ -2,13 +2,13 @@ import {
   LOEC_DOM_IDS,
   LOEC_DOM_SELECTORS
 } from '../../../shared/constants/dom-elements.js';
+import { startButtonCooldown } from '../../../shared/utils/dom.js';
 import { parseNumber } from '../../../shared/utils/format.js';
+import { openExportTextInNewTab, printReport } from '../actions/export.js';
 import {
-  printReport,
-  triggerCopyToClipboard,
-  triggerSaveTxt
-} from '../actions/export.js';
-import { fetchObjectsByCategory } from '../actions/fetch-objects.js';
+  fetchObjectsByCategory,
+  getArchiveFilters
+} from '../actions/fetch-objects.js';
 import {
   populateFilterDropdowns,
   refreshSroMasterFilters
@@ -98,8 +98,7 @@ export async function renderDashboard(
         <button id="${LOEC_DOM_IDS.ARCHIVE_BTN_RELOAD_SRO}" style="flex:1;min-width:150px;padding:8px 12px;background:#3b82f6;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px">↻ Recarregar SRO</button>
         <div style="display:flex;gap:8px;flex:1;min-width:100%;flex-wrap:wrap;margin-top:4px;">
           <button id="${LOEC_DOM_IDS.ARCHIVE_BTN_PRINT}" style="white-space:normal;flex:1;min-width:140px;padding:8px 12px;background:#10b981;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px">🖨️ Imprimir</button>
-          <button id="${LOEC_DOM_IDS.ARCHIVE_BTN_COPY}" style="white-space:normal;flex:1;min-width:140px;padding:8px 12px;background:#3b82f6;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px">📋 Copiar Conteúdo</button>
-          <button id="${LOEC_DOM_IDS.ARCHIVE_BTN_TXT}" style="white-space:normal;flex:1;min-width:140px;padding:8px 12px;background:#334155;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px">📥 Salvar TXT</button>
+          <button id="${LOEC_DOM_IDS.ARCHIVE_BTN_OPEN_TEXT}" style="white-space:normal;flex:1;min-width:140px;padding:8px 12px;background:#334155;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px">📄 Abrir Conteúdo</button>
         </div>
       </div>
       <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:16px;border-top:1px dashed #cbd5e1;padding-top:12px">
@@ -145,6 +144,7 @@ export async function renderDashboard(
     cat: 'today' | 'overdue' | 'dueSoon',
     label: string
   ) => {
+    const actionCooldown = 20;
     const btnId =
       cat === 'today'
         ? LOEC_DOM_IDS.ARCHIVE_BUTTON_TODAY
@@ -199,7 +199,8 @@ export async function renderDashboard(
         lastErrorLabel = formatErrorLabel(info.districtId, info.reason);
         renderProgress();
       },
-      () => (window as any).lastArqFetchId !== currentFetchId
+      () => (window as any).lastArqFetchId !== currentFetchId,
+      RUNTIME_DEFAULTS.LIMITS.LOEC_CONCURRENCY
     );
 
     if ((window as any).lastArqFetchId !== currentFetchId) return;
@@ -207,33 +208,27 @@ export async function renderDashboard(
     if (!objs.length) {
       resultEl.innerHTML =
         '<div style="padding:10px;text-align:center;color:#ef4444">Nenhum objeto encontrado na categoria especificada!</div>';
-      btn.innerText = oldText;
-      btn.disabled = false;
+      startButtonCooldown(
+        btn,
+        actionCooldown,
+        (left) => `Aguarde ${left}s`,
+        oldText
+      );
     } else {
       store.archiveLastData = { cat: label, objs };
       exportEl.style.display = 'block';
-      populateFilterDropdowns(store);
+      populateFilterDropdowns(store, getArchiveFilters());
       refreshSroMasterFilters(store);
       await renderArqTable(store, fetchProxy);
 
       if ((window as any).lastArqFetchId !== currentFetchId) return;
 
-      let left = 10;
-      btn.innerText = `Aguarde ${left}s`;
-      const iv = setInterval(() => {
-        if ((window as any).lastArqFetchId !== currentFetchId) {
-          clearInterval(iv);
-          return;
-        }
-        left--;
-        if (left <= 0) {
-          clearInterval(iv);
-          btn.innerText = oldText;
-          btn.disabled = false;
-        } else {
-          btn.innerText = `Aguarde ${left}s`;
-        }
-      }, 1000);
+      startButtonCooldown(
+        btn,
+        actionCooldown,
+        (left) => `Aguarde ${left}s`,
+        oldText
+      );
     }
   };
 
@@ -262,12 +257,16 @@ export async function renderDashboard(
   document
     .getElementById(LOEC_DOM_IDS.ARCHIVE_GRADE_FILTER)!
     .addEventListener('change', () => {
+      const filters = getArchiveFilters();
+      populateFilterDropdowns(store, filters);
       refreshSroMasterFilters(store, true);
       renderArqTable(store, fetchProxy);
     });
   document
     .getElementById(LOEC_DOM_IDS.ARCHIVE_SIDE_FILTER)!
     .addEventListener('change', () => {
+      const filters = getArchiveFilters();
+      populateFilterDropdowns(store, filters);
       refreshSroMasterFilters(store, true);
       renderArqTable(store, fetchProxy);
     });
@@ -297,20 +296,29 @@ export async function renderDashboard(
     }
   });
   document
-    .getElementById('ct-arq-btn-reload-sro')!
-    .addEventListener('click', () => {
+    .getElementById(LOEC_DOM_IDS.ARCHIVE_BTN_RELOAD_SRO)!
+    .addEventListener('click', async () => {
+      const btn = document.getElementById(
+        LOEC_DOM_IDS.ARCHIVE_BTN_RELOAD_SRO
+      ) as HTMLButtonElement;
+      const oldText = btn.innerText;
+      btn.innerText = 'Recarregando...';
+      btn.disabled = true;
       store.sroIntranetCache = {};
       store.sroIntranetCacheId = Date.now();
       refreshSroMasterFilters(store);
-      renderArqTable(store, fetchProxy);
+      await renderArqTable(store, fetchProxy);
+      startButtonCooldown(
+        btn,
+        RUNTIME_DEFAULTS.LIMITS.COOLDOWN.RELOAD_SRO,
+        (left) => `Aguarde ${left}s`,
+        oldText
+      );
     });
   document
-    .getElementById('ct-arq-btn-copy')!
-    .addEventListener('click', () => triggerCopyToClipboard(store));
+    .getElementById(LOEC_DOM_IDS.ARCHIVE_BTN_OPEN_TEXT)!
+    .addEventListener('click', () => openExportTextInNewTab(store));
   document
-    .getElementById('ct-arq-btn-txt')!
-    .addEventListener('click', () => triggerSaveTxt(store));
-  document
-    .getElementById('ct-arq-btn-print')!
+    .getElementById(LOEC_DOM_IDS.ARCHIVE_BTN_PRINT)!
     .addEventListener('click', () => printReport(store));
 }

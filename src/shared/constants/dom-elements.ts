@@ -47,6 +47,7 @@ export const LOEC_DOM_IDS = Object.freeze({
   ARCHIVE_RESULT: 'ct-arq-result',
   ARCHIVE_EXPORT: 'ct-arq-export',
   ARCHIVE_PROGRESS: 'ct-arq-progress',
+  ARCHIVE_SRO_PROGRESS: 'ct-arq-sro-progress',
   ARCHIVE_BUTTON_TODAY: 'btn-arq-hoje',
   ARCHIVE_BUTTON_OVERDUE: 'btn-arq-vencidos',
   ARCHIVE_BUTTON_DUE_SOON: 'btn-arq-avencer',
@@ -62,7 +63,8 @@ export const LOEC_DOM_IDS = Object.freeze({
   ARCHIVE_BTN_RELOAD_SRO: 'ct-arq-btn-reload-sro',
   ARCHIVE_BTN_PRINT: 'ct-arq-btn-print',
   ARCHIVE_BTN_COPY: 'ct-arq-btn-copy',
-  ARCHIVE_BTN_TXT: 'ct-arq-btn-txt'
+  ARCHIVE_BTN_TXT: 'ct-arq-btn-txt',
+  ARCHIVE_BTN_OPEN_TEXT: 'ct-arq-btn-open-text'
 });
 
 export const LOEC_DOM_SELECTORS = Object.freeze({

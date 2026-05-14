@@ -1,6 +1,8 @@
-import type { LoecStore } from '../state.js';
-import { getArchiveFilters, getFilteredObjs } from './fetch-objects.js';
+import { LOEC_DOM_IDS } from '../../../shared/constants/dom-elements.js';
 import { parseDistrito } from '../../../shared/utils/format.js';
+import type { LoecStore } from '../state.js';
+import type { ArchiveFilters } from './fetch-objects.js';
+import { getArchiveFilters } from './fetch-objects.js';
 import { renderArqTable } from './table-renderer.js';
 
 export function refreshSroMasterFilters(
@@ -27,8 +29,10 @@ export function refreshSroMasterFilters(
     if (s?.sit) availableSits.add(s.sit.toUpperCase());
   });
 
-  const listEl = document.getElementById('ct-arq-sro-multi-list');
-  const labelEl = document.getElementById('ct-arq-sro-multi-select-label');
+  const listEl = document.getElementById(LOEC_DOM_IDS.ARCHIVE_SRO_MULTI_LIST);
+  const labelEl = document.getElementById(
+    LOEC_DOM_IDS.ARCHIVE_SRO_MULTI_SELECT_LABEL
+  );
   if (!listEl || !labelEl) return;
 
   const sorted = Array.from(availableSits).sort();
@@ -86,12 +90,24 @@ export function refreshSroMasterFilters(
   updateLabel();
 }
 
-export function populateFilterDropdowns(store: LoecStore): void {
+export function populateFilterDropdowns(
+  store: LoecStore,
+  activeFilters?: ArchiveFilters
+): void {
   const data = store.archiveLastData;
   if (!data?.objs) return;
 
   const allObjs = data.objs;
-  const dists = [...new Set(allObjs.map((o) => o.district ?? ''))].sort();
+  const gradeFilter = activeFilters?.grade ?? '';
+  const sideFilter = activeFilters?.side ?? '';
+  const filteredDists = allObjs.filter((o) => {
+    if (!gradeFilter && !sideFilter) return true;
+    const parsed = parseDistrito(o.district ?? '');
+    if (gradeFilter && parsed.grade !== gradeFilter) return false;
+    if (sideFilter && parsed.side !== sideFilter) return false;
+    return true;
+  });
+  const dists = [...new Set(filteredDists.map((o) => o.district ?? ''))].sort();
   const grades = [
     ...new Set(
       allObjs.map((o) => parseDistrito(o.district ?? '').grade).filter(Boolean)
@@ -104,19 +120,25 @@ export function populateFilterDropdowns(store: LoecStore): void {
   ].sort();
 
   const distEl = document.getElementById(
-    'ct-arq-dist-filter'
+    LOEC_DOM_IDS.ARCHIVE_DIST_FILTER
   ) as HTMLSelectElement | null;
   const gradeEl = document.getElementById(
-    'ct-arq-grade-filter'
+    LOEC_DOM_IDS.ARCHIVE_GRADE_FILTER
   ) as HTMLSelectElement | null;
   const sideEl = document.getElementById(
-    'ct-arq-side-filter'
+    LOEC_DOM_IDS.ARCHIVE_SIDE_FILTER
   ) as HTMLSelectElement | null;
 
-  if (distEl)
+  const prevDist = distEl?.value ?? '';
+  if (distEl) {
     distEl.innerHTML =
       '<option value="">Todos os Distritos</option>' +
       dists.map((d) => `<option value="${d}">${d}</option>`).join('');
+    if (prevDist && dists.includes(prevDist)) distEl.value = prevDist;
+    else if (activeFilters?.dist && dists.includes(activeFilters.dist))
+      distEl.value = activeFilters.dist;
+    else distEl.value = '';
+  }
   if (gradeEl)
     gradeEl.innerHTML =
       '<option value="">Todas as Grades</option>' +

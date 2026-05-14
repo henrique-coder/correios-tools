@@ -89,6 +89,8 @@ export async function showTrackingOverlay(
   refreshBtn.style.backgroundColor = '#fff';
   refreshBtn.style.cursor = 'pointer';
   refreshBtn.style.display = 'none';
+  const refreshCooldownSeconds =
+    RUNTIME_DEFAULTS.LIMITS.COOLDOWN.TRACKING_REFRESH;
 
   let currentObjCode = initialObjCode;
   let searchTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -275,7 +277,7 @@ export async function showTrackingOverlay(
 
       refreshBtn.style.display = 'inline-block';
       refreshBtn.disabled = true;
-      let countdown = 5;
+      let countdown = refreshCooldownSeconds;
       refreshBtn.innerText = `Atualizar (${countdown}s)`;
       refreshInterval = setInterval(() => {
         countdown--;
@@ -290,8 +292,19 @@ export async function showTrackingOverlay(
     } catch (err) {
       content.innerHTML = `<div style="text-align:center; padding: 20px; color: #d9534f;">Erro ao buscar dados.</div>`;
       refreshBtn.style.display = 'inline-block';
-      refreshBtn.disabled = false;
-      refreshBtn.innerText = 'Tentar novamente';
+      refreshBtn.disabled = true;
+      let countdown = refreshCooldownSeconds;
+      refreshBtn.innerText = `Tentar novamente (${countdown}s)`;
+      refreshInterval = setInterval(() => {
+        countdown--;
+        if (countdown <= 0) {
+          if (refreshInterval) clearInterval(refreshInterval);
+          refreshBtn.disabled = false;
+          refreshBtn.innerText = 'Tentar novamente';
+        } else {
+          refreshBtn.innerText = `Tentar novamente (${countdown}s)`;
+        }
+      }, 1000);
     }
   };
 

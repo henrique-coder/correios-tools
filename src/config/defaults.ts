@@ -14,9 +14,18 @@ export const RUNTIME_DEFAULTS = Object.freeze({
     FETCH_RES: '_CW_FETCH_RES_'
   }),
   LIMITS: Object.freeze({
-    FETCH_TIMEOUT_MS: 10000,
+    FETCH_TIMEOUT_MS: 15000,
     BLOCKLIST_TIMEOUT_MS: 3500,
-    BLOCKLIST_CACHE_TTL_MS: 300000
+    BLOCKLIST_CACHE_TTL_MS: 300000,
+    LOEC_CONCURRENCY: 4,
+    SRO_BATCH_CONCURRENCY: 4,
+    DETAIL_CONCURRENCY: 5,
+    COOLDOWN: Object.freeze({
+      ARQ_FETCH: 20,
+      RELOAD_SRO: 20,
+      MODAL_RELOAD: 15,
+      TRACKING_REFRESH: 15
+    })
   }),
   URLS: Object.freeze({
     SROWEB_ORIGIN: 'https://sroweb.correios.com.br',

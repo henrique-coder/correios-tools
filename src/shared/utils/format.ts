@@ -35,3 +35,24 @@ export function buildMapUrl(address: {
     .replace(/%2C/g, ',');
   return `https://www.google.com/maps/search/${encoded}`;
 }
+
+export function normalizeTextForCompare(value: string): string {
+  return (value ?? '')
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9]+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
+export function normalizeAddressForSort(address: string): string {
+  const base = normalizeTextForCompare(address);
+  return base
+    .replace(/\b\d+[a-zA-Z]?\b/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+export function getTrackingPrefix(code: string): string {
+  return (code ?? '').trim().toUpperCase().slice(0, 2);
+}

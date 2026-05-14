@@ -116,7 +116,8 @@ export async function fetchObjectsByCategory(
     failed: number
   ) => void,
   onError?: (info: FetchErrorInfo) => void,
-  shouldAbort?: () => boolean
+  shouldAbort?: () => boolean,
+  concurrency = RUNTIME_DEFAULTS.LIMITS.LOEC_CONCURRENCY
 ): Promise<DeliveryObject[]> {
   const targetTable = document.getElementById(LOEC_DOM_IDS.TARGET_TABLE);
   let targetColor: string | null = null;
@@ -159,59 +160,69 @@ export async function fetchObjectsByCategory(
     failed = 0;
   const total = distsToQuery.length;
 
-  for (const dist of distsToQuery) {
-    if (shouldAbort?.()) break;
-    try {
-      const arr = await withTimeout(
-        getLoecObjectsByLancamento(
-          dist.correios_idLancamento,
-          store,
-          fetchProxy
-        ),
-        FETCH_TIMEOUT_MS
-      );
-      success++;
-      for (const rawObj of arr as any[]) {
-        const obj = {
-          correios_cor: rawObj.cor,
-          correios_objeto: rawObj.objeto,
-          correios_endereco: rawObj.endereco,
-          correios_cep: rawObj.cep,
-          correios_dataMaximaEntrega: rawObj.dataMaximaEntrega
-        };
-        if (
-          matchesCategory(
-            obj,
-            catType,
-            normalizeColor(obj.correios_cor),
-            targetColor
-          )
-        ) {
-          allObjs.push({
-            trackingCode: obj.correios_objeto,
-            address: obj.correios_endereco,
-            zipCode: obj.correios_cep,
-            maxDeliveryDate: obj.correios_dataMaximaEntrega,
-            color: obj.correios_cor,
-            district: dist.correios_numeroDistrito,
-            postmanId: dist.correios_matriculaCarteiro,
-            postmanName: dist.correios_nomeCarteiro,
-            sroCode: dist.correios_codigoSro
-          });
+  const queue = [...distsToQuery];
+  const limit = Math.max(1, Math.min(concurrency, queue.length));
+
+  const runWorker = async () => {
+    while (queue.length > 0) {
+      if (shouldAbort?.()) return;
+      const dist = queue.shift();
+      if (!dist) return;
+      try {
+        const arr = await withTimeout(
+          getLoecObjectsByLancamento(
+            dist.correios_idLancamento,
+            store,
+            fetchProxy
+          ),
+          FETCH_TIMEOUT_MS
+        );
+        success++;
+        for (const rawObj of arr as any[]) {
+          const obj = {
+            correios_cor: rawObj.cor,
+            correios_objeto: rawObj.objeto,
+            correios_endereco: rawObj.endereco,
+            correios_cep: rawObj.cep,
+            correios_dataMaximaEntrega: rawObj.dataMaximaEntrega
+          };
+          if (
+            matchesCategory(
+              obj,
+              catType,
+              normalizeColor(obj.correios_cor),
+              targetColor
+            )
+          ) {
+            allObjs.push({
+              trackingCode: obj.correios_objeto,
+              address: obj.correios_endereco,
+              zipCode: obj.correios_cep,
+              maxDeliveryDate: obj.correios_dataMaximaEntrega,
+              color: obj.correios_cor,
+              district: dist.correios_numeroDistrito,
+              postmanId: dist.correios_matriculaCarteiro,
+              postmanName: dist.correios_nomeCarteiro,
+              sroCode: dist.correios_codigoSro
+            });
+          }
         }
+      } catch (err) {
+        failed++;
+        const districtId = (dist.correios_numeroDistrito ?? '').toString();
+        onError?.({
+          districtId,
+          reason: isTimeoutError(err) ? 'timeout' : 'request'
+        });
+      } finally {
+        done++;
+        onProgress(done, total, success, failed);
       }
-    } catch (err) {
-      failed++;
-      const districtId = (dist.correios_numeroDistrito ?? '').toString();
-      onError?.({
-        districtId,
-        reason: isTimeoutError(err) ? 'timeout' : 'request'
-      });
     }
-    done++;
-    onProgress(done, total, success, failed);
-    if (shouldAbort?.()) break;
-  }
+  };
+
+  const workers = Array.from({ length: limit }, runWorker);
+  await Promise.all(workers);
 
   return allObjs;
 }

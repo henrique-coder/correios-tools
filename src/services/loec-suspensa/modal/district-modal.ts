@@ -1,23 +1,51 @@
-import type { LoecStore } from '../state.js';
-import type { DistrictData } from '../state.js';
+import { LOEC_DOM_IDS } from '../../../shared/constants/dom-elements.js';
 import {
-  SROMONITOR_ORIGIN,
-  SROINTRANET_ORIGIN
+  SROINTRANET_ORIGIN,
+  SROMONITOR_ORIGIN
 } from '../../../shared/constants/urls.js';
 import { batchFetchSroIntranet } from '../../../shared/sro/intranet-fetcher.js';
 import { mergeSroCache } from '../../../shared/sro/intranet-parser.js';
 import { getSroStatusColor } from '../../../shared/utils/color.js';
+import {
+  openTextInNewTab,
+  startButtonCooldown
+} from '../../../shared/utils/dom.js';
+import type { DistrictData, LoecStore } from '../state.js';
 import { openImageViewer } from './image-viewer.js';
+
+const MODAL_IDS = Object.freeze({
+  MODAL: LOEC_DOM_IDS.MONITOR_MODAL,
+  CLOSE: 'ct-close-mod',
+  DATE: 'ct-mod-date',
+  PREV: 'ct-mod-prev',
+  NEXT: 'ct-mod-next',
+  RELOAD: 'ct-mod-reload',
+  BODY: 'ct-mod-body',
+  PROGRESS: 'ct-sro-progress',
+  COUNT: 'ct-sro-count',
+  FILTER_OBJ: 'ct-filter-obj',
+  SORT_BY: 'ct-sort-by',
+  FILTER_CAT: 'ct-filter-cat',
+  CAT_ALL: 'ct-cat-all',
+  CAT_NONE: 'ct-cat-none',
+  TBODY: 'ct-tbody',
+  EMPTY_MSG: 'ct-empty-msg'
+});
+
+const MODAL_CLASSES = Object.freeze({
+  BTN_IMG: 'ct-btn-img',
+  BTN_OPEN_TEXT: 'ct-btn-open-text'
+});
 
 export function openDistrictModal(
   d: DistrictData,
   store: LoecStore,
   fetchProxy: (url: string) => Promise<string>
 ): void {
-  let modal = document.getElementById('ct-mon-modal');
+  let modal = document.getElementById(MODAL_IDS.MODAL);
   if (!modal) {
     modal = document.createElement('div');
-    modal.id = 'ct-mon-modal';
+    modal.id = MODAL_IDS.MODAL;
     modal.style.cssText =
       'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,.6);z-index:9999999;display:none;align-items:center;justify-content:center;backdrop-filter:blur(3px)';
     document.body.appendChild(modal);
@@ -32,61 +60,60 @@ export function openDistrictModal(
     <div style="background:#00416B;padding:16px 24px;display:flex;justify-content:space-between;align-items:center;border-bottom:4px solid #FFE600">
       <div style="color:#fff"><h2 style="margin:0;font-size:22px;font-weight:800;color:#fff">DISTRITO ${d.correios_numeroDistrito}</h2>
       <div style="font-size:14px;color:#FFE600;font-weight:700;margin-top:4px;text-transform:uppercase">${d.correios_nomeCarteiro ?? 'SEM NOME'} &nbsp;|&nbsp; MATRÍCULA: ${d.correios_matriculaCarteiro ?? '--'}</div></div>
-      <button id="ct-close-mod" style="background:transparent;border:none;color:#fff;font-size:28px;cursor:pointer;padding:0;line-height:1" onmouseover="this.style.color='#FFE600'" onmouseout="this.style.color='#fff'">×</button>
+      <button id="${MODAL_IDS.CLOSE}" style="background:transparent;border:none;color:#fff;font-size:28px;cursor:pointer;padding:0;line-height:1" onmouseover="this.style.color='#FFE600'" onmouseout="this.style.color='#fff'">×</button>
     </div>
     <div style="padding:16px 24px;background:#f8fafc;border-bottom:1px solid #e2e8f0;display:flex;gap:16px;align-items:center">
       <div style="display:flex;flex-direction:column;flex:1;max-width:300px">
         <label style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;margin-bottom:4px">Data do Relatório SRO Monitor</label>
         <div style="display:flex;align-items:center;gap:8px">
-          <button id="ct-mod-prev" style="background:#e2e8f0;border:1px solid #cbd5e1;color:#334155;border-radius:6px;width:34px;height:34px;cursor:pointer;font-weight:bold;font-size:16px;display:flex;align-items:center;justify-content:center">◄</button>
-          <input type="date" id="ct-mod-date" value="${defDate}" style="padding:0 12px;height:34px;border:1px solid #cbd5e1;border-radius:6px;font-family:inherit;font-size:14px;color:#334155;outline:none;flex:1">
-          <button id="ct-mod-next" style="background:#e2e8f0;border:1px solid #cbd5e1;color:#334155;border-radius:6px;width:34px;height:34px;cursor:pointer;font-weight:bold;font-size:16px;display:flex;align-items:center;justify-content:center">►</button>
+          <button id="${MODAL_IDS.PREV}" style="background:#e2e8f0;border:1px solid #cbd5e1;color:#334155;border-radius:6px;width:34px;height:34px;cursor:pointer;font-weight:bold;font-size:16px;display:flex;align-items:center;justify-content:center">◄</button>
+          <input type="date" id="${MODAL_IDS.DATE}" value="${defDate}" style="padding:0 12px;height:34px;border:1px solid #cbd5e1;border-radius:6px;font-family:inherit;font-size:14px;color:#334155;outline:none;flex:1">
+          <button id="${MODAL_IDS.NEXT}" style="background:#e2e8f0;border:1px solid #cbd5e1;color:#334155;border-radius:6px;width:34px;height:34px;cursor:pointer;font-weight:bold;font-size:16px;display:flex;align-items:center;justify-content:center">►</button>
         </div>
       </div>
       <div style="flex:1;display:flex;justify-content:flex-end;align-items:center">
-        <button id="ct-mod-reload" style="background:#3b82f6;color:#fff;border:none;border-radius:6px;padding:0 20px;height:34px;font-weight:600;font-size:13px;cursor:pointer;min-width:180px;white-space:nowrap;transition:all 0.2s;display:flex;justify-content:center;align-items:center">↻ Atualizar Relatório</button>
+        <button id="${MODAL_IDS.RELOAD}" style="background:#3b82f6;color:#fff;border:none;border-radius:6px;padding:0 20px;height:34px;font-weight:600;font-size:13px;cursor:pointer;min-width:180px;white-space:nowrap;transition:all 0.2s;display:flex;justify-content:center;align-items:center">↻ Atualizar Relatório</button>
       </div>
     </div>
-    <div id="ct-mod-body" style="flex:1;overflow-y:auto;padding:24px;background:#f1f5f9"></div>
+    <div id="${MODAL_IDS.BODY}" style="flex:1;overflow-y:auto;padding:24px;background:#f1f5f9"></div>
   </div>`;
 
-  document.getElementById('ct-close-mod')!.onclick = () => {
+  document.getElementById(MODAL_IDS.CLOSE)!.onclick = () => {
     modal!.style.display = 'none';
   };
 
-  const dtInput = document.getElementById('ct-mod-date') as HTMLInputElement;
-  const btnPrev = document.getElementById('ct-mod-prev')!;
-  const btnNext = document.getElementById('ct-mod-next')!;
-  const btnReload = document.getElementById('ct-mod-reload')!;
-  const body = document.getElementById('ct-mod-body')!;
+  const dtInput = document.getElementById(MODAL_IDS.DATE) as HTMLInputElement;
+  const btnPrev = document.getElementById(MODAL_IDS.PREV) as HTMLButtonElement;
+  const btnNext = document.getElementById(MODAL_IDS.NEXT) as HTMLButtonElement;
+  const btnReload = document.getElementById(
+    MODAL_IDS.RELOAD
+  ) as HTMLButtonElement;
+  const body = document.getElementById(MODAL_IDS.BODY)!;
+
+  const reloadCooldown = 15;
 
   const setLoading = () => {
-    [dtInput, btnPrev, btnNext, btnReload].forEach((el) => {
+    [dtInput, btnPrev, btnNext].forEach((el) => {
       (el as HTMLElement).style.pointerEvents = 'none';
     });
-    (dtInput as HTMLInputElement).style.opacity = '0.5';
-    (btnReload as HTMLElement).style.opacity = '0.5';
-    (btnReload as HTMLElement).innerHTML = '⏳ Aguardando...';
+    dtInput.style.opacity = '0.5';
+    btnReload.disabled = true;
+    btnReload.style.opacity = '0.5';
+    btnReload.innerHTML = '⏳ Aguardando...';
   };
 
   const setReady = () => {
     [dtInput, btnPrev, btnNext].forEach((el) => {
       (el as HTMLElement).style.pointerEvents = 'auto';
     });
-    (dtInput as HTMLInputElement).style.opacity = '1';
-    let left = 5;
-    (btnReload as HTMLElement).innerHTML = `⏳ Aguarde ${left}s`;
-    const iv = setInterval(() => {
-      left--;
-      if (left <= 0) {
-        clearInterval(iv);
-        (btnReload as HTMLElement).style.pointerEvents = 'auto';
-        (btnReload as HTMLElement).style.opacity = '1';
-        (btnReload as HTMLElement).innerHTML = '↻ Atualizar Relatório';
-      } else {
-        (btnReload as HTMLElement).innerHTML = `⏳ Aguarde ${left}s`;
-      }
-    }, 1000);
+    dtInput.style.opacity = '1';
+    btnReload.style.opacity = '1';
+    startButtonCooldown(
+      btnReload,
+      reloadCooldown,
+      (left) => `⏳ Aguarde ${left}s`,
+      '↻ Atualizar Relatório'
+    );
   };
 
   const run = () => {
@@ -188,8 +215,7 @@ function renderModalBody(
         `<div style="background:#fff;padding:14px 18px;border-radius:6px;border-left:5px solid #3b82f6;display:flex;justify-content:space-between;align-items:center;box-shadow:0 1px 2px rgba(0,0,0,.05);border:1px solid #e2e8f0">
       <span style="font-size:12px;font-weight:800;color:#334155;text-transform:uppercase">${cat}</span>
       <div style="display:flex;align-items:center;gap:12px">
-        <button class="ct-btn-copy" data-cat="${cat}" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:4px;color:#3b82f6;padding:4px 8px;cursor:pointer;font-weight:bold;font-size:10px">📋</button>
-        <button class="ct-btn-export" data-cat="${cat}" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:4px;color:#334155;padding:4px 8px;cursor:pointer;font-weight:bold;font-size:10px">📥 TXT</button>
+        <button class="${MODAL_CLASSES.BTN_OPEN_TEXT}" data-cat="${cat}" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:4px;color:#334155;padding:4px 8px;cursor:pointer;font-weight:bold;font-size:10px">📄 Abrir</button>
         <span style="font-size:18px;font-weight:900;color:#0f172a;width:40px;text-align:right">${count}</span>
       </div>
     </div>`
@@ -201,18 +227,18 @@ function renderModalBody(
       <div style="flex:1;min-width:300px;background:#fff;padding:20px;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.05);border:1px solid #e2e8f0;height:300px;position:relative"><canvas id="${cid}"></canvas></div>
       <div style="flex:1;min-width:300px;display:flex;flex-direction:column;gap:12px;height:300px;overflow-y:auto;padding-right:10px">${statsHtml}</div>
     </div>
-    <div id="ct-sro-progress" style="background:#fff;padding:16px;border-radius:8px;border:1px solid #e2e8f0;margin-bottom:16px;font-weight:bold;color:#3b82f6;display:flex;align-items:center;gap:12px">
-      ⏳ Sincronizando com SRO Intranet: <span id="ct-sro-count">0</span> / ${list.length} objetos carregados...
+    <div id="${MODAL_IDS.PROGRESS}" style="background:#fff;padding:16px;border-radius:8px;border:1px solid #e2e8f0;margin-bottom:16px;font-weight:bold;color:#3b82f6;display:flex;align-items:center;gap:12px">
+      ⏳ Sincronizando com SRO Intranet: <span id="${MODAL_IDS.COUNT}">0</span> / ${list.length} objetos carregados...
     </div>
     <div style="background:#fff;padding:16px;border-radius:8px;border:1px solid #e2e8f0;margin-bottom:16px">
       <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">
         <div style="flex:1;min-width:150px">
           <span style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;display:block;margin-bottom:6px">Pesquisa de Objeto:</span>
-          <input type="text" id="ct-filter-obj" placeholder="Ex: NX123456789BR..." style="width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:6px;font-family:inherit;outline:none">
+          <input type="text" id="${MODAL_IDS.FILTER_OBJ}" placeholder="Ex: NX123456789BR..." style="width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:6px;font-family:inherit;outline:none">
         </div>
         <div style="flex:1;min-width:150px">
           <span style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;display:block;margin-bottom:6px">Ordenação:</span>
-          <select id="ct-sort-by" style="width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:6px;font-family:inherit;outline:none;background:#fff">
+          <select id="${MODAL_IDS.SORT_BY}" style="width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:6px;font-family:inherit;outline:none;background:#fff">
             <option value="default">Padrão</option>
             <option value="motivo_asc">Motivo (A-Z)</option>
             <option value="motivo_desc">Motivo (Z-A)</option>
@@ -224,11 +250,11 @@ function renderModalBody(
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
           <span style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase">Filtro por Categorias:</span>
           <div style="display:flex;gap:8px">
-            <button id="ct-cat-all" style="padding:6px 12px;font-size:11px;border-radius:4px;border:1px solid #cbd5e1;background:#f8fafc;cursor:pointer;font-weight:600;color:#334155;white-space:nowrap;min-width:max-content">Selecionar Tudo</button>
-            <button id="ct-cat-none" style="padding:6px 12px;font-size:11px;border-radius:4px;border:1px solid #cbd5e1;background:#f8fafc;cursor:pointer;font-weight:600;color:#334155;white-space:nowrap;min-width:max-content">Remover Seleção</button>
+            <button id="${MODAL_IDS.CAT_ALL}" style="padding:6px 12px;font-size:11px;border-radius:4px;border:1px solid #cbd5e1;background:#f8fafc;cursor:pointer;font-weight:600;color:#334155;white-space:nowrap;min-width:max-content">Selecionar Tudo</button>
+            <button id="${MODAL_IDS.CAT_NONE}" style="padding:6px 12px;font-size:11px;border-radius:4px;border:1px solid #cbd5e1;background:#f8fafc;cursor:pointer;font-weight:600;color:#334155;white-space:nowrap;min-width:max-content">Remover Seleção</button>
           </div>
         </div>
-        <div id="ct-filter-cat" style="display:flex;gap:8px;flex-wrap:wrap">
+        <div id="${MODAL_IDS.FILTER_CAT}" style="display:flex;gap:8px;flex-wrap:wrap">
           ${cats.map((k, idx) => `<label style="background:#f1f5f9;padding:6px 12px;border-radius:20px;font-size:11px;cursor:pointer;display:flex;align-items:center;gap:6px;border:1px solid #cbd5e1;color:#334155;font-weight:600"><input type="checkbox" value="${k}" checked id="ct-chk-${idx}" style="cursor:pointer;margin:0"> ${k}</label>`).join('')}
         </div>
       </div>
@@ -244,17 +270,19 @@ function renderModalBody(
             <th style="padding:12px 20px;color:#fff;font-weight:800;text-transform:uppercase;width:120px;text-align:center">Comprovante</th>
           </tr>
         </thead>
-        <tbody id="ct-tbody"></tbody>
+        <tbody id="${MODAL_IDS.TBODY}"></tbody>
       </table>
-      <div id="ct-empty-msg" style="padding:24px;text-align:center;color:#64748b;font-weight:bold;font-size:13px;background:#f8fafc;border-top:1px solid #e2e8f0;display:none">Nenhum objeto corresponde aos filtros.</div>
+      <div id="${MODAL_IDS.EMPTY_MSG}" style="padding:24px;text-align:center;color:#64748b;font-weight:bold;font-size:13px;background:#f8fafc;border-top:1px solid #e2e8f0;display:none">Nenhum objeto corresponde aos filtros.</div>
     </div>`;
 
-  const tbody = document.getElementById('ct-tbody')!;
-  const emptyMsg = document.getElementById('ct-empty-msg')!;
+  const tbody = document.getElementById(MODAL_IDS.TBODY)!;
+  const emptyMsg = document.getElementById(MODAL_IDS.EMPTY_MSG)!;
   const txtFilter = document.getElementById(
-    'ct-filter-obj'
+    MODAL_IDS.FILTER_OBJ
   ) as HTMLInputElement;
-  const sortFilter = document.getElementById('ct-sort-by') as HTMLSelectElement;
+  const sortFilter = document.getElementById(
+    MODAL_IDS.SORT_BY
+  ) as HTMLSelectElement;
   const chks = Array.from(
     document.querySelectorAll<HTMLInputElement>(
       '#ct-filter-cat input[type="checkbox"]'
@@ -311,14 +339,14 @@ function renderModalBody(
         <td style="padding:12px 20px;font-weight:700;font-size:12px">${item.mot}</td>
         <td style="padding:12px 20px;color:${sitColor};font-weight:${item.sitSro ? '800' : '500'};font-size:11px;text-transform:uppercase">${item.sitSro ?? 'Aguardando SRO...'}</td>
         <td style="padding:12px 20px;color:#64748b;font-weight:600;font-size:12px">${item.dhSro ?? '--'}</td>
-        <td style="padding:12px 20px;text-align:center">${isoDh ? `<button class="ct-btn-img" data-obj="${item.obj}" data-dh="${isoDh}" style="background:#10b981;border:none;border-radius:4px;color:#fff;padding:6px 10px;cursor:pointer;font-weight:bold;font-size:11px">VER</button>` : '--'}</td>
+        <td style="padding:12px 20px;text-align:center">${isoDh ? `<button class="${MODAL_CLASSES.BTN_IMG}" data-obj="${item.obj}" data-dh="${isoDh}" style="background:#10b981;border:none;border-radius:4px;color:#fff;padding:6px 10px;cursor:pointer;font-weight:bold;font-size:11px">VER</button>` : '--'}</td>
       </tr>`;
       })
       .join('');
 
     store.modalRenderId = Symbol();
     const myRenderId = store.modalRenderId;
-    const progDiv = document.getElementById('ct-sro-progress');
+    const progDiv = document.getElementById(MODAL_IDS.PROGRESS);
     const toFetch = filteredList.filter((i) => {
       const ck = store.sroIntranetCache[i.obj];
       if (ck?.sit) {
@@ -341,7 +369,7 @@ function renderModalBody(
       }
 
       if (progDiv)
-        progDiv.innerHTML = `⏳ Sincronizando com SRO Intranet: <span id="ct-sro-count">0</span> / ${toFetch.length} novos objetos...`;
+        progDiv.innerHTML = `⏳ Sincronizando com SRO Intranet: <span id="${MODAL_IDS.COUNT}">0</span> / ${toFetch.length} novos objetos...`;
 
       batchFetchSroIntranet({
         fetchFn: fetchProxy,
@@ -349,6 +377,7 @@ function renderModalBody(
         existingCache: store.sroIntranetCache,
         renderId: myRenderId,
         getRenderId: () => store.modalRenderId,
+        concurrency: RUNTIME_DEFAULTS.LIMITS.SRO_BATCH_CONCURRENCY,
         onBatchDone: (resolved, done) => {
           if (store.modalRenderId !== myRenderId) return;
           store.sroIntranetCache = mergeSroCache(
@@ -370,7 +399,7 @@ function renderModalBody(
               }
             }
           }
-          const lbl = document.getElementById('ct-sro-count');
+          const lbl = document.getElementById(MODAL_IDS.COUNT);
           if (lbl) lbl.innerText = String(done);
         },
         onComplete: () => {
@@ -396,11 +425,11 @@ function renderModalBody(
       renderTable();
     })
   );
-  document.getElementById('ct-cat-all')!.addEventListener('click', () => {
+  document.getElementById(MODAL_IDS.CAT_ALL)!.addEventListener('click', () => {
     chks.forEach((c) => (c.checked = true));
     renderTable();
   });
-  document.getElementById('ct-cat-none')!.addEventListener('click', () => {
+  document.getElementById(MODAL_IDS.CAT_NONE)!.addEventListener('click', () => {
     chks.forEach((c) => (c.checked = false));
     renderTable();
   });
@@ -409,13 +438,10 @@ function renderModalBody(
   let lastExportClick = 0;
   body.addEventListener('click', (e) => {
     const btnImg = (e.target as HTMLElement).closest<HTMLElement>(
-      '.ct-btn-img'
+      `.${MODAL_CLASSES.BTN_IMG}`
     );
-    const btnExport = (e.target as HTMLElement).closest<HTMLElement>(
-      '.ct-btn-export'
-    );
-    const btnCopy = (e.target as HTMLElement).closest<HTMLElement>(
-      '.ct-btn-copy'
+    const btnOpen = (e.target as HTMLElement).closest<HTMLElement>(
+      `.${MODAL_CLASSES.BTN_OPEN_TEXT}`
     );
 
     if (btnImg) {
@@ -423,25 +449,14 @@ function renderModalBody(
       return;
     }
 
-    if (btnExport || btnCopy) {
+    if (btnOpen) {
       if (Date.now() - lastExportClick < 1000) return;
       lastExportClick = Date.now();
-      const target = btnExport ?? btnCopy!;
-      const cat = target.dataset.cat!;
+      const cat = btnOpen.dataset.cat!;
       const catList = list.filter((i) => i.mot === cat).map((i) => i.obj);
       const header = `Nome: ${d.correios_nomeCarteiro ?? 'N/A'} - Matrícula: ${d.correios_matriculaCarteiro ?? '00000000'} - Unidade: ${d.correios_codigoSro ?? '00000000'} - Quantidade: ${catList.length} - Categoria: ${cat}`;
       const content = [header, ...catList].join('\r\n');
-      if (btnCopy) {
-        navigator.clipboard.writeText(content);
-      } else {
-        const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = `${d.correios_codigoSro ?? '00000000'}_${d.correios_matriculaCarteiro ?? '00000000'}_${cat.replace(/\s+/g, '_')}.txt`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      }
+      openTextInNewTab(content);
     }
   });
 
