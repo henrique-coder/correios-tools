@@ -1,10 +1,25 @@
 import { DOM_IDS } from '../../shared/constants/dom-elements.js';
 import type { DispatchState } from './state.js';
+import { waitForElement } from '../../shared/utils/dom.js';
 
 type CommandFn = (
   state: DispatchState,
   lastInducedValue: string | null
 ) => void;
+
+let autoInductionUntil = 0;
+
+export function setAutoInductionGuard(durationMs: number): void {
+  autoInductionUntil = Math.max(autoInductionUntil, Date.now() + durationMs);
+}
+
+export function clearAutoInductionGuard(): void {
+  autoInductionUntil = 0;
+}
+
+export function isAutoInductionGuardActive(): boolean {
+  return Date.now() < autoInductionUntil;
+}
 
 export const COMMANDS: Record<string, CommandFn> = {
   'CT-INDUZIROBJETO': (state, _lastInducedValue) => {
@@ -28,63 +43,39 @@ export const COMMANDS: Record<string, CommandFn> = {
     const delay =
       modalA && modalA.offsetParent !== null ? (modalA.click(), 300) : 0;
 
-    setTimeout(() => {
-      let tries = 0;
-      const poll = setInterval(() => {
-        const txtNum = document.getElementById(
-          DOM_IDS.ADDRESS_NUMBER_INPUT
-        ) as HTMLInputElement | null;
-        if (txtNum) {
-          clearInterval(poll);
-          setTimeout(() => {
-            const v = txtNum.value.trim().toUpperCase();
-            const isInvalid =
-              v === '' || v === 'N/A' || v === 'S/A' || v === 'S/N';
+    setTimeout(async () => {
+      try {
+        const txtNum = await waitForElement<HTMLInputElement>(
+          `#${DOM_IDS.ADDRESS_NUMBER_INPUT}`,
+          100,
+          30
+        );
 
-            if (isInvalid && state.code !== '--') {
-              txtNum.focus();
-              txtNum.select();
-              setAutoInductionGuard(3000);
-              setTimeout(clearAutoInductionGuard, 3000);
-              return;
-            }
+        await new Promise((resolve) => setTimeout(resolve, 200));
 
-            txtNum.blur();
-            if (document.activeElement)
-              (document.activeElement as HTMLElement).blur();
-
-            setTimeout(() => {
-              if (!btnInc) return;
-              setAutoInductionGuard(3000);
-              btnInc.click();
-              let waitTries = 0;
-              const waitPoll = setInterval(() => {
-                if (txtObj && txtObj.value === '') {
-                  clearInterval(waitPoll);
-                  txtObj.focus();
-                  setTimeout(clearAutoInductionGuard, 1500);
-                }
-                if (++waitTries > 100) clearInterval(waitPoll);
-              }, 100);
-            }, 200);
-          }, 200);
+        txtNum.blur();
+        if (document.activeElement) {
+          (document.activeElement as HTMLElement).blur();
         }
-        if (++tries > 60) clearInterval(poll);
-      }, 50);
+
+        await new Promise((resolve) => setTimeout(resolve, 200));
+
+        if (!btnInc) return;
+        setAutoInductionGuard(3000);
+        btnInc.click();
+
+        let waitTries = 0;
+        const waitPoll = setInterval(() => {
+          if (txtObj && txtObj.value === '') {
+            clearInterval(waitPoll);
+            txtObj.focus();
+            setTimeout(clearAutoInductionGuard, 1500);
+          }
+          if (++waitTries > 100) clearInterval(waitPoll);
+        }, 100);
+      } catch (err) {
+        // Ignorado, apenas loga e desiste caso o elemento não surja
+      }
     }, delay);
   }
 };
-
-let autoInductionUntil = 0;
-
-export function setAutoInductionGuard(durationMs: number): void {
-  autoInductionUntil = Math.max(autoInductionUntil, Date.now() + durationMs);
-}
-
-export function clearAutoInductionGuard(): void {
-  autoInductionUntil = 0;
-}
-
-export function isAutoInductionGuardActive(): boolean {
-  return Date.now() < autoInductionUntil;
-}
