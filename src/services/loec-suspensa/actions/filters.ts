@@ -130,6 +130,9 @@ export function populateFilterDropdowns(
   ) as HTMLSelectElement | null;
 
   const prevDist = distEl?.value ?? '';
+  const prevGrade = gradeEl?.value ?? '';
+  const prevSide = sideEl?.value ?? '';
+
   if (distEl) {
     distEl.innerHTML =
       '<option value="">Todos os Distritos</option>' +
@@ -139,12 +142,22 @@ export function populateFilterDropdowns(
       distEl.value = activeFilters.dist;
     else distEl.value = '';
   }
-  if (gradeEl)
+  if (gradeEl) {
     gradeEl.innerHTML =
       '<option value="">Todas as Grades</option>' +
       grades.map((g) => `<option value="${g}">Grade ${g}</option>`).join('');
-  if (sideEl)
+    if (prevGrade && grades.includes(prevGrade)) gradeEl.value = prevGrade;
+    else if (activeFilters?.grade && grades.includes(activeFilters.grade))
+      gradeEl.value = activeFilters.grade;
+    else gradeEl.value = '';
+  }
+  if (sideEl) {
     sideEl.innerHTML =
       '<option value="">Todos os Lados</option>' +
       sides.map((s) => `<option value="${s}">Lado ${s}</option>`).join('');
+    if (prevSide && sides.includes(prevSide)) sideEl.value = prevSide;
+    else if (activeFilters?.side && sides.includes(activeFilters.side))
+      sideEl.value = activeFilters.side;
+    else sideEl.value = '';
+  }
 }
