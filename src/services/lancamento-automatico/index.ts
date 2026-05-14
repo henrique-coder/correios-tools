@@ -46,6 +46,7 @@ export function runAutoDispatchService(
   registerXhrTrigger('listar-impressoras-disponiveis', triggerAutoClose);
 
   async function setupWatchers(): Promise<void> {
+    triggerAutoClose();
     injectTable();
 
     let inp: HTMLInputElement;
@@ -131,7 +132,6 @@ export function runAutoDispatchService(
       .then((sel) => setupDistrictWatcher(stateRef, render, sel))
       .catch(() => undefined);
 
-    triggerAutoClose();
     render();
 
     document.body.addEventListener('change', (e) => {

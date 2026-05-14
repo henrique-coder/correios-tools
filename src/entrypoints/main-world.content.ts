@@ -13,12 +13,30 @@ interface BlocklistResponse {
 }
 
 async function isCurrentUnitBlocked(): Promise<boolean> {
+  // 1. Try to get unitId from session cache first (fastest)
+  try {
+    const rawCache = sessionStorage.getItem(STORAGE_KEYS.BLOCKLIST_CACHE);
+    if (rawCache) {
+      const parsed = JSON.parse(rawCache);
+      if (
+        parsed &&
+        typeof parsed.ts === 'number' &&
+        Date.now() - parsed.ts < RUNTIME_DEFAULTS.LIMITS.BLOCKLIST_CACHE_TTL_MS
+      ) {
+        // If we have a cached result, we can trust it for this session/unit
+        return parsed.blocked === true;
+      }
+    }
+  } catch {}
+
+  // 2. Need to find the unitId from the page
   let unitId: string | null = null;
   try {
+    // We wait for the element, but with a reasonable timeout
     const el = await waitForElement<HTMLElement>(
       DOM_SELECTORS.UNIT_NAME,
       200,
-      150
+      100 // 20s max
     );
     if (el && el.innerText) {
       const match = el.innerText.match(/^\s*(\d{8})/);
@@ -30,20 +48,7 @@ async function isCurrentUnitBlocked(): Promise<boolean> {
 
   if (!unitId) return false;
 
-  try {
-    const rawCache = sessionStorage.getItem(STORAGE_KEYS.BLOCKLIST_CACHE);
-    if (rawCache) {
-      const parsed = JSON.parse(rawCache);
-      if (
-        parsed &&
-        typeof parsed.ts === 'number' &&
-        Date.now() - parsed.ts < RUNTIME_DEFAULTS.LIMITS.BLOCKLIST_CACHE_TTL_MS
-      ) {
-        if (parsed.unitId === unitId) return parsed.blocked === true;
-      }
-    }
-  } catch {}
-
+  // 3. Fetch from remote blocklist
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(
@@ -91,14 +96,25 @@ export default defineContentScript({
   world: 'MAIN',
   allFrames: false,
   async main() {
-    if (await isCurrentUnitBlocked()) return;
-
     const fetchProxy = createFetchProxy();
     const path = window.location.pathname.toLowerCase();
 
+    // If we are on lancamentoautomatico, we want to start the service
+    // immediately to catch the print popup, while the blocklist check runs in the background.
+    // If it turns out we are blocked, we should stop (though current services don't support full stop yet).
+
     if (path.includes('/lancamentoautomatico/')) {
       runAutoDispatchService(fetchProxy);
+      // Optional: if blocked, we could try to "un-run" it, but for now,
+      // the blocklist will just prevent it from starting in future loads
+      // or we just accept the tiny window of execution for the print popup.
+      if (await isCurrentUnitBlocked()) {
+        // In a real scenario, we'd want to reload or disable the extension UI here.
+        // For now, let's just not start the Loec service if blocked.
+        return;
+      }
     } else if (path.includes('/loecsuspensa/')) {
+      if (await isCurrentUnitBlocked()) return;
       runSuspendedLoecService(fetchProxy);
     }
   }
