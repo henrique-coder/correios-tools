@@ -1,3 +1,4 @@
+import { RUNTIME_DEFAULTS } from '../../../config/defaults.js';
 import {
   LOEC_DOM_IDS,
   LOEC_DOM_SELECTORS

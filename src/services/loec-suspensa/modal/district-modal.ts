@@ -1,3 +1,4 @@
+import { RUNTIME_DEFAULTS } from '../../../config/defaults.js';
 import { LOEC_DOM_IDS } from '../../../shared/constants/dom-elements.js';
 import {
   SROINTRANET_ORIGIN,

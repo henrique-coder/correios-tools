@@ -3,7 +3,8 @@ import { STORAGE_KEYS } from '../../shared/constants/storage-keys.js';
 
 let autoCloseEnabled =
   window.localStorage.getItem(STORAGE_KEYS.AUTO_CLOSE_PRINT) !== '0';
-let atcTimer: ReturnType<typeof setInterval> | null = null;
+
+let observer: MutationObserver | null = null;
 let okTimer: ReturnType<typeof setInterval> | null = null;
 
 export function isAutoCloseEnabled(): boolean {
@@ -16,12 +17,17 @@ export function setAutoClose(enabled: boolean): void {
     STORAGE_KEYS.AUTO_CLOSE_PRINT,
     enabled ? '1' : '0'
   );
+  if (enabled) {
+    startObserver();
+  } else {
+    stopObserver();
+  }
 }
 
-function stopWatchers(): void {
-  if (atcTimer) {
-    clearInterval(atcTimer);
-    atcTimer = null;
+function stopObserver(): void {
+  if (observer) {
+    observer.disconnect();
+    observer = null;
   }
   if (okTimer) {
     clearInterval(okTimer);
@@ -29,17 +35,31 @@ function stopWatchers(): void {
   }
 }
 
-export function triggerAutoClose(): void {
-  if (!autoCloseEnabled) {
-    stopWatchers();
-    return;
-  }
+function clickOkButton() {
+  if (okTimer) clearInterval(okTimer);
+  let waitTries = 0;
+  okTimer = setInterval(() => {
+    const ok = document.querySelector<HTMLElement>(
+      DOM_SELECTORS.ALERT_OK_BUTTON
+    );
+    if (ok?.innerText === 'OK') {
+      ok.click();
+      clearInterval(okTimer!);
+      okTimer = null;
+    }
+    if (++waitTries >= 50 && okTimer) {
+      clearInterval(okTimer!);
+      okTimer = null;
+    }
+  }, 100);
+}
 
-  stopWatchers();
-  window.addEventListener('pagehide', stopWatchers, { once: true });
-  let tries = 0;
+function startObserver(): void {
+  if (observer || !document.body) return;
 
-  atcTimer = setInterval(() => {
+  observer = new MutationObserver(() => {
+    if (!autoCloseEnabled) return;
+
     const btn = document.getElementById(DOM_IDS.PRINT_NO_BUTTON);
     if (btn && btn.offsetParent !== null) {
       btn.click();
@@ -50,28 +70,40 @@ export function triggerAutoClose(): void {
           view: window
         })
       );
-      clearInterval(atcTimer!);
-      atcTimer = null;
+      clickOkButton();
+    }
+  });
 
-      let waitTries = 0;
-      okTimer = setInterval(() => {
-        const ok = document.querySelector<HTMLElement>(
-          DOM_SELECTORS.ALERT_OK_BUTTON
-        );
-        if (ok?.innerText === 'OK') {
-          ok.click();
-          clearInterval(okTimer!);
-          okTimer = null;
-        }
-        if (++waitTries >= 50 && okTimer) {
-          clearInterval(okTimer!);
-          okTimer = null;
-        }
-      }, 100);
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true
+  });
+}
+
+export function triggerAutoClose(): void {
+  if (!autoCloseEnabled) {
+    stopObserver();
+    return;
+  }
+
+  if (document.body) {
+    startObserver();
+
+    const btn = document.getElementById(DOM_IDS.PRINT_NO_BUTTON);
+    if (btn && btn.offsetParent !== null) {
+      btn.click();
+      btn.dispatchEvent(
+        new MouseEvent('click', {
+          bubbles: true,
+          cancelable: true,
+          view: window
+        })
+      );
+      clickOkButton();
     }
-    if (++tries >= 50 && atcTimer) {
-      clearInterval(atcTimer!);
-      atcTimer = null;
-    }
-  }, 200);
+  } else {
+    document.addEventListener('DOMContentLoaded', () => {
+      triggerAutoClose();
+    });
+  }
 }
