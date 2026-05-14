@@ -1,5 +1,6 @@
 import { SROINTRANET_ORIGIN } from '../../../shared/constants/urls.js';
 import type { FetchProxyOptions } from '../../../shared/fetch/proxy.js';
+import { RUNTIME_DEFAULTS } from '../../../config/defaults.js';
 import { fetchDetailedTracking } from '../../../shared/sro/intranet-fetcher.js';
 
 let activeOverlay: HTMLElement | null = null;
