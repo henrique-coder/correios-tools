@@ -38,7 +38,6 @@ export function closeCepSearchOverlay(): void {
 export async function showCepSearchOverlay(
   fetchProxy: (url: string, options?: FetchProxyOptions) => Promise<string>
 ): Promise<void> {
-  // Close the tracking overlay if open
   const trackingOverlay = document.getElementById('cw-tracking-overlay');
   if (trackingOverlay) {
     window.dispatchEvent(new Event('cw-close-tracking'));
@@ -106,7 +105,6 @@ export async function showCepSearchOverlay(
   content.style.flex = '1';
   content.style.overflow = 'hidden';
 
-  // Left Column: Search
   const searchCol = document.createElement('div');
   searchCol.style.flex = '1';
   searchCol.style.padding = '24px';
@@ -183,7 +181,7 @@ export async function showCepSearchOverlay(
   suggestionsContainer.style.borderTop = 'none';
   suggestionsContainer.style.borderBottomLeftRadius = '8px';
   suggestionsContainer.style.borderBottomRightRadius = '8px';
-  suggestionsContainer.style.maxHeight = '250px';
+  suggestionsContainer.style.maxHeight = '140px';
   suggestionsContainer.style.overflowY = 'auto';
   suggestionsContainer.style.zIndex = '10';
   suggestionsContainer.style.display = 'none';
@@ -199,7 +197,6 @@ export async function showCepSearchOverlay(
   resultContainer.style.marginTop = '8px';
   searchCol.appendChild(resultContainer);
 
-  // Right Column: History
   const historyCol = document.createElement('div');
   historyCol.style.width = '350px';
   historyCol.style.padding = '24px';
@@ -255,13 +252,6 @@ export async function showCepSearchOverlay(
     hideSuggestions: boolean,
     isHistory = false
   ) => {
-    console.log('[CW-DEBUG] renderResult called', {
-      addressData,
-      districts,
-      hideSuggestions,
-      isHistory
-    });
-
     if (!isHistory) {
       resultContainer.innerHTML = '';
     }
@@ -273,6 +263,7 @@ export async function showCepSearchOverlay(
     const card = document.createElement('div');
     card.className = 'cw-cep-result-card';
     card.setAttribute('data-cep', addressData?.cep || '');
+    card.setAttribute('data-numero', addressData?._numero || '');
     card.style.backgroundColor = '#fff';
     card.style.border = '2px solid #e2e8f0';
     card.style.borderRadius = '12px';
@@ -282,11 +273,6 @@ export async function showCepSearchOverlay(
     card.style.gap = isHistory ? '8px' : '16px';
     card.style.boxShadow = '0 4px 6px -1px rgba(0,0,0,0.1)';
 
-    if (isHistory) {
-      card.style.fontSize = '12px';
-    }
-
-    // Address Header
     const addrSection = document.createElement('div');
     const addrTitle = document.createElement('div');
     addrTitle.className = 'cw-d-title';
@@ -294,7 +280,7 @@ export async function showCepSearchOverlay(
     addrTitle.style.fontWeight = 'bold';
     addrTitle.style.color = '#1e293b';
     addrTitle.style.marginBottom = '8px';
-    addrTitle.innerHTML = isHistory ? 'Dados do Endereço' : 'Dados do Endereço';
+    addrTitle.innerText = 'Dados do Endereço';
     addrSection.appendChild(addrTitle);
 
     const addrGrid = document.createElement('div');
@@ -320,7 +306,6 @@ export async function showCepSearchOverlay(
     addrSection.appendChild(addrGrid);
     card.appendChild(addrSection);
 
-    // District Section
     const distSection = document.createElement('div');
     distSection.style.borderTop = '1px solid #e2e8f0';
     distSection.style.paddingTop = isHistory ? '8px' : '16px';
@@ -351,9 +336,9 @@ export async function showCepSearchOverlay(
         dRow.style.alignItems = 'center';
         dRow.style.gap = '12px';
         dRow.style.padding = isHistory ? '8px' : '12px';
-        dRow.style.backgroundColor = idx === 0 ? '#f0f9ff' : '#f8fafc';
+        dRow.style.backgroundColor = idx === 0 ? '#eff6ff' : '#f8fafc';
         dRow.style.border =
-          idx === 0 ? '1px solid #bae6fd' : '1px solid #e2e8f0';
+          idx === 0 ? '2px solid #3b82f6' : '1px solid #e2e8f0';
         dRow.style.borderRadius = '8px';
         dRow.style.marginBottom = '8px';
 
@@ -373,9 +358,9 @@ export async function showCepSearchOverlay(
 
         const dInfo = document.createElement('div');
         dInfo.style.flex = '1';
-        const numRange = `(${d.inicioDomicilio || '1'} até ${d.fimDomicilio || '99999'})`;
+        const numRange = `${d.inicioDomicilio || '1'} até ${d.fimDomicilio || '99999'}`;
         dInfo.innerHTML = `
-          <div style="font-size: ${isHistory ? '14px' : '16px'}; font-weight: bold; color: #1e293b;">Distrito ${d.rotuloDistrito} ${d.areaDistrito || ''}</div>
+          <div style="font-size: ${isHistory ? '14px' : '16px'}; font-weight: bold; color: ${idx === 0 ? '#1d4ed8' : '#1e293b'};">Distrito ${d.rotuloDistrito} ${d.areaDistrito || ''}</div>
           <div style="font-size: ${isHistory ? '11px' : '13px'}; color: #64748b;">Lado: ${d.lado || '--'} | Ordem: ${d.ordemPercorrida || '--'} | Números: ${numRange}</div>
         `;
         dRow.appendChild(dInfo);
@@ -424,25 +409,15 @@ export async function showCepSearchOverlay(
     hideSuggestions = true
   ) => {
     const cleanCep = cep.replace(/\D/g, '');
-    if (cleanCep.length !== 8) {
-      console.warn('[CW-DEBUG] Invalid CEP length:', cleanCep);
-      return;
-    }
-
-    console.log('[CW-DEBUG] fetchCepDetails starting...', {
-      cep,
-      cleanCep,
-      numero
-    });
+    if (cleanCep.length !== 8) return;
 
     if (hideSuggestions) {
       suggestionsContainer.style.display = 'none';
     }
 
-    // Only show loading if we don't have results yet
     if (!resultContainer.querySelector('.cw-cep-result-card')) {
       resultContainer.innerHTML =
-        '<div style="color: #3b82f6; padding: 20px; text-align: center; font-size: 16px; font-weight: bold;">Buscando detalhes do endereço e distrito...</div>';
+        '<div style="color: #3b82f6; padding: 20px; text-align: center; font-size: 16px; font-weight: bold;">Buscando dados...</div>';
     }
 
     try {
@@ -450,8 +425,6 @@ export async function showCepSearchOverlay(
       const numParam = encodeURIComponent(numero);
 
       const addressUrl = `${SROWEB_ORIGIN}/app/entregaexternaautomatica/lancamentoautomatico/controllers/enderecoController.php?tipoPesquisa=cep&cep=${cleanCep}&documentoDestinatario=${numParam}`;
-      console.log('[CW-DEBUG] Fetching address...', addressUrl);
-
       let addressData = getCachedData<any>(addressUrl);
       if (!addressData) {
         const addressRes = await fetchProxy(addressUrl);
@@ -459,15 +432,13 @@ export async function showCepSearchOverlay(
           try {
             addressData = JSON.parse(addressRes);
             if (addressData) setCachedData(addressUrl, addressData);
-          } catch (e) {
+          } catch {
             addressData = null;
           }
         }
       }
 
       const districtUrl = `${SROWEB_ORIGIN}/app/entregaexternaautomatica/lancamentoautomatico/controllers/distritamentoTrechoController.php?mcmcu=&cep=${cleanCep}&grade=${grade}`;
-      console.log('[CW-DEBUG] Fetching district...', districtUrl);
-
       let districtData = getCachedData<any[]>(districtUrl);
       if (!districtData) {
         const districtRes = await fetchProxy(districtUrl);
@@ -476,7 +447,7 @@ export async function showCepSearchOverlay(
             districtData = JSON.parse(districtRes);
             if (Array.isArray(districtData))
               setCachedData(districtUrl, districtData);
-          } catch (e) {
+          } catch {
             districtData = [];
           }
         } else {
@@ -488,9 +459,9 @@ export async function showCepSearchOverlay(
       currentDistrictData = districtData || [];
 
       updateFilteredResults(numero);
-    } catch (err: any) {
-      console.error('[CW-DEBUG] Error in fetchCepDetails:', err);
-      resultContainer.innerHTML = `<div style="color: #ef4444; padding: 20px; text-align: center; font-size: 16px;">Erro ao buscar dados do CEP: ${err?.message || 'Erro desconhecido'}</div>`;
+    } catch {
+      resultContainer.innerHTML =
+        '<div style="color: #ef4444; padding: 20px; text-align: center; font-size: 16px;">Erro na busca.</div>';
     }
   };
 
@@ -508,7 +479,7 @@ export async function showCepSearchOverlay(
 
     suggestionsContainer.style.display = 'block';
     suggestionsContainer.innerHTML =
-      '<div style="padding: 12px; color: #3b82f6; font-weight: bold;">Buscando na base dos Correios...</div>';
+      '<div style="padding: 12px; color: #3b82f6; font-weight: bold;">Buscando...</div>';
 
     debounceTimer = setTimeout(async () => {
       try {
@@ -533,7 +504,6 @@ export async function showCepSearchOverlay(
         suggestionsContainer.innerHTML = '';
         if (results && results.length > 0) {
           if (results.length === 1) {
-            // Only 1 result, skip suggestions dropdown and just fetch details
             suggestionsContainer.style.display = 'none';
             fetchCepDetails(results[0].cep || '', numInput.value.trim(), true);
             return;
@@ -576,16 +546,20 @@ export async function showCepSearchOverlay(
 
   const moveToHistory = () => {
     if (!currentAddressData) return;
+
     const currentCep = currentAddressData.cep || '';
+    const currentNum = numInput.value.trim();
     const lastHistoryCard = historyContainer.firstElementChild;
     const lastCep = lastHistoryCard
       ? lastHistoryCard.getAttribute('data-cep')
       : '';
+    const lastNum = lastHistoryCard
+      ? lastHistoryCard.getAttribute('data-numero')
+      : '';
 
-    if (currentCep && currentCep !== lastCep) {
-      // Re-filter for the current number to get correct districts for history
+    if (currentCep !== lastCep || currentNum !== lastNum) {
       let filteredDistricts = currentDistrictData || [];
-      const n = parseInt(numInput.value.trim(), 10);
+      const n = parseInt(currentNum, 10);
       if (!isNaN(n)) {
         filteredDistricts = currentDistrictData.filter((d) => {
           const min = parseInt(d.inicioDomicilio, 10);
@@ -596,7 +570,6 @@ export async function showCepSearchOverlay(
       renderResult(currentAddressData, filteredDistricts, true, true);
     }
 
-    // Clear main view
     resultContainer.innerHTML = '';
     input.value = '';
     numInput.value = '';
@@ -614,7 +587,6 @@ export async function showCepSearchOverlay(
     }
     if (e.key === 'Enter') {
       e.preventDefault();
-
       const card = resultContainer.querySelector('.cw-cep-result-card');
       if (card) {
         moveToHistory();
@@ -660,10 +632,8 @@ export async function showCepSearchOverlay(
   numInput.addEventListener('input', () => {
     const n = numInput.value.trim();
     if (currentAddressData) {
-      // Local filter without re-fetching
       updateFilteredResults(n);
     } else {
-      // If we don't have address yet but have a CEP, fetch
       const cleanCep = input.value.replace(/\D/g, '');
       if (cleanCep.length === 8) {
         if (debounceTimer) clearTimeout(debounceTimer);
