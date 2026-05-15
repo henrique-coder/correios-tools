@@ -49,7 +49,7 @@ export async function showTrackingOverlay(
   overlay.style.display = 'flex';
   overlay.style.alignItems = 'center';
   overlay.style.justifyContent = 'center';
-  overlay.style.backdropFilter = 'blur(4px)';
+  overlay.style.backdropFilter = 'blur(6px)';
 
   const modal = document.createElement('div');
   modal.style.backgroundColor = '#fff';

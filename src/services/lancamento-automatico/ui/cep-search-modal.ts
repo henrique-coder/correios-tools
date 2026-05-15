@@ -239,6 +239,10 @@ export async function showCepSearchOverlay(
 
     const card = document.createElement('div');
     card.className = 'cw-cep-result-card';
+    card.setAttribute(
+      'data-cep',
+      addressData?.cep || districtData?.[0]?.rotuloDistrito || 'unknown'
+    );
     card.style.border = '1px solid #cbd5e1';
     card.style.borderRadius = '8px';
     card.style.overflow = 'hidden';
@@ -248,7 +252,7 @@ export async function showCepSearchOverlay(
     let addressHtml = '';
     if (addressData) {
       addressHtml = `
-        <div style="background: #f1f5f9; padding: 16px; border-bottom: 1px solid #cbd5e1;">
+        <div style="background: #f1f5f9; padding: 16px; border-bottom: 1px solid #cbd5e1; text-align: center;">
           <div style="font-weight: bold; color: #0f172a; font-size: 18px; margin-bottom: 4px;">${addressData.logradouro || ''}</div>
           <div style="color: #475569; font-size: 15px;">${addressData.bairro || ''} - ${addressData.municipio || ''}/${addressData.uf || ''}</div>
           <div style="color: #64748b; font-size: 14px; margin-top: 4px;">CEP: ${addressData.cep || ''}</div>
@@ -263,26 +267,24 @@ export async function showCepSearchOverlay(
         const bg = isFirst ? '#eff6ff' : '#ffffff';
         const borderColor = isFirst ? '#3b82f6' : '#e2e8f0';
         const titleColor = isFirst ? '#1d4ed8' : '#0f172a';
-        const labelText = isFirst
-          ? 'Distrito Principal (Recomendado)'
-          : 'Distrito Alternativo';
+        const labelText = isFirst ? 'Distrito Principal' : 'Alternativo';
         const labelStyle = isFirst
           ? 'background: #3b82f6; color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 10px; margin-bottom: 4px; display: inline-block;'
           : 'color: #64748b; margin-bottom: 4px; display: inline-block; font-size: 10px;';
 
         districtHtml += `
-          <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: ${bg}; border: 1px solid ${borderColor}; border-radius: 6px; margin-bottom: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-            <div>
+          <div style="display: flex; justify-content: space-around; align-items: center; text-align: center; padding: 12px; background: ${bg}; border: 1px solid ${borderColor}; border-radius: 6px; margin-bottom: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+            <div style="flex: 1;">
               <div style="${labelStyle} text-transform: uppercase; font-weight: bold;">${labelText}</div>
-              <div style="font-size: 22px; font-weight: 900; color: ${titleColor};">${d.rotuloDistrito} <span style="color: #3b82f6; font-size: 18px;">${d.areaDistrito}</span></div>
+              <div class="cw-d-title" style="font-size: 22px; font-weight: 900; color: ${titleColor};">${d.rotuloDistrito} <span style="color: #3b82f6; font-size: 18px;">${d.areaDistrito}</span></div>
             </div>
-            <div style="text-align: right;">
+            <div style="flex: 1; border-left: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; padding: 0 8px;">
               <div style="font-size: 12px; color: #64748b; text-transform: uppercase; font-weight: bold;">Ordem</div>
-              <div style="font-size: 20px; font-weight: bold; color: #0f172a;">${d.ordemPercorrida}</div>
+              <div class="cw-d-val" style="font-size: 20px; font-weight: bold; color: #0f172a;">${d.ordemPercorrida}</div>
             </div>
-            <div style="text-align: right;">
+            <div style="flex: 1;">
               <div style="font-size: 12px; color: #64748b; text-transform: uppercase; font-weight: bold;">Lado</div>
-              <div style="font-size: 20px; font-weight: bold; color: #0f172a;">${d.lado}</div>
+              <div class="cw-d-val" style="font-size: 20px; font-weight: bold; color: #0f172a;">${d.lado}</div>
             </div>
           </div>
         `;
@@ -416,9 +418,30 @@ export async function showCepSearchOverlay(
       const card = resultContainer.querySelector('.cw-cep-result-card');
       if (card) {
         // Move to history
-        const clone = card.cloneNode(true) as HTMLElement;
-        clone.style.fontSize = '0.9em'; // Scale down history items slightly
-        historyContainer.prepend(clone);
+        const currentCep = card.getAttribute('data-cep') || '';
+        const lastHistoryCard = historyContainer.firstElementChild;
+        const lastCep = lastHistoryCard
+          ? lastHistoryCard.getAttribute('data-cep')
+          : '';
+
+        if (currentCep && currentCep !== lastCep) {
+          const clone = card.cloneNode(true) as HTMLElement;
+          clone.style.fontSize = '12px';
+
+          // Make the clone more compact
+          const titles = clone.querySelectorAll<HTMLElement>('.cw-d-title');
+          titles.forEach((t) => {
+            t.style.fontSize = '16px';
+            const span = t.querySelector('span');
+            if (span) span.style.fontSize = '14px';
+          });
+          const values = clone.querySelectorAll<HTMLElement>('.cw-d-val');
+          values.forEach((v) => {
+            v.style.fontSize = '14px';
+          });
+
+          historyContainer.prepend(clone);
+        }
 
         // Clear main view
         resultContainer.innerHTML = '';
