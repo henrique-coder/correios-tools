@@ -119,10 +119,15 @@ export async function showCepSearchOverlay(
   const inputWrapper = document.createElement('div');
   inputWrapper.style.position = 'relative';
 
+  const inputFlex = document.createElement('div');
+  inputFlex.style.display = 'flex';
+  inputFlex.style.gap = '8px';
+  inputFlex.style.width = '100%';
+
   const input = document.createElement('input');
   input.type = 'text';
-  input.placeholder = 'Digite um endereço ou CEP e pressione ENTER...';
-  input.style.width = '100%';
+  input.placeholder = 'Digite um endereço ou CEP...';
+  input.style.flex = '1';
   input.style.padding = '14px 16px';
   input.style.fontSize = '18px';
   input.style.border = '2px solid #cbd5e1';
@@ -132,6 +137,29 @@ export async function showCepSearchOverlay(
   input.style.transition = 'border-color 0.2s';
   input.addEventListener('focus', () => (input.style.borderColor = '#3b82f6'));
   input.addEventListener('blur', () => (input.style.borderColor = '#cbd5e1'));
+
+  const numInput = document.createElement('input');
+  numInput.type = 'text';
+  numInput.placeholder = 'Nº (Opcional)';
+  numInput.style.width = '130px';
+  numInput.style.padding = '14px 16px';
+  numInput.style.fontSize = '18px';
+  numInput.style.border = '2px solid #cbd5e1';
+  numInput.style.borderRadius = '8px';
+  numInput.style.boxSizing = 'border-box';
+  numInput.style.outline = 'none';
+  numInput.style.transition = 'border-color 0.2s';
+  numInput.addEventListener(
+    'focus',
+    () => (numInput.style.borderColor = '#3b82f6')
+  );
+  numInput.addEventListener(
+    'blur',
+    () => (numInput.style.borderColor = '#cbd5e1')
+  );
+
+  inputFlex.appendChild(input);
+  inputFlex.appendChild(numInput);
 
   const suggestionsContainer = document.createElement('div');
   suggestionsContainer.style.position = 'absolute';
@@ -149,7 +177,7 @@ export async function showCepSearchOverlay(
   suggestionsContainer.style.display = 'none';
   suggestionsContainer.style.boxShadow = '0 10px 15px -3px rgba(0,0,0,0.1)';
 
-  inputWrapper.appendChild(input);
+  inputWrapper.appendChild(inputFlex);
   inputWrapper.appendChild(suggestionsContainer);
   searchCol.appendChild(inputWrapper);
 
@@ -239,9 +267,11 @@ export async function showCepSearchOverlay(
 
     const card = document.createElement('div');
     card.className = 'cw-cep-result-card';
+    const numAttr = addressData?._numero ? `-${addressData._numero}` : '';
     card.setAttribute(
       'data-cep',
-      addressData?.cep || districtData?.[0]?.rotuloDistrito || 'unknown'
+      (addressData?.cep || districtData?.[0]?.rotuloDistrito || 'unknown') +
+        numAttr
     );
     card.style.border = '1px solid #cbd5e1';
     card.style.borderRadius = '8px';
@@ -251,9 +281,10 @@ export async function showCepSearchOverlay(
 
     let addressHtml = '';
     if (addressData) {
+      const numDisplay = addressData._numero ? `, ${addressData._numero}` : '';
       addressHtml = `
         <div style="background: #f1f5f9; padding: 16px; border-bottom: 1px solid #cbd5e1; text-align: center;">
-          <div style="font-weight: bold; color: #0f172a; font-size: 18px; margin-bottom: 4px;">${addressData.logradouro || ''}</div>
+          <div style="font-weight: bold; color: #0f172a; font-size: 18px; margin-bottom: 4px;">${addressData.logradouro || ''}${numDisplay}</div>
           <div style="color: #475569; font-size: 15px;">${addressData.bairro || ''} - ${addressData.municipio || ''}/${addressData.uf || ''}</div>
           <div style="color: #64748b; font-size: 14px; margin-top: 4px;">CEP: ${addressData.cep || ''}</div>
         </div>
@@ -303,7 +334,11 @@ export async function showCepSearchOverlay(
     resultContainer.appendChild(card);
   };
 
-  const fetchCepDetails = async (cep: string, hideSuggestions = true) => {
+  const fetchCepDetails = async (
+    cep: string,
+    numero: string,
+    hideSuggestions = true
+  ) => {
     const cleanCep = cep.replace(/\D/g, '');
     if (cleanCep.length !== 8) return;
 
@@ -315,8 +350,9 @@ export async function showCepSearchOverlay(
 
     try {
       const grade = getCurrentGrade();
+      const numParam = encodeURIComponent(numero);
 
-      const addressUrl = `${SROWEB_ORIGIN}/app/entregaexternaautomatica/lancamentoautomatico/controllers/enderecoController.php?tipoPesquisa=cep&cep=${cleanCep}&documentoDestinatario=`;
+      const addressUrl = `${SROWEB_ORIGIN}/app/entregaexternaautomatica/lancamentoautomatico/controllers/enderecoController.php?tipoPesquisa=cep&cep=${cleanCep}&documentoDestinatario=${numParam}`;
       let addressData = getCachedData<any>(addressUrl);
       if (!addressData) {
         const addressRes = await fetchProxy(addressUrl);
@@ -324,12 +360,16 @@ export async function showCepSearchOverlay(
         setCachedData(addressUrl, addressData);
       }
 
-      const districtUrl = `${SROWEB_ORIGIN}/app/entregaexternaautomatica/lancamentoautomatico/controllers/distritamentoTrechoController.php?mcmcu=&cep=${cleanCep}&grade=${grade}`;
+      const districtUrl = `${SROWEB_ORIGIN}/app/entregaexternaautomatica/lancamentoautomatico/controllers/distritamentoTrechoController.php?mcmcu=&cep=${cleanCep}&grade=${grade}&numero=${numParam}`;
       let districtData = getCachedData<any[]>(districtUrl);
       if (!districtData) {
         const districtRes = await fetchProxy(districtUrl);
         districtData = JSON.parse(districtRes);
         setCachedData(districtUrl, districtData);
+      }
+
+      if (addressData) {
+        addressData._numero = numero; // store for the card attribute
       }
 
       renderResult(addressData, districtData, hideSuggestions);
@@ -392,15 +432,14 @@ export async function showCepSearchOverlay(
               div.style.backgroundColor = 'transparent';
             });
             div.addEventListener('click', () => {
-              input.value = item.cep || '';
-              fetchCepDetails(item.cep || '');
+              fetchCepDetails(item.cep || '', numInput.value.trim());
             });
 
             suggestionsContainer.appendChild(div);
           });
           suggestionsContainer.style.display = 'block';
 
-          fetchCepDetails(results[0].cep || '', false);
+          fetchCepDetails(results[0].cep || '', numInput.value.trim(), false);
         } else {
           suggestionsContainer.innerHTML =
             '<div style="padding: 12px; color: #ef4444;">Nenhum logradouro encontrado.</div>';
@@ -413,6 +452,11 @@ export async function showCepSearchOverlay(
   });
 
   input.addEventListener('keydown', (e) => {
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      numInput.focus();
+      return;
+    }
     if (e.key === 'Enter') {
       e.preventDefault();
 
@@ -447,11 +491,13 @@ export async function showCepSearchOverlay(
         // Clear main view
         resultContainer.innerHTML = '';
         input.value = '';
+        numInput.value = '';
         suggestionsContainer.style.display = 'none';
+        input.focus();
       } else {
         const cleanCep = input.value.replace(/\D/g, '');
         if (cleanCep.length === 8) {
-          fetchCepDetails(cleanCep);
+          fetchCepDetails(cleanCep, numInput.value.trim());
         } else {
           const firstSuggestion = suggestionsContainer.querySelector(
             'div[style*="cursor: pointer"]'
@@ -465,6 +511,38 @@ export async function showCepSearchOverlay(
         }
       }
     }
+  });
+
+  numInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      input.focus();
+      return;
+    }
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const cleanCep = input.value.replace(/\D/g, '');
+      if (cleanCep.length === 8) {
+        fetchCepDetails(cleanCep, numInput.value.trim());
+      } else {
+        const firstSuggestion = suggestionsContainer.querySelector(
+          'div[style*="cursor: pointer"]'
+        );
+        if (firstSuggestion && suggestionsContainer.style.display === 'block') {
+          (firstSuggestion as HTMLElement).click();
+        }
+      }
+    }
+  });
+
+  numInput.addEventListener('input', () => {
+    if (debounceTimer) clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+      const cleanCep = input.value.replace(/\D/g, '');
+      if (cleanCep.length === 8) {
+        fetchCepDetails(cleanCep, numInput.value.trim());
+      }
+    }, 500);
   });
 
   setTimeout(() => input.focus(), 50);
