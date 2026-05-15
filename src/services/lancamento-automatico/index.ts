@@ -87,6 +87,15 @@ export function runAutoDispatchService(
           }
 
           showTrackingOverlay(obj, currentUnitName, fetchProxy);
+        } else if (e.key === 'ArrowDown') {
+          if (isCepInputActive()) {
+            return;
+          }
+
+          e.preventDefault();
+          e.stopImmediatePropagation();
+
+          showCepSearchOverlay(fetchProxy);
         }
       },
       true
