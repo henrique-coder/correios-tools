@@ -189,7 +189,7 @@ export async function showCepSearchOverlay(
   suggestionsContainer.style.borderTop = 'none';
   suggestionsContainer.style.borderBottomLeftRadius = '8px';
   suggestionsContainer.style.borderBottomRightRadius = '8px';
-  suggestionsContainer.style.maxHeight = '185px';
+  suggestionsContainer.style.maxHeight = '180px';
   suggestionsContainer.style.overflowY = 'auto';
   suggestionsContainer.style.zIndex = '10';
   suggestionsContainer.style.display = 'none';
@@ -478,6 +478,8 @@ export async function showCepSearchOverlay(
 
   let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
+  let activeSuggestionIndex = -1;
+
   input.addEventListener('input', () => {
     const val = input.value.trim();
 
@@ -485,6 +487,7 @@ export async function showCepSearchOverlay(
 
     if (val.length < 3) {
       suggestionsContainer.style.display = 'none';
+      activeSuggestionIndex = -1;
       return;
     }
 
@@ -513,14 +516,17 @@ export async function showCepSearchOverlay(
         }
 
         suggestionsContainer.innerHTML = '';
+        activeSuggestionIndex = -1;
         if (results && results.length > 0) {
           if (results.length === 1) {
             suggestionsContainer.style.display = 'none';
+            input.value =
+              results[0].text || results[0].logradouro || results[0].cep || '';
             fetchCepDetails(results[0].cep || '', numInput.value.trim(), true);
             return;
           }
 
-          results.forEach((item) => {
+          results.forEach((item, idx) => {
             const div = document.createElement('div');
             div.style.padding = '12px 16px';
             div.style.cursor = 'pointer';
@@ -528,16 +534,25 @@ export async function showCepSearchOverlay(
             div.style.fontSize = '15px';
             div.style.color = '#334155';
             div.innerText = item.text || item.logradouro || item.cep;
+            div.setAttribute('data-index', idx.toString());
+
+            const selectItem = () => {
+              input.value = item.text || item.logradouro || item.cep || '';
+              fetchCepDetails(item.cep || '', numInput.value.trim());
+            };
 
             div.addEventListener('mouseenter', () => {
+              const prevActive = suggestionsContainer.querySelector(
+                `div[data-index="${activeSuggestionIndex}"]`
+              ) as HTMLElement;
+              if (prevActive) prevActive.style.backgroundColor = 'transparent';
+              activeSuggestionIndex = idx;
               div.style.backgroundColor = '#f8fafc';
             });
             div.addEventListener('mouseleave', () => {
               div.style.backgroundColor = 'transparent';
             });
-            div.addEventListener('click', () => {
-              fetchCepDetails(item.cep || '', numInput.value.trim());
-            });
+            div.addEventListener('click', selectItem);
 
             suggestionsContainer.appendChild(div);
           });
@@ -587,6 +602,7 @@ export async function showCepSearchOverlay(
     suggestionsContainer.style.display = 'none';
     currentAddressData = null;
     currentDistrictData = [];
+    activeSuggestionIndex = -1;
     input.focus();
   };
 
@@ -596,25 +612,58 @@ export async function showCepSearchOverlay(
       numInput.focus();
       return;
     }
+
+    if (suggestionsContainer.style.display === 'block') {
+      const items = suggestionsContainer.querySelectorAll('div[data-index]');
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (activeSuggestionIndex < items.length - 1) {
+          if (activeSuggestionIndex >= 0) {
+            (
+              items[activeSuggestionIndex] as HTMLElement
+            ).style.backgroundColor = 'transparent';
+          }
+          activeSuggestionIndex++;
+          const current = items[activeSuggestionIndex] as HTMLElement;
+          current.style.backgroundColor = '#f8fafc';
+          current.scrollIntoView({ block: 'nearest' });
+        }
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (activeSuggestionIndex > 0) {
+          (items[activeSuggestionIndex] as HTMLElement).style.backgroundColor =
+            'transparent';
+          activeSuggestionIndex--;
+          const current = items[activeSuggestionIndex] as HTMLElement;
+          current.style.backgroundColor = '#f8fafc';
+          current.scrollIntoView({ block: 'nearest' });
+        }
+        return;
+      }
+    }
+
     if (e.key === 'Enter') {
       e.preventDefault();
       const card = resultContainer.querySelector('.cw-cep-result-card');
+
+      if (suggestionsContainer.style.display === 'block') {
+        const items = suggestionsContainer.querySelectorAll('div[data-index]');
+        const targetIndex =
+          activeSuggestionIndex >= 0 ? activeSuggestionIndex : 0;
+        if (items[targetIndex]) {
+          (items[targetIndex] as HTMLElement).click();
+          return;
+        }
+      }
+
       if (card) {
         moveToHistory();
       } else {
         const cleanCep = input.value.replace(/\D/g, '');
         if (cleanCep.length === 8) {
           fetchCepDetails(cleanCep, numInput.value.trim());
-        } else {
-          const firstSuggestion = suggestionsContainer.querySelector(
-            'div[style*="cursor: pointer"]'
-          );
-          if (
-            firstSuggestion &&
-            suggestionsContainer.style.display === 'block'
-          ) {
-            (firstSuggestion as HTMLElement).click();
-          }
         }
       }
     }
