@@ -275,19 +275,34 @@ export async function showCepSearchOverlay(
       let addressData = getCachedData<any>(addressUrl);
       if (!addressData) {
         const addressRes = await fetchProxy(addressUrl);
-        addressData = JSON.parse(addressRes);
-        setCachedData(addressUrl, addressData);
+        if (addressRes && addressRes.trim() !== '') {
+          try {
+            addressData = JSON.parse(addressRes);
+            if (addressData) setCachedData(addressUrl, addressData);
+          } catch (e) {
+            addressData = null;
+          }
+        }
       }
 
       const districtUrl = `${SROWEB_ORIGIN}/app/entregaexternaautomatica/lancamentoautomatico/controllers/distritamentoTrechoController.php?mcmcu=&cep=${cleanCep}&grade=${grade}`;
       let districtData = getCachedData<any[]>(districtUrl);
       if (!districtData) {
         const districtRes = await fetchProxy(districtUrl);
-        districtData = JSON.parse(districtRes);
-        setCachedData(districtUrl, districtData);
+        if (districtRes && districtRes.trim() !== '') {
+          try {
+            districtData = JSON.parse(districtRes);
+            if (Array.isArray(districtData))
+              setCachedData(districtUrl, districtData);
+          } catch (e) {
+            districtData = [];
+          }
+        } else {
+          districtData = [];
+        }
       }
 
-      let filteredDistrictData = districtData;
+      let filteredDistrictData = districtData || [];
       if (numero && districtData && districtData.length > 0) {
         const n = parseInt(numero, 10);
         if (!isNaN(n)) {
@@ -334,8 +349,16 @@ export async function showCepSearchOverlay(
         let results = getCachedData<any[]>(searchUrl);
         if (!results) {
           const res = await fetchProxy(searchUrl);
-          results = JSON.parse(res);
-          setCachedData(searchUrl, results);
+          if (res && res.trim() !== '') {
+            results = JSON.parse(res);
+            if (Array.isArray(results)) {
+              setCachedData(searchUrl, results);
+            } else {
+              results = [];
+            }
+          } else {
+            results = [];
+          }
         }
 
         suggestionsContainer.innerHTML = '';
