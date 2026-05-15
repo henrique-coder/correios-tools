@@ -167,6 +167,14 @@ export async function showCepSearchOverlay(
   gradeSelect.innerHTML =
     '<option value="3">G3</option><option value="6">G6</option>';
 
+  gradeSelect.addEventListener('change', () => {
+    const val = input.value.trim();
+    const cleanCep = val.replace(/\D/g, '');
+    if (cleanCep.length === 8) {
+      fetchCepDetails(cleanCep, numInput.value.trim(), true);
+    }
+  });
+
   inputFlex.appendChild(input);
   inputFlex.appendChild(numInput);
   inputFlex.appendChild(gradeSelect);
@@ -181,7 +189,7 @@ export async function showCepSearchOverlay(
   suggestionsContainer.style.borderTop = 'none';
   suggestionsContainer.style.borderBottomLeftRadius = '8px';
   suggestionsContainer.style.borderBottomRightRadius = '8px';
-  suggestionsContainer.style.maxHeight = '140px';
+  suggestionsContainer.style.maxHeight = '185px';
   suggestionsContainer.style.overflowY = 'auto';
   suggestionsContainer.style.zIndex = '10';
   suggestionsContainer.style.display = 'none';
