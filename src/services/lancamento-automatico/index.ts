@@ -1,8 +1,4 @@
-import {
-  CEP_INPUT_SELECTORS,
-  DOM_IDS,
-  DOM_SELECTORS
-} from '../../shared/constants/dom-elements.js';
+import { DOM_IDS, DOM_SELECTORS } from '../../shared/constants/dom-elements.js';
 import {
   registerFetchInterceptor,
   registerXhrTrigger
@@ -46,6 +42,49 @@ export function runAutoDispatchService(
 
   registerXhrTrigger('listar-impressoras-disponiveis', triggerAutoClose);
 
+  async function injectSidebarButtons(currentUnitName: string): Promise<void> {
+    try {
+      const sidebar = await waitForElement<HTMLElement>('.aberto', 200, 50);
+      if (!sidebar || document.getElementById('cw-btn-tracking')) return;
+
+      const btnTracking = document.createElement('a');
+      btnTracking.id = 'cw-btn-tracking';
+      btnTracking.className = 'cw-sidebar-btn';
+      btnTracking.tabIndex = 1;
+      btnTracking.style.cssText =
+        'cursor:pointer; background:#e0f2fe; color:#1e40af; font-weight:bold; border-left:4px solid #3b82f6; display:block; padding:10px 15px; text-decoration:none; margin-top: 8px;';
+      btnTracking.innerHTML = '🚀 Rastreamento Avançado';
+
+      const btnCep = document.createElement('a');
+      btnCep.id = 'cw-btn-cep';
+      btnCep.className = 'cw-sidebar-btn';
+      btnCep.tabIndex = 1;
+      btnCep.style.cssText =
+        'cursor:pointer; background:#fef3c7; color:#854d0e; font-weight:bold; border-left:4px solid #eab308; display:block; padding:10px 15px; text-decoration:none; margin-top: 4px; border-bottom:1px solid #ccc;';
+      btnCep.innerHTML = '📍 Pesquisa de Distrito';
+
+      btnTracking.addEventListener('click', (e) => {
+        e.preventDefault();
+        const txtObj = document.getElementById(
+          DOM_IDS.OBJECT_INPUT
+        ) as HTMLInputElement;
+        let obj = txtObj ? txtObj.value.trim().toUpperCase() : '';
+        if (!/^[A-Z]{2}\d{9}[A-Z]{2}$/.test(obj) && !/^\d{9}$/.test(obj)) {
+          obj = '';
+        }
+        showTrackingOverlay(obj, currentUnitName, fetchProxy);
+      });
+
+      btnCep.addEventListener('click', (e) => {
+        e.preventDefault();
+        showCepSearchOverlay(fetchProxy);
+      });
+
+      sidebar.appendChild(btnTracking);
+      sidebar.appendChild(btnCep);
+    } catch {}
+  }
+
   async function setupWatchers(): Promise<void> {
     triggerAutoClose();
     injectTable();
@@ -71,36 +110,8 @@ export function runAutoDispatchService(
       if (match) currentUnitName = match[1].trim().toUpperCase();
     }
 
-    window.addEventListener(
-      'keydown',
-      (e) => {
-        if (e.key === 'ArrowUp') {
-          if (isCepInputActive()) {
-            return;
-          }
+    injectSidebarButtons(currentUnitName);
 
-          e.preventDefault();
-          e.stopImmediatePropagation();
-
-          let obj = inp.value.trim().toUpperCase();
-          if (!/^[A-Z]{2}\d{9}[A-Z]{2}$/.test(obj) && !/^\d{9}$/.test(obj)) {
-            obj = '';
-          }
-
-          showTrackingOverlay(obj, currentUnitName, fetchProxy);
-        } else if (e.key === 'ArrowDown') {
-          if (isCepInputActive()) {
-            return;
-          }
-
-          e.preventDefault();
-          e.stopImmediatePropagation();
-
-          showCepSearchOverlay(fetchProxy);
-        }
-      },
-      true
-    );
     let lastInputValue = inp.value;
     const parent =
       inp.closest(DOM_SELECTORS.FIELD_CONTAINER) ?? inp.parentElement;

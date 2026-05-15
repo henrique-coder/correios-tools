@@ -7,19 +7,38 @@ let activeOverlay: HTMLElement | null = null;
 let previousFocus: HTMLElement | null = null;
 let activeOverlayCleanup: (() => void) | null = null;
 
+export function closeTrackingOverlay(): void {
+  if (activeOverlay) {
+    activeOverlay.remove();
+    activeOverlay = null;
+  }
+  if (activeOverlayCleanup) {
+    activeOverlayCleanup();
+    activeOverlayCleanup = null;
+  }
+  if (previousFocus && typeof previousFocus.focus === 'function') {
+    previousFocus.focus();
+  }
+}
+
 export async function showTrackingOverlay(
   initialObjCode: string,
   currentUnitId: string,
   fetchProxy: (url: string, options?: FetchProxyOptions) => Promise<string>
 ): Promise<void> {
+  const cepOverlay = document.getElementById('cw-cep-overlay');
+  if (cepOverlay) {
+    window.dispatchEvent(new Event('cw-close-cep'));
+  }
+
   if (activeOverlay) {
-    activeOverlayCleanup?.();
-    return;
+    closeTrackingOverlay();
   }
 
   previousFocus = document.activeElement as HTMLElement;
 
   const overlay = document.createElement('div');
+  overlay.id = 'cw-tracking-overlay';
   overlay.style.position = 'fixed';
   overlay.style.top = '0';
   overlay.style.left = '0';
@@ -30,28 +49,28 @@ export async function showTrackingOverlay(
   overlay.style.display = 'flex';
   overlay.style.alignItems = 'center';
   overlay.style.justifyContent = 'center';
-  overlay.style.backdropFilter = 'blur(2px)';
+  overlay.style.backdropFilter = 'blur(4px)';
 
   const modal = document.createElement('div');
   modal.style.backgroundColor = '#fff';
-  modal.style.borderRadius = '8px';
+  modal.style.borderRadius = '12px';
   modal.style.width = '95vw';
-  modal.style.maxWidth = '900px';
-  modal.style.maxHeight = '90vh';
+  modal.style.maxWidth = '1000px';
+  modal.style.height = '85vh';
   modal.style.display = 'flex';
   modal.style.flexDirection = 'column';
-  modal.style.boxShadow = '0 10px 25px rgba(0,0,0,0.3)';
+  modal.style.boxShadow = '0 20px 40px rgba(0,0,0,0.3)';
   modal.style.fontFamily = 'Arial, sans-serif';
 
   const header = document.createElement('div');
-  header.style.padding = '16px';
-  header.style.borderBottom = '1px solid #eee';
+  header.style.padding = '20px 24px';
+  header.style.borderBottom = '1px solid #e2e8f0';
   header.style.display = 'flex';
   header.style.justifyContent = 'space-between';
   header.style.alignItems = 'center';
-  header.style.backgroundColor = '#f8f9fa';
-  header.style.borderTopLeftRadius = '8px';
-  header.style.borderTopRightRadius = '8px';
+  header.style.backgroundColor = '#f8fafc';
+  header.style.borderTopLeftRadius = '12px';
+  header.style.borderTopRightRadius = '12px';
 
   const titleContainer = document.createElement('div');
   titleContainer.style.display = 'flex';
@@ -60,9 +79,9 @@ export async function showTrackingOverlay(
 
   const title = document.createElement('h2');
   title.style.margin = '0';
-  title.style.fontSize = '18px';
-  title.style.color = '#333';
-  title.innerText = 'Rastreamento:';
+  title.style.fontSize = '22px';
+  title.style.color = '#1e293b';
+  title.innerText = '🚀 Rastreamento Avançado';
 
   titleContainer.appendChild(title);
 
@@ -439,28 +458,30 @@ export async function showTrackingOverlay(
     }
   };
 
-  const closeOverlay = () => {
-    clearTimers();
-    if (activeOverlay) {
-      activeOverlay.remove();
-      activeOverlay = null;
-    }
-    restorePreviousFocus();
-    document.removeEventListener('keydown', handleKeydown, true);
-    activeOverlayCleanup = null;
-  };
-
-  closeBtn.addEventListener('click', closeOverlay);
+  const handleCloseEvent = () => closeTrackingOverlay();
+  window.addEventListener('cw-close-tracking', handleCloseEvent);
 
   const handleKeydown = (e: KeyboardEvent) => {
-    if (e.key === 'Escape' || e.key === 'ArrowUp') {
+    if (e.key === 'Escape') {
       e.preventDefault();
       e.stopImmediatePropagation();
-      closeOverlay();
+      closeTrackingOverlay();
     }
   };
+
+  closeBtn.addEventListener('click', closeTrackingOverlay);
   document.addEventListener('keydown', handleKeydown, true);
-  activeOverlayCleanup = closeOverlay;
+
+  overlay.addEventListener('mousedown', (e) => {
+    if (e.target === overlay) closeTrackingOverlay();
+  });
+
+  activeOverlayCleanup = () => {
+    clearTimers();
+    restorePreviousFocus();
+    document.removeEventListener('keydown', handleKeydown, true);
+    window.removeEventListener('cw-close-tracking', handleCloseEvent);
+  };
 
   if (initialObjCode) {
     triggerSearch(initialObjCode);
