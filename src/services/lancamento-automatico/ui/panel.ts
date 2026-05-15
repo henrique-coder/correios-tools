@@ -62,7 +62,9 @@ function loadPosition(container: HTMLElement): void {
 
 export function renderPanel(
   state: DispatchState,
-  onAutoClose?: () => void
+  onAutoClose?: () => void,
+  onTrackingClick?: () => void,
+  onCepClick?: () => void
 ): void {
   injectStyles(PANEL_STYLES_ID, PANEL_CSS);
 
@@ -78,9 +80,13 @@ export function renderPanel(
             <span id="sro-icon" class="sro-icon">⏳</span>
             <span id="sro-status" class="sro-status-text">AGUARDANDO...</span>
           </div>
-          <div class="sro-btn-group">
-            <button id="cw-auto-close-print-toggle" type="button"
-              style="width:24px;height:24px;padding:0;font-size:12px;border:1px solid #cbd5e1;border-radius:999px;background:#f1f5f9;color:#64748b;cursor:pointer;line-height:1;display:inline-flex;align-items:center;justify-content:center;">⎙</button>
+          <div class="sro-btn-group" style="display:flex; gap:6px;">
+            <button id="cw-btn-cep" type="button" title="Pesquisa de Distrito por CEP"
+              style="width:24px;height:24px;padding:0;font-size:12px;border:1px solid #cbd5e1;border-radius:999px;background:#fef3c7;color:#854d0e;cursor:pointer;line-height:1;display:inline-flex;align-items:center;justify-content:center;">📍</button>
+            <button id="cw-btn-tracking" type="button" title="Rastreamento Interno Rápido"
+              style="width:24px;height:24px;padding:0;font-size:12px;border:1px solid #cbd5e1;border-radius:999px;background:#e0f2fe;color:#1e40af;cursor:pointer;line-height:1;display:inline-flex;align-items:center;justify-content:center;">🚀</button>
+            <button id="cw-auto-close-print-toggle" type="button" title="Fechar popup de impressão"
+              style="width:24px;height:24px;padding:0;font-size:12px;border:1px solid #cbd5e1;border-radius:999px;background:#f1f5f9;color:#64748b;cursor:pointer;line-height:1;display:inline-flex;align-items:center;justify-content:center;">🖨</button>
           </div>
         </div>
         <div class="sro-body">
@@ -100,20 +106,26 @@ export function renderPanel(
       savePosition
     );
 
-    const toggleBtn = document.getElementById('cw-auto-close-print-toggle');
-    if (toggleBtn) {
-      toggleBtn.addEventListener('mouseenter', () => {
-        toggleBtn.style.transform = 'translateY(-1px) scale(1.04)';
-      });
-      toggleBtn.addEventListener('mouseleave', () => {
-        toggleBtn.style.transform = 'none';
-      });
-      toggleBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        onAutoClose?.();
-      });
-    }
+    const setupBtn = (id: string, onClick?: () => void) => {
+      const btn = document.getElementById(id);
+      if (btn) {
+        btn.addEventListener('mouseenter', () => {
+          btn.style.transform = 'translateY(-1px) scale(1.04)';
+        });
+        btn.addEventListener('mouseleave', () => {
+          btn.style.transform = 'none';
+        });
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onClick?.();
+        });
+      }
+    };
+
+    setupBtn('cw-auto-close-print-toggle', onAutoClose);
+    setupBtn('cw-btn-tracking', onTrackingClick);
+    setupBtn('cw-btn-cep', onCepClick);
   }
 
   const card = document.getElementById('sro-card');

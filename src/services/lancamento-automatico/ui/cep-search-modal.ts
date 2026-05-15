@@ -269,13 +269,17 @@ export async function showCepSearchOverlay(
         const titleColor = isFirst ? '#1d4ed8' : '#0f172a';
         const labelText = isFirst ? 'Distrito Principal' : 'Alternativo';
         const labelStyle = isFirst
-          ? 'background: #3b82f6; color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 10px; margin-bottom: 4px; display: inline-block;'
-          : 'color: #64748b; margin-bottom: 4px; display: inline-block; font-size: 10px;';
+          ? 'background: #3b82f6; color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 10px; position: absolute; top: -10px; left: 50%; transform: translateX(-50%); white-space: nowrap;'
+          : 'display: none;';
+        const cardMargin = isFirst
+          ? 'margin-top: 12px; margin-bottom: 12px;'
+          : 'margin-bottom: 8px;';
 
         districtHtml += `
-          <div style="display: flex; justify-content: space-around; align-items: center; text-align: center; padding: 12px; background: ${bg}; border: 1px solid ${borderColor}; border-radius: 6px; margin-bottom: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+          <div style="position: relative; display: flex; justify-content: space-around; align-items: center; text-align: center; padding: 12px; background: ${bg}; border: 1px solid ${borderColor}; border-radius: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); ${cardMargin}">
+            <div style="${labelStyle} text-transform: uppercase; font-weight: bold;">${labelText}</div>
             <div style="flex: 1;">
-              <div style="${labelStyle} text-transform: uppercase; font-weight: bold;">${labelText}</div>
+              <div style="font-size: 12px; color: #64748b; text-transform: uppercase; font-weight: bold;">Distrito</div>
               <div class="cw-d-title" style="font-size: 22px; font-weight: 900; color: ${titleColor};">${d.rotuloDistrito} <span style="color: #3b82f6; font-size: 18px;">${d.areaDistrito}</span></div>
             </div>
             <div style="flex: 1; border-left: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; padding: 0 8px;">
@@ -349,13 +353,10 @@ export async function showCepSearchOverlay(
 
     suggestionsContainer.style.display = 'block';
     suggestionsContainer.innerHTML =
-      '<div style="padding: 12px; color: #64748b; font-style: italic;">Aguardando digitação...</div>';
+      '<div style="padding: 12px; color: #3b82f6; font-weight: bold;">⏳ Buscando na base dos Correios...</div>';
 
     debounceTimer = setTimeout(async () => {
       try {
-        suggestionsContainer.innerHTML =
-          '<div style="padding: 12px; color: #3b82f6; font-weight: bold;">⏳ Buscando na base dos Correios...</div>';
-
         const grade = getCurrentGrade();
         const searchUrl = `${SROWEB_ORIGIN}/app/entregaexternaautomatica/lancamentoautomatico/controllers/logradouroController.php?search=${encodeURIComponent(val)}&numeroGrade=${grade}`;
 
