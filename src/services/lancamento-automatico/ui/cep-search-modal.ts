@@ -222,13 +222,15 @@ export async function showCepSearchOverlay(
     resultContainer.appendChild(card);
   };
 
-  const fetchCepDetails = async (cep: string) => {
+  const fetchCepDetails = async (cep: string, hideSuggestions = true) => {
     const cleanCep = cep.replace(/\D/g, '');
     if (cleanCep.length !== 8) return;
 
     resultContainer.innerHTML =
       '<div style="color: #64748b; padding: 10px; text-align: center;">Buscando detalhes...</div>';
-    suggestionsContainer.style.display = 'none';
+    if (hideSuggestions) {
+      suggestionsContainer.style.display = 'none';
+    }
 
     try {
       const grade = getCurrentGrade();
@@ -249,7 +251,7 @@ export async function showCepSearchOverlay(
         setCachedData(districtUrl, districtData);
       }
 
-      renderResult(addressData, districtData);
+      renderResult(addressData, districtData, hideSuggestions);
     } catch {
       resultContainer.innerHTML =
         '<div style="color: #ef4444; padding: 10px; text-align: center;">Erro ao buscar dados do CEP.</div>';
@@ -305,6 +307,9 @@ export async function showCepSearchOverlay(
             suggestionsContainer.appendChild(div);
           });
           suggestionsContainer.style.display = 'block';
+
+          // Automaticamente buscar detalhes do primeiro resultado, mas mantendo a lista de sugestões visível
+          fetchCepDetails(results[0].cep || '', false);
         } else {
           suggestionsContainer.style.display = 'none';
         }

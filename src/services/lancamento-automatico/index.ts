@@ -17,6 +17,7 @@ import { isAutoInductionGuardActive } from './commands.js';
 import { registerKeyboardCommands } from './keyboard.js';
 import { handleControllerResponse } from './response-handler.js';
 import { createDefaultState, type DispatchState } from './state.js';
+import { showCepSearchOverlay } from './ui/cep-search-modal.js';
 import { renderPanel, syncAutoCloseButton } from './ui/panel.js';
 import { injectTable, updateTable } from './ui/table.js';
 import { showTrackingOverlay } from './ui/tracking-modal.js';
