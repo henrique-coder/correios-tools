@@ -140,8 +140,8 @@ export async function showCepSearchOverlay(
 
   const numInput = document.createElement('input');
   numInput.type = 'text';
-  numInput.placeholder = 'Nº (Opcional)';
-  numInput.style.width = '130px';
+  numInput.placeholder = 'Nº';
+  numInput.style.width = '100px';
   numInput.style.padding = '14px 16px';
   numInput.style.fontSize = '18px';
   numInput.style.border = '2px solid #cbd5e1';
@@ -158,8 +158,20 @@ export async function showCepSearchOverlay(
     () => (numInput.style.borderColor = '#cbd5e1')
   );
 
+  const gradeSelect = document.createElement('select');
+  gradeSelect.style.width = '80px';
+  gradeSelect.style.padding = '14px 10px';
+  gradeSelect.style.fontSize = '16px';
+  gradeSelect.style.border = '2px solid #cbd5e1';
+  gradeSelect.style.borderRadius = '8px';
+  gradeSelect.style.outline = 'none';
+  gradeSelect.style.cursor = 'pointer';
+  gradeSelect.innerHTML =
+    '<option value="3">G3</option><option value="6">G6</option>';
+
   inputFlex.appendChild(input);
   inputFlex.appendChild(numInput);
+  inputFlex.appendChild(gradeSelect);
 
   const suggestionsContainer = document.createElement('div');
   suggestionsContainer.style.position = 'absolute';
@@ -241,99 +253,6 @@ export async function showCepSearchOverlay(
     if (e.target === overlay) closeCepSearchOverlay();
   });
 
-  const getCurrentGrade = (): string => {
-    const sel = document.getElementById(
-      DOM_IDS.GRADE_SELECT
-    ) as HTMLSelectElement | null;
-    if (sel && sel.value) return sel.value;
-    return '3';
-  };
-
-  const renderResult = (
-    addressData: any,
-    districtData: any[],
-    hideSuggestions = true
-  ) => {
-    if (hideSuggestions) {
-      suggestionsContainer.style.display = 'none';
-    }
-    resultContainer.innerHTML = '';
-
-    if (!addressData && (!districtData || districtData.length === 0)) {
-      resultContainer.innerHTML =
-        '<div style="color: #ef4444; padding: 16px; text-align: center; font-size: 16px;">Nenhum dado encontrado para este CEP.</div>';
-      return;
-    }
-
-    const card = document.createElement('div');
-    card.className = 'cw-cep-result-card';
-    const numAttr = addressData?._numero ? `-${addressData._numero}` : '';
-    card.setAttribute(
-      'data-cep',
-      (addressData?.cep || districtData?.[0]?.rotuloDistrito || 'unknown') +
-        numAttr
-    );
-    card.style.border = '1px solid #cbd5e1';
-    card.style.borderRadius = '8px';
-    card.style.overflow = 'hidden';
-    card.style.backgroundColor = '#fff';
-    card.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
-
-    let addressHtml = '';
-    if (addressData) {
-      const numDisplay = addressData._numero ? `, ${addressData._numero}` : '';
-      addressHtml = `
-        <div style="background: #f1f5f9; padding: 16px; border-bottom: 1px solid #cbd5e1; text-align: center;">
-          <div style="font-weight: bold; color: #0f172a; font-size: 18px; margin-bottom: 4px;">${addressData.logradouro || ''}${numDisplay}</div>
-          <div style="color: #475569; font-size: 15px;">${addressData.bairro || ''} - ${addressData.municipio || ''}/${addressData.uf || ''}</div>
-          <div style="color: #64748b; font-size: 14px; margin-top: 4px;">CEP: ${addressData.cep || ''}</div>
-        </div>
-      `;
-    }
-
-    let districtHtml = '<div style="padding: 16px;">';
-    if (districtData && districtData.length > 0) {
-      districtData.forEach((d, index) => {
-        const isFirst = index === 0;
-        const bg = isFirst ? '#eff6ff' : '#ffffff';
-        const borderColor = isFirst ? '#3b82f6' : '#e2e8f0';
-        const titleColor = isFirst ? '#1d4ed8' : '#0f172a';
-        const labelText = isFirst ? 'Distrito Principal' : 'Alternativo';
-        const labelStyle = isFirst
-          ? 'background: #3b82f6; color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 10px; position: absolute; top: -10px; left: 50%; transform: translateX(-50%); white-space: nowrap;'
-          : 'display: none;';
-        const cardMargin = isFirst
-          ? 'margin-top: 12px; margin-bottom: 12px;'
-          : 'margin-bottom: 8px;';
-
-        districtHtml += `
-          <div style="position: relative; display: flex; justify-content: space-around; align-items: center; text-align: center; padding: 12px; background: ${bg}; border: 1px solid ${borderColor}; border-radius: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); ${cardMargin}">
-            <div style="${labelStyle} text-transform: uppercase; font-weight: bold;">${labelText}</div>
-            <div style="flex: 1;">
-              <div style="font-size: 12px; color: #64748b; text-transform: uppercase; font-weight: bold;">Distrito</div>
-              <div class="cw-d-title" style="font-size: 22px; font-weight: 900; color: ${titleColor};">${d.rotuloDistrito} <span style="color: #3b82f6; font-size: 18px;">${d.areaDistrito}</span></div>
-            </div>
-            <div style="flex: 1; border-left: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; padding: 0 8px;">
-              <div style="font-size: 12px; color: #64748b; text-transform: uppercase; font-weight: bold;">Ordem</div>
-              <div class="cw-d-val" style="font-size: 20px; font-weight: bold; color: #0f172a;">${d.ordemPercorrida}</div>
-            </div>
-            <div style="flex: 1;">
-              <div style="font-size: 12px; color: #64748b; text-transform: uppercase; font-weight: bold;">Lado</div>
-              <div class="cw-d-val" style="font-size: 20px; font-weight: bold; color: #0f172a;">${d.lado}</div>
-            </div>
-          </div>
-        `;
-      });
-    } else {
-      districtHtml +=
-        '<div style="color: #64748b; font-size: 15px; text-align: center;">Nenhum distrito mapeado para este CEP na grade atual.</div>';
-    }
-    districtHtml += '</div>';
-
-    card.innerHTML = addressHtml + districtHtml;
-    resultContainer.appendChild(card);
-  };
-
   const fetchCepDetails = async (
     cep: string,
     numero: string,
@@ -349,7 +268,7 @@ export async function showCepSearchOverlay(
     }
 
     try {
-      const grade = getCurrentGrade();
+      const grade = gradeSelect.value;
       const numParam = encodeURIComponent(numero);
 
       const addressUrl = `${SROWEB_ORIGIN}/app/entregaexternaautomatica/lancamentoautomatico/controllers/enderecoController.php?tipoPesquisa=cep&cep=${cleanCep}&documentoDestinatario=${numParam}`;
@@ -360,7 +279,7 @@ export async function showCepSearchOverlay(
         setCachedData(addressUrl, addressData);
       }
 
-      const districtUrl = `${SROWEB_ORIGIN}/app/entregaexternaautomatica/lancamentoautomatico/controllers/distritamentoTrechoController.php?mcmcu=&cep=${cleanCep}&grade=${grade}&numero=${numParam}`;
+      const districtUrl = `${SROWEB_ORIGIN}/app/entregaexternaautomatica/lancamentoautomatico/controllers/distritamentoTrechoController.php?mcmcu=&cep=${cleanCep}&grade=${grade}`;
       let districtData = getCachedData<any[]>(districtUrl);
       if (!districtData) {
         const districtRes = await fetchProxy(districtUrl);
@@ -368,11 +287,23 @@ export async function showCepSearchOverlay(
         setCachedData(districtUrl, districtData);
       }
 
+      let filteredDistrictData = districtData;
+      if (numero && districtData && districtData.length > 0) {
+        const n = parseInt(numero, 10);
+        if (!isNaN(n)) {
+          filteredDistrictData = districtData.filter((d) => {
+            const min = parseInt(d.inicioDomicilio, 10);
+            const max = parseInt(d.fimDomicilio, 10);
+            return n >= min && n <= max;
+          });
+        }
+      }
+
       if (addressData) {
         addressData._numero = numero; // store for the card attribute
       }
 
-      renderResult(addressData, districtData, hideSuggestions);
+      renderResult(addressData, filteredDistrictData, hideSuggestions);
     } catch {
       resultContainer.innerHTML =
         '<div style="color: #ef4444; padding: 20px; text-align: center; font-size: 16px;">Erro ao buscar dados do CEP.</div>';
@@ -397,7 +328,7 @@ export async function showCepSearchOverlay(
 
     debounceTimer = setTimeout(async () => {
       try {
-        const grade = getCurrentGrade();
+        const grade = gradeSelect.value;
         const searchUrl = `${SROWEB_ORIGIN}/app/entregaexternaautomatica/lancamentoautomatico/controllers/logradouroController.php?search=${encodeURIComponent(val)}&numeroGrade=${grade}`;
 
         let results = getCachedData<any[]>(searchUrl);
@@ -412,7 +343,7 @@ export async function showCepSearchOverlay(
           if (results.length === 1) {
             // Only 1 result, skip suggestions dropdown and just fetch details
             suggestionsContainer.style.display = 'none';
-            fetchCepDetails(results[0].cep || '', true);
+            fetchCepDetails(results[0].cep || '', numInput.value.trim(), true);
             return;
           }
 
