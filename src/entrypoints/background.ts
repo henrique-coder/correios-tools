@@ -50,6 +50,7 @@ async function proxyFetchText(
       method: options?.method || 'GET',
       cache: 'no-store',
       redirect: 'follow',
+      credentials: 'include',
       signal: controller.signal
     };
     if (options?.body) fetchOpts.body = options.body;
