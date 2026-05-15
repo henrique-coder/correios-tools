@@ -249,9 +249,174 @@ export async function showCepSearchOverlay(
     window.removeEventListener('cw-close-cep', handleCloseEvent);
   };
 
+  const renderResult = (
+    addressData: any,
+    districts: any[],
+    hideSuggestions: boolean,
+    isHistory = false
+  ) => {
+    console.log('[CW-DEBUG] renderResult called', {
+      addressData,
+      districts,
+      hideSuggestions,
+      isHistory
+    });
+
+    if (!isHistory) {
+      resultContainer.innerHTML = '';
+    }
+
+    if (hideSuggestions) {
+      suggestionsContainer.style.display = 'none';
+    }
+
+    const card = document.createElement('div');
+    card.className = 'cw-cep-result-card';
+    card.setAttribute('data-cep', addressData?.cep || '');
+    card.style.backgroundColor = '#fff';
+    card.style.border = '2px solid #e2e8f0';
+    card.style.borderRadius = '12px';
+    card.style.padding = isHistory ? '12px' : '20px';
+    card.style.display = 'flex';
+    card.style.flexDirection = 'column';
+    card.style.gap = isHistory ? '8px' : '16px';
+    card.style.boxShadow = '0 4px 6px -1px rgba(0,0,0,0.1)';
+
+    if (isHistory) {
+      card.style.fontSize = '12px';
+    }
+
+    // Address Header
+    const addrSection = document.createElement('div');
+    const addrTitle = document.createElement('div');
+    addrTitle.className = 'cw-d-title';
+    addrTitle.style.fontSize = isHistory ? '14px' : '18px';
+    addrTitle.style.fontWeight = 'bold';
+    addrTitle.style.color = '#1e293b';
+    addrTitle.style.marginBottom = '8px';
+    addrTitle.innerHTML = isHistory ? 'Dados do Endereço' : 'Dados do Endereço';
+    addrSection.appendChild(addrTitle);
+
+    const addrGrid = document.createElement('div');
+    addrGrid.style.display = 'grid';
+    addrGrid.style.gridTemplateColumns = 'repeat(2, 1fr)';
+    addrGrid.style.gap = isHistory ? '8px' : '12px';
+
+    const addField = (label: string, value: string) => {
+      const f = document.createElement('div');
+      f.innerHTML = `<div style="font-size: ${isHistory ? '10px' : '12px'}; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em;">${label}</div><div class="cw-d-val" style="font-size: ${isHistory ? '13px' : '16px'}; color: #334155; font-weight: 500;">${value || '--'}</div>`;
+      addrGrid.appendChild(f);
+    };
+
+    const fullAddr = `${addressData?.logradouro || ''}${addressData?._numero ? ', ' + addressData._numero : ''}`;
+    addField('Logradouro/Rua', fullAddr);
+    addField('Bairro', addressData?.bairro || '');
+    addField(
+      'Cidade / UF',
+      `${addressData?.municipio || ''} - ${addressData?.uf || ''}`
+    );
+    addField('CEP', addressData?.cep || '');
+
+    addrSection.appendChild(addrGrid);
+    card.appendChild(addrSection);
+
+    // District Section
+    const distSection = document.createElement('div');
+    distSection.style.borderTop = '1px solid #e2e8f0';
+    distSection.style.paddingTop = isHistory ? '8px' : '16px';
+
+    const distTitle = document.createElement('div');
+    distTitle.className = 'cw-d-title';
+    distTitle.style.fontSize = isHistory ? '14px' : '18px';
+    distTitle.style.fontWeight = 'bold';
+    distTitle.style.color = '#1e293b';
+    distTitle.style.marginBottom = '8px';
+    distTitle.innerText = 'Distrito Encontrado';
+    distSection.appendChild(distTitle);
+
+    if (!districts || districts.length === 0) {
+      const noDist = document.createElement('div');
+      noDist.style.padding = '12px';
+      noDist.style.backgroundColor = '#fff7ed';
+      noDist.style.border = '1px solid #ffedd5';
+      noDist.style.borderRadius = '8px';
+      noDist.style.color = '#9a3412';
+      noDist.style.fontSize = '14px';
+      noDist.innerText = 'Nenhum distrito vinculado a este trecho/número.';
+      distSection.appendChild(noDist);
+    } else {
+      districts.forEach((d, idx) => {
+        const dRow = document.createElement('div');
+        dRow.style.display = 'flex';
+        dRow.style.alignItems = 'center';
+        dRow.style.gap = '12px';
+        dRow.style.padding = isHistory ? '8px' : '12px';
+        dRow.style.backgroundColor = idx === 0 ? '#f0f9ff' : '#f8fafc';
+        dRow.style.border =
+          idx === 0 ? '1px solid #bae6fd' : '1px solid #e2e8f0';
+        dRow.style.borderRadius = '8px';
+        dRow.style.marginBottom = '8px';
+
+        const dIcon = document.createElement('div');
+        dIcon.style.width = isHistory ? '30px' : '40px';
+        dIcon.style.height = isHistory ? '30px' : '40px';
+        dIcon.style.borderRadius = '50%';
+        dIcon.style.backgroundColor = idx === 0 ? '#3b82f6' : '#94a3b8';
+        dIcon.style.color = '#fff';
+        dIcon.style.display = 'flex';
+        dIcon.style.justifyContent = 'center';
+        dIcon.style.alignItems = 'center';
+        dIcon.style.fontSize = isHistory ? '14px' : '18px';
+        dIcon.style.fontWeight = 'bold';
+        dIcon.innerText = d.rotuloDistrito?.[0] || '?';
+        dRow.appendChild(dIcon);
+
+        const dInfo = document.createElement('div');
+        dInfo.style.flex = '1';
+        const numRange = `(${d.inicioDomicilio || '1'} até ${d.fimDomicilio || '99999'})`;
+        dInfo.innerHTML = `
+          <div style="font-size: ${isHistory ? '14px' : '16px'}; font-weight: bold; color: #1e293b;">Distrito ${d.rotuloDistrito} ${d.areaDistrito || ''}</div>
+          <div style="font-size: ${isHistory ? '11px' : '13px'}; color: #64748b;">Lado: ${d.lado || '--'} | Ordem: ${d.ordemPercorrida || '--'} | Números: ${numRange}</div>
+        `;
+        dRow.appendChild(dInfo);
+        distSection.appendChild(dRow);
+      });
+    }
+
+    card.appendChild(distSection);
+
+    if (isHistory) {
+      historyContainer.prepend(card);
+    } else {
+      resultContainer.appendChild(card);
+    }
+  };
+
   overlay.addEventListener('mousedown', (e) => {
     if (e.target === overlay) closeCepSearchOverlay();
   });
+
+  let currentAddressData: any = null;
+  let currentDistrictData: any[] = [];
+
+  const updateFilteredResults = (numero: string) => {
+    if (!currentAddressData) return;
+
+    let filteredDistrictData = currentDistrictData || [];
+    if (numero && currentDistrictData && currentDistrictData.length > 0) {
+      const n = parseInt(numero, 10);
+      if (!isNaN(n)) {
+        filteredDistrictData = currentDistrictData.filter((d) => {
+          const min = parseInt(d.inicioDomicilio, 10);
+          const max = parseInt(d.fimDomicilio, 10);
+          return n >= min && n <= max;
+        });
+      }
+    }
+
+    currentAddressData._numero = numero;
+    renderResult(currentAddressData, filteredDistrictData, false);
+  };
 
   const fetchCepDetails = async (
     cep: string,
@@ -259,12 +424,25 @@ export async function showCepSearchOverlay(
     hideSuggestions = true
   ) => {
     const cleanCep = cep.replace(/\D/g, '');
-    if (cleanCep.length !== 8) return;
+    if (cleanCep.length !== 8) {
+      console.warn('[CW-DEBUG] Invalid CEP length:', cleanCep);
+      return;
+    }
 
-    resultContainer.innerHTML =
-      '<div style="color: #3b82f6; padding: 20px; text-align: center; font-size: 16px; font-weight: bold;">⏳ Buscando detalhes do endereço e distrito...</div>';
+    console.log('[CW-DEBUG] fetchCepDetails starting...', {
+      cep,
+      cleanCep,
+      numero
+    });
+
     if (hideSuggestions) {
       suggestionsContainer.style.display = 'none';
+    }
+
+    // Only show loading if we don't have results yet
+    if (!resultContainer.querySelector('.cw-cep-result-card')) {
+      resultContainer.innerHTML =
+        '<div style="color: #3b82f6; padding: 20px; text-align: center; font-size: 16px; font-weight: bold;">Buscando detalhes do endereço e distrito...</div>';
     }
 
     try {
@@ -272,6 +450,8 @@ export async function showCepSearchOverlay(
       const numParam = encodeURIComponent(numero);
 
       const addressUrl = `${SROWEB_ORIGIN}/app/entregaexternaautomatica/lancamentoautomatico/controllers/enderecoController.php?tipoPesquisa=cep&cep=${cleanCep}&documentoDestinatario=${numParam}`;
+      console.log('[CW-DEBUG] Fetching address...', addressUrl);
+
       let addressData = getCachedData<any>(addressUrl);
       if (!addressData) {
         const addressRes = await fetchProxy(addressUrl);
@@ -286,6 +466,8 @@ export async function showCepSearchOverlay(
       }
 
       const districtUrl = `${SROWEB_ORIGIN}/app/entregaexternaautomatica/lancamentoautomatico/controllers/distritamentoTrechoController.php?mcmcu=&cep=${cleanCep}&grade=${grade}`;
+      console.log('[CW-DEBUG] Fetching district...', districtUrl);
+
       let districtData = getCachedData<any[]>(districtUrl);
       if (!districtData) {
         const districtRes = await fetchProxy(districtUrl);
@@ -302,26 +484,13 @@ export async function showCepSearchOverlay(
         }
       }
 
-      let filteredDistrictData = districtData || [];
-      if (numero && districtData && districtData.length > 0) {
-        const n = parseInt(numero, 10);
-        if (!isNaN(n)) {
-          filteredDistrictData = districtData.filter((d) => {
-            const min = parseInt(d.inicioDomicilio, 10);
-            const max = parseInt(d.fimDomicilio, 10);
-            return n >= min && n <= max;
-          });
-        }
-      }
+      currentAddressData = addressData;
+      currentDistrictData = districtData || [];
 
-      if (addressData) {
-        addressData._numero = numero; // store for the card attribute
-      }
-
-      renderResult(addressData, filteredDistrictData, hideSuggestions);
-    } catch {
-      resultContainer.innerHTML =
-        '<div style="color: #ef4444; padding: 20px; text-align: center; font-size: 16px;">Erro ao buscar dados do CEP.</div>';
+      updateFilteredResults(numero);
+    } catch (err: any) {
+      console.error('[CW-DEBUG] Error in fetchCepDetails:', err);
+      resultContainer.innerHTML = `<div style="color: #ef4444; padding: 20px; text-align: center; font-size: 16px;">Erro ao buscar dados do CEP: ${err?.message || 'Erro desconhecido'}</div>`;
     }
   };
 
@@ -339,7 +508,7 @@ export async function showCepSearchOverlay(
 
     suggestionsContainer.style.display = 'block';
     suggestionsContainer.innerHTML =
-      '<div style="padding: 12px; color: #3b82f6; font-weight: bold;">⏳ Buscando na base dos Correios...</div>';
+      '<div style="padding: 12px; color: #3b82f6; font-weight: bold;">Buscando na base dos Correios...</div>';
 
     debounceTimer = setTimeout(async () => {
       try {
@@ -405,6 +574,38 @@ export async function showCepSearchOverlay(
     }, 500);
   });
 
+  const moveToHistory = () => {
+    if (!currentAddressData) return;
+    const currentCep = currentAddressData.cep || '';
+    const lastHistoryCard = historyContainer.firstElementChild;
+    const lastCep = lastHistoryCard
+      ? lastHistoryCard.getAttribute('data-cep')
+      : '';
+
+    if (currentCep && currentCep !== lastCep) {
+      // Re-filter for the current number to get correct districts for history
+      let filteredDistricts = currentDistrictData || [];
+      const n = parseInt(numInput.value.trim(), 10);
+      if (!isNaN(n)) {
+        filteredDistricts = currentDistrictData.filter((d) => {
+          const min = parseInt(d.inicioDomicilio, 10);
+          const max = parseInt(d.fimDomicilio, 10);
+          return n >= min && n <= max;
+        });
+      }
+      renderResult(currentAddressData, filteredDistricts, true, true);
+    }
+
+    // Clear main view
+    resultContainer.innerHTML = '';
+    input.value = '';
+    numInput.value = '';
+    suggestionsContainer.style.display = 'none';
+    currentAddressData = null;
+    currentDistrictData = [];
+    input.focus();
+  };
+
   input.addEventListener('keydown', (e) => {
     if (e.key === 'Tab') {
       e.preventDefault();
@@ -416,38 +617,7 @@ export async function showCepSearchOverlay(
 
       const card = resultContainer.querySelector('.cw-cep-result-card');
       if (card) {
-        // Move to history
-        const currentCep = card.getAttribute('data-cep') || '';
-        const lastHistoryCard = historyContainer.firstElementChild;
-        const lastCep = lastHistoryCard
-          ? lastHistoryCard.getAttribute('data-cep')
-          : '';
-
-        if (currentCep && currentCep !== lastCep) {
-          const clone = card.cloneNode(true) as HTMLElement;
-          clone.style.fontSize = '12px';
-
-          // Make the clone more compact
-          const titles = clone.querySelectorAll<HTMLElement>('.cw-d-title');
-          titles.forEach((t) => {
-            t.style.fontSize = '16px';
-            const span = t.querySelector('span');
-            if (span) span.style.fontSize = '14px';
-          });
-          const values = clone.querySelectorAll<HTMLElement>('.cw-d-val');
-          values.forEach((v) => {
-            v.style.fontSize = '14px';
-          });
-
-          historyContainer.prepend(clone);
-        }
-
-        // Clear main view
-        resultContainer.innerHTML = '';
-        input.value = '';
-        numInput.value = '';
-        suggestionsContainer.style.display = 'none';
-        input.focus();
+        moveToHistory();
       } else {
         const cleanCep = input.value.replace(/\D/g, '');
         if (cleanCep.length === 8) {
@@ -475,28 +645,33 @@ export async function showCepSearchOverlay(
     }
     if (e.key === 'Enter') {
       e.preventDefault();
-      const cleanCep = input.value.replace(/\D/g, '');
-      if (cleanCep.length === 8) {
-        fetchCepDetails(cleanCep, numInput.value.trim());
+      const card = resultContainer.querySelector('.cw-cep-result-card');
+      if (card) {
+        moveToHistory();
       } else {
-        const firstSuggestion = suggestionsContainer.querySelector(
-          'div[style*="cursor: pointer"]'
-        );
-        if (firstSuggestion && suggestionsContainer.style.display === 'block') {
-          (firstSuggestion as HTMLElement).click();
+        const cleanCep = input.value.replace(/\D/g, '');
+        if (cleanCep.length === 8) {
+          fetchCepDetails(cleanCep, numInput.value.trim());
         }
       }
     }
   });
 
   numInput.addEventListener('input', () => {
-    if (debounceTimer) clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(() => {
+    const n = numInput.value.trim();
+    if (currentAddressData) {
+      // Local filter without re-fetching
+      updateFilteredResults(n);
+    } else {
+      // If we don't have address yet but have a CEP, fetch
       const cleanCep = input.value.replace(/\D/g, '');
       if (cleanCep.length === 8) {
-        fetchCepDetails(cleanCep, numInput.value.trim());
+        if (debounceTimer) clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => {
+          fetchCepDetails(cleanCep, n);
+        }, 500);
       }
-    }, 500);
+    }
   });
 
   setTimeout(() => input.focus(), 50);
