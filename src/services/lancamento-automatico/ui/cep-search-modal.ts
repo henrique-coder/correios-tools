@@ -520,8 +520,6 @@ export async function showCepSearchOverlay(
         if (results && results.length > 0) {
           if (results.length === 1) {
             suggestionsContainer.style.display = 'none';
-            input.value =
-              results[0].text || results[0].logradouro || results[0].cep || '';
             fetchCepDetails(results[0].cep || '', numInput.value.trim(), true);
             return;
           }
@@ -537,7 +535,7 @@ export async function showCepSearchOverlay(
             div.setAttribute('data-index', idx.toString());
 
             const selectItem = () => {
-              input.value = item.text || item.logradouro || item.cep || '';
+              input.value = item.cep || '';
               fetchCepDetails(item.cep || '', numInput.value.trim());
             };
 
