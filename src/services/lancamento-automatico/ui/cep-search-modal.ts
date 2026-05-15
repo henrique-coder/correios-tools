@@ -358,10 +358,13 @@ export async function showCepSearchOverlay(
 
         const dInfo = document.createElement('div');
         dInfo.style.flex = '1';
-        const numRange = `${d.inicioDomicilio || '1'} até ${d.fimDomicilio || '99999'}`;
+        const start = d.inicioDomicilio || '1';
+        const end = d.fimDomicilio || '99999';
+        const numText =
+          start === end ? `Número: ${start}` : `Números: ${start} até ${end}`;
         dInfo.innerHTML = `
           <div style="font-size: ${isHistory ? '14px' : '16px'}; font-weight: bold; color: ${idx === 0 ? '#1d4ed8' : '#1e293b'};">Distrito ${d.rotuloDistrito} ${d.areaDistrito || ''}</div>
-          <div style="font-size: ${isHistory ? '11px' : '13px'}; color: #64748b;">Lado: ${d.lado || '--'} | Ordem: ${d.ordemPercorrida || '--'} | Números: ${numRange}</div>
+          <div style="font-size: ${isHistory ? '11px' : '13px'}; color: #64748b;">Lado: ${d.lado || '--'} | Ordem: ${d.ordemPercorrida || '--'} | ${numText}</div>
         `;
         dRow.appendChild(dInfo);
         distSection.appendChild(dRow);
