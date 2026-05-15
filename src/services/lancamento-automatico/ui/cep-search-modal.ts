@@ -88,7 +88,7 @@ export async function showCepSearchOverlay(
   title.style.margin = '0';
   title.style.fontSize = '22px';
   title.style.color = '#1e293b';
-  title.innerText = '📍 Pesquisa de Distrito por CEP ou Endereço';
+  title.innerText = 'Pesquisa Rápida de Distrito por Endereço/CEP';
   header.appendChild(title);
 
   const closeBtn = document.createElement('button');
@@ -121,7 +121,7 @@ export async function showCepSearchOverlay(
 
   const input = document.createElement('input');
   input.type = 'text';
-  input.placeholder = 'Digite um CEP ou Endereço e pressione ENTER...';
+  input.placeholder = 'Digite um endereço ou CEP e pressione ENTER...';
   input.style.width = '100%';
   input.style.padding = '14px 16px';
   input.style.fontSize = '18px';
@@ -258,12 +258,23 @@ export async function showCepSearchOverlay(
 
     let districtHtml = '<div style="padding: 16px;">';
     if (districtData && districtData.length > 0) {
-      districtData.forEach((d) => {
+      districtData.forEach((d, index) => {
+        const isFirst = index === 0;
+        const bg = isFirst ? '#eff6ff' : '#ffffff';
+        const borderColor = isFirst ? '#3b82f6' : '#e2e8f0';
+        const titleColor = isFirst ? '#1d4ed8' : '#0f172a';
+        const labelText = isFirst
+          ? 'Distrito Principal (Recomendado)'
+          : 'Distrito Alternativo';
+        const labelStyle = isFirst
+          ? 'background: #3b82f6; color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 10px; margin-bottom: 4px; display: inline-block;'
+          : 'color: #64748b; margin-bottom: 4px; display: inline-block; font-size: 10px;';
+
         districtHtml += `
-          <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; margin-bottom: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: ${bg}; border: 1px solid ${borderColor}; border-radius: 6px; margin-bottom: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
             <div>
-              <div style="font-size: 12px; color: #64748b; text-transform: uppercase; font-weight: bold;">Distrito</div>
-              <div style="font-size: 22px; font-weight: 900; color: #0f172a;">${d.rotuloDistrito} <span style="color: #3b82f6;">${d.areaDistrito}</span></div>
+              <div style="${labelStyle} text-transform: uppercase; font-weight: bold;">${labelText}</div>
+              <div style="font-size: 22px; font-weight: 900; color: ${titleColor};">${d.rotuloDistrito} <span style="color: #3b82f6; font-size: 18px;">${d.areaDistrito}</span></div>
             </div>
             <div style="text-align: right;">
               <div style="font-size: 12px; color: #64748b; text-transform: uppercase; font-weight: bold;">Ordem</div>
@@ -355,6 +366,13 @@ export async function showCepSearchOverlay(
 
         suggestionsContainer.innerHTML = '';
         if (results && results.length > 0) {
+          if (results.length === 1) {
+            // Only 1 result, skip suggestions dropdown and just fetch details
+            suggestionsContainer.style.display = 'none';
+            fetchCepDetails(results[0].cep || '', true);
+            return;
+          }
+
           results.forEach((item) => {
             const div = document.createElement('div');
             div.style.padding = '12px 16px';

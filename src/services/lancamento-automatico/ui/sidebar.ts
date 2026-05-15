@@ -8,9 +8,18 @@ export async function injectSidebarButtons(
   fetchProxy: (url: string, options?: FetchProxyOptions) => Promise<string>
 ): Promise<void> {
   try {
-    const sidebar = await waitForElement<HTMLElement>('.aberto', 200, 100); // Wait up to 20s
-    if (!sidebar) return;
+    // We want the specific '.aberto' that contains 'Entrega Externa' links
+    const sidebars = document.querySelectorAll<HTMLElement>('.aberto');
+    let targetSidebar: HTMLElement | null = null;
 
+    for (const sb of Array.from(sidebars)) {
+      if (sb.innerHTML.includes('imprimiretiquetatms')) {
+        targetSidebar = sb;
+        break;
+      }
+    }
+
+    if (!targetSidebar) return;
     if (document.getElementById('cw-btn-tracking')) return;
 
     const btnTracking = document.createElement('a');
@@ -18,16 +27,16 @@ export async function injectSidebarButtons(
     btnTracking.className = 'cw-sidebar-btn';
     btnTracking.tabIndex = 1;
     btnTracking.style.cssText =
-      'cursor:pointer; background:#e0f2fe; color:#1e40af; font-weight:bold; border-left:4px solid #3b82f6; display:block; padding:10px 15px; text-decoration:none; margin-top: 8px;';
-    btnTracking.innerHTML = '🚀 Rastreamento Avançado';
+      'cursor:pointer; display:block; padding:10px 15px; text-decoration:none; margin-top: 8px; border-top: 1px dashed #ccc; font-weight: bold; color: #444;';
+    btnTracking.innerHTML = 'Rastreamento Interno Rápido';
 
     const btnCep = document.createElement('a');
     btnCep.id = 'cw-btn-cep';
     btnCep.className = 'cw-sidebar-btn';
     btnCep.tabIndex = 1;
     btnCep.style.cssText =
-      'cursor:pointer; background:#fef3c7; color:#854d0e; font-weight:bold; border-left:4px solid #eab308; display:block; padding:10px 15px; text-decoration:none; margin-top: 4px; border-bottom:1px solid #ccc;';
-    btnCep.innerHTML = '📍 Pesquisa de Distrito';
+      'cursor:pointer; display:block; padding:10px 15px; text-decoration:none; font-weight: bold; color: #444;';
+    btnCep.innerHTML = 'Pesquisa Rápida de Distrito';
 
     btnTracking.addEventListener('click', (e) => {
       e.preventDefault();
@@ -54,7 +63,7 @@ export async function injectSidebarButtons(
       showCepSearchOverlay(fetchProxy);
     });
 
-    sidebar.appendChild(btnTracking);
-    sidebar.appendChild(btnCep);
+    targetSidebar.appendChild(btnTracking);
+    targetSidebar.appendChild(btnCep);
   } catch {}
 }
