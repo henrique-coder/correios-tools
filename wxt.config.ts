@@ -103,10 +103,10 @@ export default defineConfig({
   },
   manifest: ({ browser }) => {
     const manifest = {
-      name: 'Correios Wizard',
+      name: '__MSG_extName__',
       version,
-      description:
-        'Automação e produtividade para as telas de Lançamento Automático e LOEC Suspensa do SRO Web.',
+      description: '__MSG_extDescription__',
+      default_locale: 'pt_BR',
       author: 'Henrique Moreira',
       homepage_url: 'https://github.com/henrique-coder/correios-wizard',
       icons: {

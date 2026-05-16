@@ -106,17 +106,14 @@ Automação operacional para as telas internas dos Correios no Chrome, Edge e Fi
 
 ## Desenvolvimento
 
-### Comandos principais
+### Scripts de Desenvolvimento
 
-- `pnpm dev:chrome`
-- `pnpm dev:edge`
-- `pnpm dev:firefox`
-- `pnpm build:chrome`
-- `pnpm build:edge`
-- `pnpm build:firefox`
-- `pnpm zip:chrome`
-- `pnpm zip:edge`
-- `pnpm zip:firefox`
+- `pnpm dev:chrome`: inicia o modo de desenvolvimento no Chrome.
+- `pnpm dev:edge`: inicia o modo de desenvolvimento no Edge.
+- `pnpm dev:firefox`: inicia o modo de desenvolvimento no Firefox.
+- `pnpm build`: gera build para todos os navegadores suportados.
+- `pnpm zip`: gera zip para todos os navegadores suportados.
+- `pnpm lint` / `pnpm format`: validação e formatação de código.
 
 ### Fluxo do deploy
 

@@ -1,0 +1,10 @@
+{
+  "extName": {
+    "message": "Correios Wizard",
+    "description": "Nome da extensão"
+  },
+  "extDescription": {
+    "message": "Automação e produtividade para as telas de Lançamento Automático e LOEC Suspensa do SRO Web.",
+    "description": "Descrição da extensão"
+  }
+}
