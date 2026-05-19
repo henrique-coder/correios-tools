@@ -53,6 +53,8 @@ Automação operacional para as telas internas dos Correios no Chrome, Edge e Fi
 - Auto-fechamento de alertas e pop-ups de impressão (com botão no painel).
 - Foco mantido no campo do objeto quando há erro de validação.
 - Atualização automática ao interceptar respostas da própria página.
+- Pesquisa Rápida de Distrito por Endereço/CEP, com atualização em tempo real ao alterar a Grade e destaque visual para a recomendação principal.
+- Histórico com limite de 10 itens das pesquisas recentes de distritos.
 
 ### LOEC Suspensa
 

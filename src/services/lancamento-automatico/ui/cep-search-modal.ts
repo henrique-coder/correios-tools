@@ -172,6 +172,8 @@ export async function showCepSearchOverlay(
     const cleanCep = val.replace(/\D/g, '');
     if (cleanCep.length === 8) {
       fetchCepDetails(cleanCep, numInput.value.trim(), true);
+    } else if (val.length >= 3) {
+      input.dispatchEvent(new Event('input'));
     }
   });
 
@@ -218,7 +220,7 @@ export async function showCepSearchOverlay(
   historyTitle.style.fontSize = '16px';
   historyTitle.style.color = '#475569';
   historyTitle.style.textTransform = 'uppercase';
-  historyTitle.innerText = 'Histórico Temporário';
+  historyTitle.innerText = 'Histórico';
   historyCol.appendChild(historyTitle);
 
   const historyContainer = document.createElement('div');
@@ -351,15 +353,15 @@ export async function showCepSearchOverlay(
         dRow.style.marginBottom = '8px';
 
         const dIcon = document.createElement('div');
-        dIcon.style.width = isHistory ? '30px' : '40px';
-        dIcon.style.height = isHistory ? '30px' : '40px';
+        dIcon.style.width = isHistory ? '30px' : idx === 0 ? '48px' : '40px';
+        dIcon.style.height = isHistory ? '30px' : idx === 0 ? '48px' : '40px';
         dIcon.style.borderRadius = '50%';
         dIcon.style.backgroundColor = idx === 0 ? '#3b82f6' : '#94a3b8';
         dIcon.style.color = '#fff';
         dIcon.style.display = 'flex';
         dIcon.style.justifyContent = 'center';
         dIcon.style.alignItems = 'center';
-        dIcon.style.fontSize = isHistory ? '14px' : '18px';
+        dIcon.style.fontSize = isHistory ? '14px' : idx === 0 ? '22px' : '18px';
         dIcon.style.fontWeight = 'bold';
         dIcon.innerText = d.rotuloDistrito?.[0] || '?';
         dRow.appendChild(dIcon);
@@ -371,7 +373,7 @@ export async function showCepSearchOverlay(
         const numText =
           start === end ? `Número: ${start}` : `Números: ${start} até ${end}`;
         dInfo.innerHTML = `
-          <div style="font-size: ${isHistory ? '14px' : '16px'}; font-weight: bold; color: ${idx === 0 ? '#1d4ed8' : '#1e293b'};">Distrito ${d.rotuloDistrito} ${d.areaDistrito || ''}</div>
+          <div style="font-size: ${isHistory ? '14px' : idx === 0 ? '19px' : '16px'}; font-weight: ${idx === 0 ? '900' : 'bold'}; color: ${idx === 0 ? '#1d4ed8' : '#1e293b'};">Distrito ${d.rotuloDistrito} ${d.areaDistrito || ''}</div>
           <div style="font-size: ${isHistory ? '11px' : '13px'}; color: #64748b;">Lado: ${d.lado || '--'} | Ordem: ${d.ordemPercorrida || '--'} | ${numText}</div>
         `;
         dRow.appendChild(dInfo);
@@ -383,6 +385,9 @@ export async function showCepSearchOverlay(
 
     if (isHistory) {
       historyContainer.prepend(card);
+      while (historyContainer.children.length > 10) {
+        historyContainer.lastElementChild?.remove();
+      }
     } else {
       resultContainer.appendChild(card);
     }

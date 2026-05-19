@@ -7,10 +7,7 @@ const FETCH_RES_EVENT = RUNTIME_DEFAULTS.EVENTS.FETCH_RES;
 const FETCH_PROXY_ACTION = RUNTIME_DEFAULTS.ACTIONS.FETCH_PROXY;
 
 export default defineContentScript({
-  matches: [
-    'https://sroweb.correios.com.br/app/entregaexternaautomatica/lancamentoautomatico/*',
-    'https://sroweb.correios.com.br/app/entregaexternaautomatica/loecsuspensa/*'
-  ],
+  matches: ['https://sroweb.correios.com.br/*'],
   runAt: 'document_start',
   allFrames: false,
   main() {

@@ -83,10 +83,7 @@ async function isCurrentUnitBlocked(): Promise<boolean> {
 }
 
 export default defineContentScript({
-  matches: [
-    'https://sroweb.correios.com.br/app/entregaexternaautomatica/lancamentoautomatico/*',
-    'https://sroweb.correios.com.br/app/entregaexternaautomatica/loecsuspensa/*'
-  ],
+  matches: ['https://sroweb.correios.com.br/*'],
   runAt: 'document_start',
   world: 'MAIN',
   allFrames: false,
@@ -100,8 +97,8 @@ export default defineContentScript({
       if (path.includes('/lancamentoautomatico/')) {
         if (currentService === 'lancamento') return;
         currentService = 'lancamento';
-        runAutoDispatchService(fetchProxy);
         if (await isCurrentUnitBlocked()) return;
+        runAutoDispatchService(fetchProxy);
       } else if (path.includes('/loecsuspensa/')) {
         if (currentService === 'loec') return;
         currentService = 'loec';
