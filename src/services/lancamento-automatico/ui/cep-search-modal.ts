@@ -490,6 +490,10 @@ export async function showCepSearchOverlay(
 
     if (debounceTimer) clearTimeout(debounceTimer);
 
+    resultContainer.innerHTML = '';
+    currentAddressData = null;
+    currentDistrictData = [];
+
     if (val.length < 3) {
       suggestionsContainer.style.display = 'none';
       activeSuggestionIndex = -1;
