@@ -1,4 +1,8 @@
-import { DOM_IDS, DOM_SELECTORS } from '../../shared/constants/dom-elements.js';
+import {
+  CEP_INPUT_SELECTORS,
+  DOM_IDS,
+  DOM_SELECTORS
+} from '../../shared/constants/dom-elements.js';
 import {
   registerFetchInterceptor,
   registerXhrTrigger

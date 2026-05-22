@@ -87,7 +87,7 @@ export async function showCepSearchOverlay(
   title.style.margin = '0';
   title.style.fontSize = '22px';
   title.style.color = '#1e293b';
-  title.innerText = 'Pesquisa Rápida de Distrito por Endereço/CEP';
+  title.innerText = 'Procurar Distrito por Endereço ou CEP';
   header.appendChild(title);
 
   const closeBtn = document.createElement('button');
@@ -124,7 +124,7 @@ export async function showCepSearchOverlay(
 
   const input = document.createElement('input');
   input.type = 'text';
-  input.placeholder = 'Digite um endereço ou CEP...';
+  input.placeholder = 'Digite o nome da rua ou o CEP...';
   input.style.flex = '1';
   input.style.padding = '14px 16px';
   input.style.fontSize = '18px';
@@ -220,7 +220,7 @@ export async function showCepSearchOverlay(
   historyTitle.style.fontSize = '16px';
   historyTitle.style.color = '#475569';
   historyTitle.style.textTransform = 'uppercase';
-  historyTitle.innerText = 'Histórico';
+  historyTitle.innerText = 'Últimas Buscas';
   historyCol.appendChild(historyTitle);
 
   const historyContainer = document.createElement('div');
@@ -290,7 +290,7 @@ export async function showCepSearchOverlay(
     addrTitle.style.fontWeight = 'bold';
     addrTitle.style.color = '#1e293b';
     addrTitle.style.marginBottom = '8px';
-    addrTitle.innerText = 'Dados do Endereço';
+    addrTitle.innerText = 'Endereço Encontrado';
     addrSection.appendChild(addrTitle);
 
     const addrGrid = document.createElement('div');
@@ -326,7 +326,7 @@ export async function showCepSearchOverlay(
     distTitle.style.fontWeight = 'bold';
     distTitle.style.color = '#1e293b';
     distTitle.style.marginBottom = '8px';
-    distTitle.innerText = 'Distrito Encontrado';
+    distTitle.innerText = 'Distrito Responsável';
     distSection.appendChild(distTitle);
 
     if (!districts || districts.length === 0) {
@@ -337,7 +337,8 @@ export async function showCepSearchOverlay(
       noDist.style.borderRadius = '8px';
       noDist.style.color = '#9a3412';
       noDist.style.fontSize = '14px';
-      noDist.innerText = 'Nenhum distrito vinculado a este trecho/número.';
+      noDist.innerText =
+        'Não encontramos nenhum distrito para este endereço e número.';
       distSection.appendChild(noDist);
     } else {
       districts.forEach((d, idx) => {

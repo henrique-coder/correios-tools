@@ -39,10 +39,10 @@ export function buildSummaryCards(districts: DistrictData[]): {
     </div>`;
 
   const html = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:24px">
-    ${card('#3b82f6', 'Carga Total', `${totalObjs} <span style="font-size:14px;color:#64748b;font-weight:500">objs</span>`, `📍 ${totalPts} pontos | 📝 ${totalArs} ARs`)}
-    ${card('#ef4444', 'Vencidos', totalVencidos, 'Prioridade Máxima')}
-    ${card('#f97316', 'Vencem Hoje', totalToday, 'SLA Diário')}
-    ${card('#10b981', 'A Vencer', totalDueSoon, 'Fluxo Controlado')}
+    ${card('#3b82f6', 'Carga Total', `${totalObjs} <span style="font-size:14px;color:#64748b;font-weight:500">pacotes</span>`, `📍 ${totalPts} pontos | 📝 ${totalArs} ARs`)}
+    ${card('#ef4444', 'Atrasados', totalVencidos, 'Entregar Urgente')}
+    ${card('#f97316', 'Vencem Hoje', totalToday, 'Entregar Hoje')}
+    ${card('#10b981', 'No Prazo', totalDueSoon, 'Dentro do Prazo')}
   </div>`;
 
   return {

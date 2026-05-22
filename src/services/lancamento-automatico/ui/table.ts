@@ -37,7 +37,7 @@ export function injectTable(): void {
         <th>OBJETO</th><td id="td-cod" style="font-weight:bold;font-size:12px">--</td>
         <th>STATUS</th><td id="td-stt">--</td>
         <th>VALIDAÇÃO</th><td id="td-val">--</td>
-        <th>DATA PREV.</th><td id="td-dat-prev">--</td>
+        <th>PREVISÃO</th><td id="td-dat-prev">--</td>
       </tr>
       <tr id="row-exc" style="display:none">
         <th style="color:#c62828">EXCEÇÃO</th><td colspan="7" id="td-exc" style="color:#c62828;font-weight:bold">--</td>
@@ -58,9 +58,9 @@ export function injectTable(): void {
       <tr>
         <th rowspan="2">INDUÇÃO</th>
         <td colspan="7">
-          <span style="color:#777">L:</span> <b id="td-lis">--</b> &nbsp;|&nbsp;
-          <span style="color:#777">E:</span> <b id="td-est">--</b> &nbsp;|&nbsp;
-          <span style="color:#777">U:</span> <b id="td-usu">--</b> &nbsp;|&nbsp;
+          <span style="color:#777">LISTA:</span> <b id="td-lis">--</b> &nbsp;|&nbsp;
+          <span style="color:#777">ESTAÇÃO:</span> <b id="td-est">--</b> &nbsp;|&nbsp;
+          <span style="color:#777">USUÁRIO:</span> <b id="td-usu">--</b> &nbsp;|&nbsp;
           <span style="color:#777">DATA:</span> <b id="td-dat">--</b>
         </td>
       </tr>

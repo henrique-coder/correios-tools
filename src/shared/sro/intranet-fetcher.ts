@@ -1,3 +1,4 @@
+import { RUNTIME_DEFAULTS } from '../../config/defaults.js';
 import { SROINTRANET_ORIGIN } from '../constants/urls.js';
 import type { FetchProxyOptions } from '../fetch/proxy.js';
 import type { SroCache, TrackingEvent } from './intranet-parser.js';

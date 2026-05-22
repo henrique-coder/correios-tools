@@ -156,6 +156,12 @@ export function mergeSroCache(
   incoming: SroCache
 ): SroCache {
   const merged = { ...existing, ...incoming };
-  if (Object.keys(merged).length > MAX_CACHE_SIZE) return {};
+  const keys = Object.keys(merged);
+  if (keys.length > MAX_CACHE_SIZE) {
+    const keysToRemove = keys.slice(0, keys.length - MAX_CACHE_SIZE);
+    for (const key of keysToRemove) {
+      delete merged[key];
+    }
+  }
   return merged;
 }

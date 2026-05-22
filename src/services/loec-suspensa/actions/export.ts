@@ -100,12 +100,12 @@ export function buildPrintContent(
 
   const header = `<div style="display:flex;justify-content:space-between;gap:15px;margin-bottom:45px;align-items:stretch">
     <div style="flex:1.5;padding:8px 12px;border:1px solid #cbd5e1;border-radius:4px;background:#fafafa;display:flex;flex-direction:column">
-      <p style="margin:0;color:#0f172a;font-size:13px;font-weight:bold">Observações:</p>
+      <p style="margin:0;color:#0f172a;font-size:13px;font-weight:bold">Anotações:</p>
       <div style="border-bottom:1px solid #cbd5e1;margin-top:18px"></div>
       <div style="border-bottom:1px solid #cbd5e1;margin-top:16px"></div>
     </div>
     <div style="flex:1;padding:8px 12px;border:1px solid #cbd5e1;border-radius:4px;background:#fafafa;display:flex;flex-direction:column;justify-content:space-around">
-      <p style="margin:0 0 10px 0;color:#0f172a;font-size:13px;font-weight:bold;white-space:nowrap">Resultado da busca:</p>
+      <p style="margin:0 0 10px 0;color:#0f172a;font-size:13px;font-weight:bold;white-space:nowrap">Resultado:</p>
       <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
         <div style="display:flex;align-items:center;gap:6px;white-space:nowrap">
           <div style="width:14px;height:14px;border:1px solid #94a3b8;background:#fff"></div>
@@ -113,7 +113,7 @@ export function buildPrintContent(
         </div>
         <div style="display:flex;align-items:center;gap:6px;white-space:nowrap">
           <div style="width:14px;height:14px;border:1px solid #94a3b8;background:#fff"></div>
-          <span style="font-size:12px;color:#334155;font-weight:600">Faltou objetos, Qtd:</span>
+          <span style="font-size:12px;color:#334155;font-weight:600">Faltou pacotes, Qtd:</span>
           <div style="width:30px;border-bottom:1px solid #94a3b8;height:14px"></div>
         </div>
       </div>
@@ -185,8 +185,8 @@ export function printReport(store: LoecStore): void {
 
   const printSurface = `<div id="print-a4-surface" style="width:190mm;min-height:277mm;background:#fff;box-sizing:border-box;margin:0 auto">
     <div style="text-align:center;border-bottom:3px solid #0f172a;border-top:3px solid #0f172a;padding:10px 0;margin-bottom:20px">
-      <h1 style="margin:0;color:#0f172a;font-size:24px;text-transform:uppercase;letter-spacing:1px">Relatório Analítico de Objetos - ${data.cat}</h1>
-      <p style="margin:8px 0 0;color:#475569;font-size:14px"><strong>Gerado em:</strong> ${dateStr} | <strong>Total de Objetos:</strong> ${filteredObjs.length}</p>
+      <h1 style="margin:0;color:#0f172a;font-size:24px;text-transform:uppercase;letter-spacing:1px">Relatório de Pacotes - ${data.cat}</h1>
+      <p style="margin:8px 0 0;color:#475569;font-size:14px"><strong>Gerado em:</strong> ${dateStr} | <strong>Total de Pacotes:</strong> ${filteredObjs.length}</p>
     </div>
     ${content}
   </div>`;

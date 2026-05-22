@@ -26,15 +26,15 @@ export function attachDraggable(
   state: DragState,
   onMove: () => void,
   onReset?: () => void
-): void {
-  handle.onmousedown = (e) => {
+): () => void {
+  const handleMouseDown = (e: MouseEvent) => {
     if ((e.target as HTMLElement).closest('.sro-btn-group')) return;
     state.active = true;
     state.startX = e.clientX - state.offsetX;
     state.startY = e.clientY - state.offsetY;
   };
 
-  handle.ondblclick = (e) => {
+  const handleDoubleClick = (e: MouseEvent) => {
     if ((e.target as HTMLElement).closest('.sro-btn-group')) return;
     state.offsetX = 0;
     state.offsetY = 0;
@@ -43,14 +43,14 @@ export function attachDraggable(
     onReset?.();
   };
 
-  document.onmouseup = () => {
+  const handleMouseUp = () => {
     if (!state.active) return;
     state.active = false;
     clampToBounds(container, state);
     onMove();
   };
 
-  document.onmousemove = (e) => {
+  const handleMouseMove = (e: MouseEvent) => {
     if (!state.active) return;
     e.preventDefault();
     state.clientX = e.clientX - state.startX;
@@ -58,6 +58,18 @@ export function attachDraggable(
     state.offsetX = state.clientX;
     state.offsetY = state.clientY;
     container.style.transform = `translate3d(${state.clientX}px, ${state.clientY}px, 0)`;
+  };
+
+  handle.addEventListener('mousedown', handleMouseDown);
+  handle.addEventListener('dblclick', handleDoubleClick);
+  document.addEventListener('mouseup', handleMouseUp);
+  document.addEventListener('mousemove', handleMouseMove);
+
+  return function detachDraggable() {
+    handle.removeEventListener('mousedown', handleMouseDown);
+    handle.removeEventListener('dblclick', handleDoubleClick);
+    document.removeEventListener('mouseup', handleMouseUp);
+    document.removeEventListener('mousemove', handleMouseMove);
   };
 }
 

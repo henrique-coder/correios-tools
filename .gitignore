@@ -1,6 +1,7 @@
 # Directories
 .idea/
 .vscode/
+.antigravitycli/
 node_modules/
 build/
 dist/

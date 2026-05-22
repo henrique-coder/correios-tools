@@ -167,6 +167,6 @@ export function syncAutoCloseButton(enabled: boolean): void {
     'transform 120ms ease,box-shadow 120ms ease,opacity 120ms ease,background 120ms ease,border-color 120ms ease,color 120ms ease';
   btn.setAttribute('aria-pressed', enabled ? 'true' : 'false');
   btn.title = enabled
-    ? 'Fechamento automático de popups de impressão: habilitado'
-    : 'Fechamento automático de popups de impressão: desabilitado';
+    ? 'Fechar tela de impressão sozinho: LIGADO'
+    : 'Fechar tela de impressão sozinho: DESLIGADO';
 }

@@ -27,7 +27,7 @@ export function renderArqTable(
     const data = store.archiveLastData;
     if (!data?.objs?.length) {
       resultEl.innerHTML =
-        '<div style="padding:10px;text-align:center;color:#ef4444">Nenhum objeto encontrado na categoria especificada!</div>';
+        '<div style="padding:10px;text-align:center;color:#ef4444">Nenhum pacote encontrado na categoria especificada!</div>';
       resolve();
       return;
     }
@@ -65,7 +65,7 @@ export function renderArqTable(
 
     if (!sortedObjs.length) {
       resultEl.innerHTML =
-        '<div style="padding:10px;text-align:center;color:#ef4444">Nenhum objeto retornado para este filtro.</div>';
+        '<div style="padding:10px;text-align:center;color:#ef4444">Nenhum pacote encontrado com esses filtros.</div>';
       resolve();
       return;
     }
@@ -143,7 +143,7 @@ export function renderArqTable(
         }
 
         if (prog)
-          prog.innerText = `Sincronizando SRO Intranet... ${done}/${total}`;
+          prog.innerText = `Procurando status atual... ${done}/${total}`;
       },
       onComplete: () => {
         if (store.archiveRenderId !== renderId) {
@@ -151,7 +151,7 @@ export function renderArqTable(
           return;
         }
         if (prog) {
-          prog.innerText = 'Sincronizado';
+          prog.innerText = 'Status Encontrados!';
           setTimeout(() => {
             if (prog && store.archiveRenderId === renderId)
               prog.style.display = 'none';
@@ -165,13 +165,13 @@ export function renderArqTable(
 
 function buildTableHeader(count: number, mode: string): string {
   const modeHeaders: Record<string, string> = {
-    '1': '<th style="padding:8px;border-bottom:2px solid #cbd5e1">Distrito</th><th style="padding:8px;border-bottom:2px solid #cbd5e1">Objeto</th><th style="padding:8px;border-bottom:2px solid #cbd5e1">Situação SRO</th>',
+    '1': '<th style="padding:8px;border-bottom:2px solid #cbd5e1">Distrito</th><th style="padding:8px;border-bottom:2px solid #cbd5e1">Pacote</th><th style="padding:8px;border-bottom:2px solid #cbd5e1">Status</th>',
     '2': '<th style="padding:8px;border-bottom:2px solid #cbd5e1">Distrito</th><th style="padding:8px;border-bottom:2px solid #cbd5e1">Endereço</th>',
-    '3': '<th style="padding:8px;border-bottom:2px solid #cbd5e1">Distrito</th><th style="padding:8px;border-bottom:2px solid #cbd5e1">Objeto</th><th style="padding:8px;border-bottom:2px solid #cbd5e1">Demais Dados</th><th style="padding:8px;border-bottom:2px solid #cbd5e1">Situação SRO</th>'
+    '3': '<th style="padding:8px;border-bottom:2px solid #cbd5e1">Distrito</th><th style="padding:8px;border-bottom:2px solid #cbd5e1">Pacote</th><th style="padding:8px;border-bottom:2px solid #cbd5e1">Outras Informações</th><th style="padding:8px;border-bottom:2px solid #cbd5e1">Status</th>'
   };
   return `<div style="margin-bottom:12px;font-weight:bold;color:#334155;border-bottom:1px solid #e2e8f0;padding-bottom:8px;display:flex;justify-content:space-between;align-items:center">
-    <span>Pré-visualização: ${count} objetos</span>
-    <span id="${LOEC_DOM_IDS.ARCHIVE_SRO_PROGRESS}" style="font-size:11px;color:#10b981;font-weight:600;display:none">Sincronizando SRO Intranet...</span>
+    <span>Lista: ${count} pacotes</span>
+    <span id="${LOEC_DOM_IDS.ARCHIVE_SRO_PROGRESS}" style="font-size:11px;color:#10b981;font-weight:600;display:none">Procurando status atual...</span>
   </div>
   <table style="width:100%;border-collapse:collapse;font-size:12px;text-align:left">
   <thead><tr style="color:#64748b">${modeHeaders[mode] ?? modeHeaders['3']}</tr></thead><tbody>`;

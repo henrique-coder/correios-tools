@@ -7,6 +7,7 @@ import { renderArqTable } from './table-renderer.js';
 
 export function refreshSroMasterFilters(
   store: LoecStore,
+  fetchProxy: (url: string) => Promise<string>,
   resetAll = false
 ): void {
   const data = store.archiveLastData;
@@ -82,7 +83,7 @@ export function refreshSroMasterFilters(
       .forEach((c) => {
         c.addEventListener('change', () => {
           updateLabel();
-          renderArqTable(store, async () => '');
+          renderArqTable(store, fetchProxy);
         });
       });
   }

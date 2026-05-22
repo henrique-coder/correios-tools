@@ -12,19 +12,6 @@ import { createDefaultState } from './state.js';
 import { renderPanel, syncAutoCloseButton } from './ui/panel.js';
 import { updateTable } from './ui/table.js';
 
-export function createRenderFn(stateRef: { current: DispatchState }) {
-  return function render(): void {
-    renderPanel(stateRef.current, () => {
-      const newVal = !isAutoCloseEnabled();
-      setAutoClose(newVal);
-      syncAutoCloseButton(newVal);
-      if (newVal) triggerAutoClose();
-    });
-    syncAutoCloseButton(isAutoCloseEnabled());
-    updateTable(stateRef.current);
-  };
-}
-
 export function handleControllerResponse(
   url: string,
   data: unknown,
@@ -61,13 +48,13 @@ export function handleControllerResponse(
         stateRef.current.mode !== 'error'
       ) {
         stateRef.current.mode = 'info';
-        stateRef.current.status = 'PRONTO P/ INDUZIR';
+        stateRef.current.status = 'PRONTO PARA INDUZIR';
       }
       stateRef.current.correios_dataPrevista =
         d.previsaoEntrega?.data || '--/--/----';
     } else {
       stateRef.current.mode = 'error';
-      stateRef.current.status = 'NÃO INDUZIDO';
+      stateRef.current.status = 'NÃO FOI INDUZIDO';
     }
     updated = true;
   } else if (lc.includes('enderecocontroller.php') && d.endereco) {
@@ -115,7 +102,7 @@ export function handleControllerResponse(
   } else if (lc.includes('acao=pesquisarloecobjeto')) {
     if (d.id || d.idLancamento) {
       stateRef.current.mode = 'success';
-      stateRef.current.status = 'JÁ INDUZIDO';
+      stateRef.current.status = 'JÁ FOI INDUZIDO';
       stateRef.current.district =
         `${d.numeroDistrito || ''} ${d.distritoComplemento || ''}`.trim();
       stateRef.current.domDistrict = stateRef.current.district;
@@ -127,7 +114,7 @@ export function handleControllerResponse(
   } else if (lc.includes('acao=salvar')) {
     if (d.idLancamento) {
       stateRef.current.mode = 'success';
-      stateRef.current.status = 'OBJETO INDUZIDO';
+      stateRef.current.status = 'OBJETO INDUZIDO COM SUCESSO';
       stateRef.current.opData.correios_numeroLista = d.numeroLista;
       stateRef.current.opData.correios_usuario = d.usuario;
       stateRef.current.opData.correios_estacao = d.estacao;
@@ -179,13 +166,13 @@ export function handleControllerResponse(
       updated = true;
     } else if (d.excecao) {
       stateRef.current.mode = 'error';
-      stateRef.current.status = 'ERRO NA INDUÇÃO';
+      stateRef.current.status = 'ERRO AO INDUZIR';
       stateRef.current.correios_excecao = d.excecao;
       updated = true;
     }
   } else if (lc.includes('acao=excluir')) {
     stateRef.current.mode = 'error';
-    stateRef.current.status = 'EXCLUÍDO';
+    stateRef.current.status = 'OBJETO EXCLUÍDO';
     updated = true;
   }
 

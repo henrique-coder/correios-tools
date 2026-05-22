@@ -21,6 +21,8 @@ import { ensureChartJs, renderCharts } from './charts.js';
 import { renderDistrictGrid } from './district-grid.js';
 import { buildSummaryCards } from './summary-cards.js';
 
+let globalListenersAdded = false;
+
 export async function renderDashboard(
   data: DistrictData[],
   store: LoecStore,
@@ -75,18 +77,18 @@ export async function renderDashboard(
     </div>
   </div>
   <div style="margin-top:24px">
-    <h4 style="margin:0 0 16px 0;font-size:16px;color:#334155">Detalhamento por Distrito (Clique para ver o relatório completo de entregas)</h4>
+    <h4 style="margin:0 0 16px 0;font-size:16px;color:#334155">Relatório por Distrito (Clique para ver detalhes)</h4>
     <div id="${LOEC_DOM_IDS.DISTRICT_GRID}" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px"></div>
   </div>
   <div style="margin-top:24px;background:#fff;padding:16px;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.1)">
-    <h4 style="margin:0 0 16px 0;font-size:14px;color:#334155">Ações Rápidas (Listar Objetos)</h4>
+    <h4 style="margin:0 0 16px 0;font-size:14px;color:#334155">Listar Pacotes</h4>
     <div style="display:flex;gap:12px;flex-wrap:wrap">
       <button id="${LOEC_DOM_IDS.ARCHIVE_BUTTON_TODAY}" style="flex:1;min-width:120px;padding:8px 16px;background:#f97316;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px">Vencem Hoje</button>
-      <button id="${LOEC_DOM_IDS.ARCHIVE_BUTTON_OVERDUE}" style="flex:1;min-width:120px;padding:8px 16px;background:#ef4444;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px">Vencidos</button>
-      <button id="${LOEC_DOM_IDS.ARCHIVE_BUTTON_DUE_SOON}" style="flex:1;min-width:120px;padding:8px 16px;background:#10b981;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px">A Vencer</button>
+      <button id="${LOEC_DOM_IDS.ARCHIVE_BUTTON_OVERDUE}" style="flex:1;min-width:120px;padding:8px 16px;background:#ef4444;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px">Atrasados</button>
+      <button id="${LOEC_DOM_IDS.ARCHIVE_BUTTON_DUE_SOON}" style="flex:1;min-width:120px;padding:8px 16px;background:#10b981;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px">No Prazo</button>
     </div>
     <div id="${LOEC_DOM_IDS.ARCHIVE_EXPORT}" style="margin-top:16px;display:none;border-top:1px solid #e2e8f0;padding-top:16px">
-      <h4 style="margin:0 0 12px 0;font-size:13px;color:#475569">Filtros e Exportação:</h4>
+      <h4 style="margin:0 0 12px 0;font-size:13px;color:#475569">Filtrar e Imprimir/Exportar:</h4>
       <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:16px">
         <select id="${LOEC_DOM_IDS.ARCHIVE_GRADE_FILTER}" style="flex:1;min-width:130px;padding:6px 12px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px"><option value="">Todas as Grades</option></select>
         <select id="${LOEC_DOM_IDS.ARCHIVE_SIDE_FILTER}" style="flex:1;min-width:130px;padding:6px 12px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px"><option value="">Todos os Lados</option></select>
@@ -104,14 +106,14 @@ export async function renderDashboard(
       </div>
       <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:16px;border-top:1px dashed #cbd5e1;padding-top:12px">
         <div style="flex:2;min-width:250px;position:relative" id="${LOEC_DOM_IDS.ARCHIVE_SRO_DROPDOWN_CONTAINER}">
-          <label style="display:block;font-size:11px;color:#64748b;font-weight:bold;margin-bottom:4px;text-transform:uppercase">Filtro SRO (Excluir Situações):</label>
+          <label style="display:block;font-size:11px;color:#64748b;font-weight:bold;margin-bottom:4px;text-transform:uppercase">Ocultar situações (SRO):</label>
           <div id="${LOEC_DOM_IDS.ARCHIVE_SRO_MULTI_SELECT}" style="padding:6px 12px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;background:#f8fafc;cursor:pointer;user-select:none;color:#475569;display:flex;justify-content:space-between;align-items:center">
             <span id="${LOEC_DOM_IDS.ARCHIVE_SRO_MULTI_SELECT_LABEL}">Carregando situações...</span><span style="font-size:10px">▼</span>
           </div>
           <div id="${LOEC_DOM_IDS.ARCHIVE_SRO_MULTI_LIST}" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #cbd5e1;box-shadow:0 4px 6px rgba(0,0,0,.1);border-radius:6px;z-index:99;max-height:200px;overflow-y:auto;margin-top:4px;padding:8px"></div>
         </div>
         <div style="flex:1;min-width:200px">
-          <label style="display:block;font-size:11px;color:#64748b;font-weight:bold;margin-bottom:4px;text-transform:uppercase">Ignorar Texto SRO (Regex simples / vírgula):</label>
+          <label style="display:block;font-size:11px;color:#64748b;font-weight:bold;margin-bottom:4px;text-transform:uppercase">Ignorar pacote se conter o texto (separe por vírgula):</label>
           <input type="text" id="${LOEC_DOM_IDS.ARCHIVE_SRO_IGNORE_TEXT}" placeholder="Ex: ausente, entregue" style="width:100%;padding:6px 12px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;outline:none;box-sizing:border-box">
         </div>
       </div>
@@ -219,7 +221,7 @@ export async function renderDashboard(
       store.archiveLastData = { cat: label, objs };
       exportEl.style.display = 'block';
       populateFilterDropdowns(store, getArchiveFilters());
-      refreshSroMasterFilters(store);
+      refreshSroMasterFilters(store, fetchProxy);
       await renderArqTable(store, fetchProxy);
 
       if ((window as any).lastArqFetchId !== currentFetchId) return;
@@ -238,21 +240,19 @@ export async function renderDashboard(
     .addEventListener('click', () => arqFetch('today', 'VENCEM HOJE'));
   document
     .getElementById(LOEC_DOM_IDS.ARCHIVE_BUTTON_OVERDUE)!
-    .addEventListener('click', () => arqFetch('overdue', 'VENCIDOS'));
+    .addEventListener('click', () => arqFetch('overdue', 'ATRASADOS'));
   document
     .getElementById(LOEC_DOM_IDS.ARCHIVE_BUTTON_DUE_SOON)!
-    .addEventListener('click', () => arqFetch('dueSoon', 'A VENCER'));
+    .addEventListener('click', () => arqFetch('dueSoon', 'NO PRAZO'));
 
   document
     .getElementById(LOEC_DOM_IDS.ARCHIVE_EXPORT_MODE)!
     .addEventListener('change', () => renderArqTable(store, fetchProxy));
 
-  (window as any).renderArqTable = renderArqTable;
-
   document
     .getElementById(LOEC_DOM_IDS.ARCHIVE_DIST_FILTER)!
     .addEventListener('change', () => {
-      refreshSroMasterFilters(store, true);
+      refreshSroMasterFilters(store, fetchProxy, true);
       renderArqTable(store, fetchProxy);
     });
   document
@@ -260,7 +260,7 @@ export async function renderDashboard(
     .addEventListener('change', () => {
       const filters = getArchiveFilters();
       populateFilterDropdowns(store, filters);
-      refreshSroMasterFilters(store, true);
+      refreshSroMasterFilters(store, fetchProxy, true);
       renderArqTable(store, fetchProxy);
     });
   document
@@ -268,7 +268,7 @@ export async function renderDashboard(
     .addEventListener('change', () => {
       const filters = getArchiveFilters();
       populateFilterDropdowns(store, filters);
-      refreshSroMasterFilters(store, true);
+      refreshSroMasterFilters(store, fetchProxy, true);
       renderArqTable(store, fetchProxy);
     });
   document
@@ -283,23 +283,30 @@ export async function renderDashboard(
       list.style.display = list.style.display === 'none' ? 'block' : 'none';
     });
 
-  window.addEventListener('loec-sro-filter-changed', () => {
-    renderArqTable(store, fetchProxy);
-  });
+  if (!globalListenersAdded) {
+    globalListenersAdded = true;
+    (window as any).renderArqTable = renderArqTable;
+    window.addEventListener('loec-sro-filter-changed', () => {
+      const proxy = (window as any)._cwFetchProxy || fetchProxy;
+      renderArqTable(store, proxy);
+    });
 
-  window.addEventListener(
-    'mousedown',
-    (e) => {
-      const c = document.getElementById(
-        LOEC_DOM_IDS.ARCHIVE_SRO_DROPDOWN_CONTAINER
-      );
-      if (c && !c.contains(e.target as Node)) {
-        const l = document.getElementById(LOEC_DOM_IDS.ARCHIVE_SRO_MULTI_LIST);
-        if (l) l.style.display = 'none';
-      }
-    },
-    { capture: true }
-  );
+    window.addEventListener(
+      'mousedown',
+      (e) => {
+        const c = document.getElementById(
+          LOEC_DOM_IDS.ARCHIVE_SRO_DROPDOWN_CONTAINER
+        );
+        if (c && !c.contains(e.target as Node)) {
+          const l = document.getElementById(
+            LOEC_DOM_IDS.ARCHIVE_SRO_MULTI_LIST
+          );
+          if (l) l.style.display = 'none';
+        }
+      },
+      { capture: true }
+    );
+  }
   document
     .getElementById(LOEC_DOM_IDS.ARCHIVE_BTN_RELOAD_SRO)!
     .addEventListener('click', async () => {

@@ -63,13 +63,6 @@ function startObserver(): void {
     const btn = document.getElementById(DOM_IDS.PRINT_NO_BUTTON);
     if (btn && btn.offsetParent !== null) {
       btn.click();
-      btn.dispatchEvent(
-        new MouseEvent('click', {
-          bubbles: true,
-          cancelable: true,
-          view: window
-        })
-      );
       clickOkButton();
     }
   });
@@ -92,13 +85,6 @@ export function triggerAutoClose(): void {
     const btn = document.getElementById(DOM_IDS.PRINT_NO_BUTTON);
     if (btn && btn.offsetParent !== null) {
       btn.click();
-      btn.dispatchEvent(
-        new MouseEvent('click', {
-          bubbles: true,
-          cancelable: true,
-          view: window
-        })
-      );
       clickOkButton();
     }
   } else {

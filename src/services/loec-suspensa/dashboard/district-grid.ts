@@ -30,12 +30,12 @@ export function renderDistrictGrid(
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
         <div style="font-size:24px;font-weight:900;color:#0f172a;line-height:1">${d.correios_numeroDistrito}</div>
         <div style="display:flex;gap:6px;background:#f8fafc;padding:4px 8px;border-radius:4px;border:1px solid #f1f5f9">
-          <span style="color:#ef4444;font-size:12px;font-weight:bold">V:${parseNumber(d.correios_qtdeVencido)}</span>
-          <span style="color:#f97316;font-size:12px;font-weight:bold">H:${parseNumber(d.correios_qtdeHoje)}</span>
-          <span style="color:#10b981;font-size:12px;font-weight:bold">A:${parseNumber(d.correios_qtdeAVencer)}</span>
+          <span style="color:#ef4444;font-size:12px;font-weight:bold">ATR:${parseNumber(d.correios_qtdeVencido)}</span>
+          <span style="color:#f97316;font-size:12px;font-weight:bold">HOJE:${parseNumber(d.correios_qtdeHoje)}</span>
+          <span style="color:#10b981;font-size:12px;font-weight:bold">NO PRAZO:${parseNumber(d.correios_qtdeAVencer)}</span>
         </div>
       </div>
-      <div style="font-size:13px;color:#333;font-weight:800;word-break:break-word;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden" title="${d.correios_nomeCarteiro ?? 'NÃO ATRIBUÍDO'}">${d.correios_nomeCarteiro ?? 'NÃO ATRIBUÍDO'}</div>`;
+      <div style="font-size:13px;color:#333;font-weight:800;word-break:break-word;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden" title="${d.correios_nomeCarteiro ?? 'CARTEIRO NÃO INFORMADO'}">${d.correios_nomeCarteiro ?? 'CARTEIRO NÃO INFORMADO'}</div>`;
 
     card.onclick = () => onCardClick(d);
     grid.appendChild(card);

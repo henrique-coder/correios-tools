@@ -60,12 +60,12 @@ export function openDistrictModal(
   modal.innerHTML = `<div style="background:#fff;width:95%;max-width:1100px;height:85vh;border-radius:10px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 25px 50px -12px rgba(0,0,0,.5)">
     <div style="background:#00416B;padding:16px 24px;display:flex;justify-content:space-between;align-items:center;border-bottom:4px solid #FFE600">
       <div style="color:#fff"><h2 style="margin:0;font-size:22px;font-weight:800;color:#fff">DISTRITO ${d.correios_numeroDistrito}</h2>
-      <div style="font-size:14px;color:#FFE600;font-weight:700;margin-top:4px;text-transform:uppercase">${d.correios_nomeCarteiro ?? 'SEM NOME'} &nbsp;|&nbsp; MATRÍCULA: ${d.correios_matriculaCarteiro ?? '--'}</div></div>
+      <div style="font-size:14px;color:#FFE600;font-weight:700;margin-top:4px;text-transform:uppercase">${d.correios_nomeCarteiro ?? 'CARTEIRO NÃO INFORMADO'} &nbsp;|&nbsp; MATRÍCULA: ${d.correios_matriculaCarteiro ?? '--'}</div></div>
       <button id="${MODAL_IDS.CLOSE}" style="background:transparent;border:none;color:#fff;font-size:28px;cursor:pointer;padding:0;line-height:1" onmouseover="this.style.color='#FFE600'" onmouseout="this.style.color='#fff'">×</button>
     </div>
     <div style="padding:16px 24px;background:#f8fafc;border-bottom:1px solid #e2e8f0;display:flex;gap:16px;align-items:center">
       <div style="display:flex;flex-direction:column;flex:1;max-width:300px">
-        <label style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;margin-bottom:4px">Data do Relatório SRO Monitor</label>
+        <label style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;margin-bottom:4px">Qual data deseja consultar?</label>
         <div style="display:flex;align-items:center;gap:8px">
           <button id="${MODAL_IDS.PREV}" style="background:#e2e8f0;border:1px solid #cbd5e1;color:#334155;border-radius:6px;width:34px;height:34px;cursor:pointer;font-weight:bold;font-size:16px;display:flex;align-items:center;justify-content:center">◄</button>
           <input type="date" id="${MODAL_IDS.DATE}" value="${defDate}" style="padding:0 12px;height:34px;border:1px solid #cbd5e1;border-radius:6px;font-family:inherit;font-size:14px;color:#334155;outline:none;flex:1">
@@ -73,7 +73,7 @@ export function openDistrictModal(
         </div>
       </div>
       <div style="flex:1;display:flex;justify-content:flex-end;align-items:center">
-        <button id="${MODAL_IDS.RELOAD}" style="background:#3b82f6;color:#fff;border:none;border-radius:6px;padding:0 20px;height:34px;font-weight:600;font-size:13px;cursor:pointer;min-width:180px;white-space:nowrap;transition:all 0.2s;display:flex;justify-content:center;align-items:center">↻ Atualizar Relatório</button>
+        <button id="${MODAL_IDS.RELOAD}" style="background:#3b82f6;color:#fff;border:none;border-radius:6px;padding:0 20px;height:34px;font-weight:600;font-size:13px;cursor:pointer;min-width:180px;white-space:nowrap;transition:all 0.2s;display:flex;justify-content:center;align-items:center">↻ Atualizar</button>
       </div>
     </div>
     <div id="${MODAL_IDS.BODY}" style="flex:1;overflow-y:auto;padding:24px;background:#f1f5f9"></div>
@@ -113,7 +113,7 @@ export function openDistrictModal(
       btnReload,
       reloadCooldown,
       (left) => `⏳ Aguarde ${left}s`,
-      '↻ Atualizar Relatório'
+      '↻ Atualizar'
     );
   };
 
@@ -153,7 +153,7 @@ async function fetchAndRender(
   fetchProxy: (url: string) => Promise<string>
 ): Promise<void> {
   body.innerHTML =
-    '<div style="text-align:center;padding:40px;color:#3b82f6;font-weight:700;font-size:16px">Acessando SRO Monitor e processando dados...</div>';
+    '<div style="text-align:center;padding:40px;color:#3b82f6;font-weight:700;font-size:16px">Buscando informações, aguarde...</div>';
 
   try {
     const url = `${SROMONITOR_ORIGIN}/app/analitico-unidade-se/index.php?data=${date}&unidade=${d.correios_codigoSro}&matricula=${d.correios_matriculaCarteiro}`;
@@ -166,7 +166,7 @@ async function fetchAndRender(
       (rows.length === 1 &&
         (rows[0] as HTMLElement).innerText.includes('Nenhum'))
     ) {
-      body.innerHTML = `<div style="text-align:center;padding:40px;color:#ef4444;font-weight:bold;font-size:16px">Nenhum registro em ${date.split('-').reverse().join('/')}.</div>`;
+      body.innerHTML = `<div style="text-align:center;padding:40px;color:#ef4444;font-weight:bold;font-size:16px">Nenhuma informação para o dia ${date.split('-').reverse().join('/')}.</div>`;
       return;
     }
 
@@ -193,7 +193,7 @@ async function fetchAndRender(
 
     renderModalBody(body, d, list, stats, date, store, fetchProxy);
   } catch (err: any) {
-    body.innerHTML = `<div style="text-align:center;padding:40px;color:#ef4444;font-weight:bold;font-size:16px">Falha ao consultar SRO Monitor.<br><br><span style="font-size:13px;color:#64748b;font-weight:normal">Motivo Técnico: ${err.message}</span></div>`;
+    body.innerHTML = `<div style="text-align:center;padding:40px;color:#ef4444;font-weight:bold;font-size:16px">Não conseguimos buscar as informações. Tente novamente mais tarde.</div>`;
   }
 }
 
@@ -229,16 +229,16 @@ function renderModalBody(
       <div style="flex:1;min-width:300px;display:flex;flex-direction:column;gap:12px;height:300px;overflow-y:auto;padding-right:10px">${statsHtml}</div>
     </div>
     <div id="${MODAL_IDS.PROGRESS}" style="background:#fff;padding:16px;border-radius:8px;border:1px solid #e2e8f0;margin-bottom:16px;font-weight:bold;color:#3b82f6;display:flex;align-items:center;gap:12px">
-      ⏳ Sincronizando com SRO Intranet: <span id="${MODAL_IDS.COUNT}">0</span> / ${list.length} objetos carregados...
+      ⏳ Procurando status atual: <span id="${MODAL_IDS.COUNT}">0</span> / ${list.length} pacotes carregados...
     </div>
     <div style="background:#fff;padding:16px;border-radius:8px;border:1px solid #e2e8f0;margin-bottom:16px">
       <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">
         <div style="flex:1;min-width:150px">
-          <span style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;display:block;margin-bottom:6px">Pesquisa de Objeto:</span>
+          <span style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;display:block;margin-bottom:6px">Pesquisar Pacote:</span>
           <input type="text" id="${MODAL_IDS.FILTER_OBJ}" placeholder="Ex: NX123456789BR..." style="width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:6px;font-family:inherit;outline:none">
         </div>
         <div style="flex:1;min-width:150px">
-          <span style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;display:block;margin-bottom:6px">Ordenação:</span>
+          <span style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;display:block;margin-bottom:6px">Organizar por:</span>
           <select id="${MODAL_IDS.SORT_BY}" style="width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:6px;font-family:inherit;outline:none;background:#fff">
             <option value="default">Padrão</option>
             <option value="motivo_asc">Motivo (A-Z)</option>
@@ -249,7 +249,7 @@ function renderModalBody(
       </div>
       <div style="margin-top:16px">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <span style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase">Filtro por Categorias:</span>
+          <span style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase">Quais tipos mostrar:</span>
           <div style="display:flex;gap:8px">
             <button id="${MODAL_IDS.CAT_ALL}" style="padding:6px 12px;font-size:11px;border-radius:4px;border:1px solid #cbd5e1;background:#f8fafc;cursor:pointer;font-weight:600;color:#334155;white-space:nowrap;min-width:max-content">Selecionar Tudo</button>
             <button id="${MODAL_IDS.CAT_NONE}" style="padding:6px 12px;font-size:11px;border-radius:4px;border:1px solid #cbd5e1;background:#f8fafc;cursor:pointer;font-weight:600;color:#334155;white-space:nowrap;min-width:max-content">Remover Seleção</button>
@@ -264,11 +264,11 @@ function renderModalBody(
       <table style="width:100%;border-collapse:collapse;font-size:12px;text-align:left">
         <thead style="background:#00416B;border-bottom:3px solid #FFE600;position:sticky;top:0;z-index:10">
           <tr>
-            <th style="padding:12px 20px;color:#fff;font-weight:800;text-transform:uppercase;width:150px">Objeto</th>
-            <th style="padding:12px 20px;color:#fff;font-weight:800;text-transform:uppercase">Motivo Registrado</th>
-            <th style="padding:12px 20px;color:#fff;font-weight:800;text-transform:uppercase;width:160px">Situação SRO Intranet</th>
+            <th style="padding:12px 20px;color:#fff;font-weight:800;text-transform:uppercase;width:150px">Pacote</th>
+            <th style="padding:12px 20px;color:#fff;font-weight:800;text-transform:uppercase">Aviso do Carteiro</th>
+            <th style="padding:12px 20px;color:#fff;font-weight:800;text-transform:uppercase;width:160px">Status Atual</th>
             <th style="padding:12px 20px;color:#fff;font-weight:800;text-transform:uppercase;width:140px">Data/Hora</th>
-            <th style="padding:12px 20px;color:#fff;font-weight:800;text-transform:uppercase;width:120px;text-align:center">Comprovante</th>
+            <th style="padding:12px 20px;color:#fff;font-weight:800;text-transform:uppercase;width:120px;text-align:center">Foto/Assinatura</th>
           </tr>
         </thead>
         <tbody id="${MODAL_IDS.TBODY}"></tbody>
@@ -317,7 +317,8 @@ function renderModalBody(
     if (!filteredList.length) {
       tbody.innerHTML = '';
       emptyMsg.style.display = 'block';
-      emptyMsg.innerText = 'Nenhum objeto corresponde aos filtros.';
+      emptyMsg.innerText =
+        'Nenhum pacote encontrado com os filtros selecionados.';
       return;
     }
 
@@ -363,14 +364,14 @@ function renderModalBody(
         if (progDiv) {
           progDiv.style.cssText +=
             'background:#f0fdf4;color:#15803d;border-color:#bbf7d0';
-          progDiv.innerHTML = `✅ Todos os ${filteredList.length} objetos visíveis carregados.`;
+          progDiv.innerHTML = `✅ ${filteredList.length} pacotes carregados.`;
         }
         resolve();
         return;
       }
 
       if (progDiv)
-        progDiv.innerHTML = `⏳ Sincronizando com SRO Intranet: <span id="${MODAL_IDS.COUNT}">0</span> / ${toFetch.length} novos objetos...`;
+        progDiv.innerHTML = `⏳ Procurando status atual: <span id="${MODAL_IDS.COUNT}">0</span> / ${toFetch.length} novos pacotes...`;
 
       batchFetchSroIntranet({
         fetchFn: fetchProxy,
@@ -407,7 +408,7 @@ function renderModalBody(
           if (store.modalRenderId === myRenderId && progDiv) {
             progDiv.style.cssText +=
               'background:#f0fdf4;color:#15803d;border-color:#bbf7d0';
-            progDiv.innerHTML = `✅ Todos os ${filteredList.length} objetos visíveis carregados.`;
+            progDiv.innerHTML = `✅ Todos os ${filteredList.length} pacotes exibidos carregados.`;
           }
           resolve();
         }

@@ -34,10 +34,15 @@ function patchXhr(): void {
   const originalSend = XMLHttpRequest.prototype.send;
 
   XMLHttpRequest.prototype.open = function (method: string, url: string | URL) {
-    (this as any)._cwUrl = url?.toString() ?? '';
-    if ((this as any)._cwUrl?.toLowerCase().includes('controller.php')) {
-      // It's a target URL
-    }
+    const u = url?.toString() ?? '';
+    (this as any)._cwUrl = u;
+
+    // Trigger hooks
+    const lowerUrl = u.toLowerCase();
+    triggers.forEach(({ fragment, cb }) => {
+      if (lowerUrl.includes(fragment)) cb();
+    });
+
     return originalOpen.apply(this, arguments as any);
   };
 
@@ -72,7 +77,6 @@ export function registerFetchInterceptor(handler: ResponseHandler): void {
 }
 
 const triggers: { fragment: string; cb: () => void }[] = [];
-let isTriggerPatched = false;
 
 export function registerXhrTrigger(
   urlFragment: string,
@@ -80,18 +84,11 @@ export function registerXhrTrigger(
 ): void {
   triggers.push({ fragment: urlFragment.toLowerCase(), cb: trigger });
 
-  if (!isTriggerPatched) {
-    const originalOpen = XMLHttpRequest.prototype.open;
-    XMLHttpRequest.prototype.open = function (
-      method: string,
-      url: string | URL
-    ) {
-      const u = url?.toString().toLowerCase() ?? '';
-      triggers.forEach(({ fragment, cb }) => {
-        if (u.includes(fragment)) cb();
-      });
-      return originalOpen.apply(this, arguments as any);
-    };
-    isTriggerPatched = true;
+  // Se o patch ainda não foi aplicado (ex: chamou trigger antes do interceptor),
+  // aplica agora. Os hooks do trigger já estão incluídos no patchXhr.
+  if (!isPatched) {
+    patchFetch();
+    patchXhr();
+    isPatched = true;
   }
 }

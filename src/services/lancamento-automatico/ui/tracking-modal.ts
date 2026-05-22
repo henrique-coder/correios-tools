@@ -81,7 +81,7 @@ export async function showTrackingOverlay(
   title.style.margin = '0';
   title.style.fontSize = '22px';
   title.style.color = '#1e293b';
-  title.innerText = '🚀 Rastreamento Avançado';
+  title.innerText = '🚀 Rastreamento do Pacote';
 
   titleContainer.appendChild(title);
 
@@ -164,7 +164,7 @@ export async function showTrackingOverlay(
     updatePreview(code.substring(0, 11), code.substring(11, 13));
 
     content.innerHTML =
-      '<div style="text-align:center; padding: 20px; color: #666;">Buscando histórico completo...</div>';
+      '<div style="text-align:center; padding: 20px; color: #666;">Procurando informações...</div>';
     try {
       const { events, detailsFailed } = await fetchDetailedTracking(
         code,
@@ -176,7 +176,7 @@ export async function showTrackingOverlay(
       );
       if (events.length === 0 || notFoundEvent) {
         content.innerHTML =
-          '<div style="text-align:center; padding: 20px; color: #d9534f;">Objeto não encontrado no sistema.</div>';
+          '<div style="text-align:center; padding: 20px; color: #d9534f;">Não encontramos este objeto.</div>';
       } else {
         content.innerHTML = '';
         if (detailsFailed > 0) {
@@ -188,7 +188,7 @@ export async function showTrackingOverlay(
           warn.style.color = '#8a6d3b';
           warn.style.marginBottom = '12px';
           warn.innerText =
-            'Alguns detalhes não puderam ser carregados. Tente atualizar.';
+            'Algumas informações não carregaram. Tente clicar em Atualizar.';
           content.appendChild(warn);
         }
         events.forEach((evt) => {
@@ -268,7 +268,7 @@ export async function showTrackingOverlay(
           row2.style.fontSize = '13px';
           row2.style.color = '#444';
           row2.style.marginBottom = '8px';
-          row2.innerHTML = `<span style="color: #666;">Local:</span> <span style="color: #333;">${evt.local}</span>`;
+          row2.innerHTML = `<span style="color: #666;">Onde está:</span> <span style="color: #333;">${evt.local}</span>`;
 
           card.appendChild(row1);
           card.appendChild(row2);
@@ -487,6 +487,6 @@ export async function showTrackingOverlay(
     triggerSearch(initialObjCode);
   } else {
     content.innerHTML =
-      '<div style="text-align:center; padding: 20px; color: #666;">Digite o código do objeto...</div>';
+      '<div style="text-align:center; padding: 20px; color: #666;">Digite o código do pacote...</div>';
   }
 }

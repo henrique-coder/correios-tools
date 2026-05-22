@@ -52,8 +52,11 @@ export function downloadTextFile(content: string, filename: string): void {
   link.href = URL.createObjectURL(blob);
   link.download = filename;
   document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+  try {
+    link.click();
+  } finally {
+    document.body.removeChild(link);
+  }
 }
 
 export function openTextInNewTab(content: string, revokeDelayMs = 30000): void {
