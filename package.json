@@ -1,7 +1,7 @@
 {
   "description": "Automação e produtividade para as telas de Lançamento Automático e LOEC Suspensa do SRO Web.",
   "type": "module",
-  "packageManager": "pnpm@11.9.0",
+  "packageManager": "pnpm@11.20.0",
   "scripts": {
     "lint": "prettier --check \".github/**\" \"src/**\" \"wxt.config.ts\" \"README.md\" \"blocklist.json\"",
     "format": "prettier --write \".github/**\" \"src/**\" \"wxt.config.ts\" \"README.md\" \"blocklist.json\"",
@@ -19,13 +19,13 @@
     "postinstall": "wxt prepare"
   },
   "dependencies": {
-    "vue": "^3.5.38"
+    "vue": "^3.5.41"
   },
   "devDependencies": {
     "@wxt-dev/module-vue": "^1.0.3",
-    "prettier": "^3.8.4",
-    "terser": "^5.48.0",
-    "typescript": "^6.0.3",
-    "wxt": "^0.20.27"
+    "prettier": "^3.9.6",
+    "terser": "^5.49.2",
+    "typescript": "^7.0.2",
+    "wxt": "^0.21.3"
   }
 }
